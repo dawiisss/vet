@@ -1,0 +1,328 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useConfig } from '../ConfigContext'
+
+interface TabBarTab {
+  id: string
+  label: string
+}
+
+interface TabBarProps {
+  tabs: TabBarTab[]
+  activeTabId: string | null
+  onSelect: (id: string) => void
+  onClose: (id: string) => void
+  onNew: (profileId?: string) => void
+  onDragStart?: (tabId: string) => void
+  onDragMove?: (x: number, y: number) => void
+  onDragEnd?: (tabId: string, x: number, y: number) => void
+}
+
+function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDragMove, onDragEnd }: TabBarProps) {
+  const { config } = useConfig()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const barRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{
+    tabId: string
+    startX: number
+    startY: number
+    dragging: boolean
+    ghost: HTMLDivElement
+  } | null>(null)
+
+  // Stable refs for callbacks so useEffect never re-runs during drag
+  const onDragStartRef = useRef(onDragStart)
+  const onDragMoveRef = useRef(onDragMove)
+  const onDragEndRef = useRef(onDragEnd)
+  onDragStartRef.current = onDragStart
+  onDragMoveRef.current = onDragMove
+  onDragEndRef.current = onDragEnd
+
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+
+  const handleTabMouseDown = useCallback(
+    (tabId: string) => (e: React.MouseEvent) => {
+      if (e.button !== 0) return
+      const target = e.target as HTMLElement
+      if (target.closest('[data-close]')) return
+
+      const ghost = document.createElement('div')
+      ghost.textContent = tabsRef.current.find((t) => t.id === tabId)?.label ?? 'shell'
+      ghost.style.cssText = `
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        padding: 4px 16px;
+        border: 1px solid #cba6f7;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: system-ui, sans-serif;
+        white-space: nowrap;
+        opacity: 0;
+      `
+      ghost.style.left = `${e.clientX + 10}px`
+      ghost.style.top = `${e.clientY + 10}px`
+      document.body.appendChild(ghost)
+
+      dragRef.current = {
+        tabId,
+        startX: e.clientX,
+        startY: e.clientY,
+        dragging: false,
+        ghost
+      }
+    },
+    []
+  )
+
+  // Stable effect — runs once on mount/unmount, uses refs for callbacks
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const drag = dragRef.current
+      if (!drag) return
+
+      if (!drag.dragging && (Math.abs(e.clientX - drag.startX) > 5 || Math.abs(e.clientY - drag.startY) > 5)) {
+        drag.dragging = true
+        drag.ghost.style.opacity = '0.85'
+        onDragStartRef.current?.(drag.tabId)
+      }
+
+      if (drag.dragging) {
+        drag.ghost.style.left = `${e.clientX + 10}px`
+        drag.ghost.style.top = `${e.clientY + 10}px`
+        onDragMoveRef.current?.(e.clientX, e.clientY)
+      }
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const drag = dragRef.current
+      if (!drag) return
+
+      drag.ghost.remove()
+
+      if (drag.dragging && onDragEndRef.current) {
+        onDragEndRef.current(drag.tabId, e.clientX, e.clientY)
+      }
+
+      setTimeout(() => {
+        dragRef.current = null
+      }, 0)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  return (
+    <div
+      ref={barRef}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        background: '#181825',
+        userSelect: 'none',
+        height: 36,
+        overflow: 'visible'
+      }}
+    >
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            className="tab-item"
+            data-tabid={tab.id}
+            onMouseDown={handleTabMouseDown(tab.id)}
+            onClick={(e) => {
+              // Don't select if we were dragging
+              if (!dragRef.current?.dragging) {
+                onSelect(tab.id)
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 12px',
+              height: '100%',
+              cursor: 'grab',
+              background: tab.id === activeTabId ? '#1e1e2e' : 'rgba(0,0,0,0.15)',
+              borderRight: '1px solid #313244',
+              borderTop: tab.id === activeTabId ? '2px solid #cba6f7' : '2px solid transparent',
+              color: tab.id === activeTabId ? '#cdd6f4' : '#6c7086',
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              transition: 'background 0.1s'
+            }}
+          >
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: 180
+              }}
+            >
+              {tab.label}
+            </span>
+            <span
+              className="tab-close-btn"
+              data-close
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose(tab.id)
+              }}
+              style={{
+                marginLeft: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+                color: tab.id === activeTabId ? '#a6adc8' : '#6c7086',
+                cursor: 'pointer'
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </span>
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          height: '100%',
+          borderLeft: '1px solid #313244',
+          position: 'relative',
+          flexShrink: 0
+        }}
+      >
+        <div
+          className="tab-new-btn"
+          onClick={() => onNew()}
+          title="New Tab (Default Shell)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 30,
+            height: '100%',
+            cursor: 'pointer',
+            color: '#6c7086',
+            fontSize: 18,
+            transition: 'color 0.2s'
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#cdd6f4' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6c7086' }}
+        >
+          +
+        </div>
+        <div
+          onClick={() => setIsDropdownOpen(prev => !prev)}
+          title="Choose Profile"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 18,
+            height: '100%',
+            cursor: 'pointer',
+            color: '#6c7086',
+            fontSize: 9,
+            transition: 'color 0.2s',
+            borderLeft: '1px solid rgba(49, 50, 68, 0.3)'
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#cdd6f4' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6c7086' }}
+        >
+          ▼
+        </div>
+
+        {isDropdownOpen && (
+          <>
+            <div
+              onClick={() => setIsDropdownOpen(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 999
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 36,
+                right: 0,
+                background: 'rgba(30, 30, 46, 0.95)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 8,
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                padding: '6px 0',
+                minWidth: 180,
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div style={{ padding: '6px 12px', fontSize: 10, color: '#6c7086', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                Launch Profile
+              </div>
+              {config.profiles?.map((profile) => (
+                <button
+                  key={profile.id}
+                  onClick={() => {
+                    onNew(profile.id)
+                    setIsDropdownOpen(false)
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#cdd6f4',
+                    padding: '8px 12px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontFamily: 'system-ui, sans-serif',
+                    transition: 'background 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2
+                  }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.08)'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+                  }}
+                >
+                  <span style={{ fontWeight: 500 }}>{profile.name}</span>
+                  <span style={{ fontSize: 9, color: '#6c7086', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {profile.shell} {profile.args?.join(' ')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default TabBar
+export type { TabBarTab }

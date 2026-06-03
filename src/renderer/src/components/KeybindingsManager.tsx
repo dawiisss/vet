@@ -1,0 +1,183 @@
+import React, { useState, useEffect } from 'react'
+import { useConfig } from '../ConfigContext'
+
+const AVAILABLE_ACTIONS = [
+  { id: 'tab:new', label: 'New Tab' },
+  { id: 'tab:close', label: 'Close Tab' },
+  { id: 'tab:next', label: 'Next Tab' },
+  { id: 'tab:prev', label: 'Previous Tab' },
+  { id: 'split:extract', label: 'Extract Split' },
+  { id: 'sidebar:toggle', label: 'Toggle Sidebar' }
+]
+
+export const KeybindingsManager: React.FC = () => {
+  const { config, updateConfig } = useConfig()
+  const [recordingAction, setRecordingAction] = useState<string | null>(null)
+
+  const currentKeybindings = config.keybindings || {}
+
+  // Invert the map: action -> shortcut
+  const actionToShortcut: Record<string, string> = {}
+  for (const [key, action] of Object.entries(currentKeybindings)) {
+    actionToShortcut[action] = key
+  }
+
+  useEffect(() => {
+    if (!recordingAction) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Normalize key
+      let key = e.key.toLowerCase()
+      if (key === 'control') key = 'ctrl'
+      if (key === 'escape') {
+        setRecordingAction(null)
+        return
+      }
+
+      // We only care if there is an actual key pressed besides modifiers
+      if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
+        return // Wait for next key
+      }
+
+      const parts = []
+      if (e.ctrlKey) parts.push('ctrl')
+      if (e.altKey) parts.push('alt')
+      if (e.shiftKey) parts.push('shift')
+      if (e.metaKey) parts.push('meta')
+      
+      parts.push(key)
+
+      const shortcut = parts.join('+')
+
+      // Update config
+      const newKeybindings = { ...currentKeybindings }
+      
+      // Remove any existing binding for this action
+      const oldShortcut = actionToShortcut[recordingAction]
+      if (oldShortcut) {
+        delete newKeybindings[oldShortcut]
+      }
+      
+      // Remove any existing action bound to this shortcut (override)
+      if (newKeybindings[shortcut] && newKeybindings[shortcut] !== recordingAction) {
+        // Maybe warn user? But auto-override is simple.
+      }
+      
+      newKeybindings[shortcut] = recordingAction
+      
+      updateConfig({ keybindings: newKeybindings })
+      setRecordingAction(null)
+    }
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, { capture: true })
+    }
+  }, [recordingAction, currentKeybindings, updateConfig, actionToShortcut])
+
+  const unbindAction = (actionId: string) => {
+    const shortcut = actionToShortcut[actionId]
+    if (shortcut) {
+      const newKeybindings = { ...currentKeybindings }
+      delete newKeybindings[shortcut]
+      updateConfig({ keybindings: newKeybindings })
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: 350, overflowY: 'auto', paddingRight: 8, position: 'relative' }}>
+      
+      {recordingAction && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(30, 30, 46, 0.9)',
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 8,
+          gap: 16
+        }}>
+          <h3 style={{ margin: 0, color: '#cdd6f4' }}>Recording Keybinding</h3>
+          <p style={{ margin: 0, color: '#bac2de', fontSize: 13 }}>
+            Press the new key combination for <strong>{AVAILABLE_ACTIONS.find(a => a.id === recordingAction)?.label}</strong>.
+          </p>
+          <p style={{ margin: 0, color: '#f38ba8', fontSize: 12 }}>Press ESC to cancel.</p>
+        </div>
+      )}
+
+      {AVAILABLE_ACTIONS.map(action => {
+        const shortcut = actionToShortcut[action.id]
+
+        return (
+          <div key={action.id} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: 8
+          }}>
+            <span style={{ color: '#cdd6f4', fontSize: 14 }}>{action.label}</span>
+            
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {shortcut ? (
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  padding: '4px 8px', 
+                  borderRadius: 4, 
+                  fontFamily: 'monospace',
+                  color: '#89b4fa',
+                  fontSize: 12,
+                  textTransform: 'uppercase'
+                }}>
+                  {shortcut.replace(/\+/g, ' + ')}
+                </div>
+              ) : (
+                <span style={{ color: '#6c7086', fontSize: 12, fontStyle: 'italic' }}>Unbound</span>
+              )}
+              
+              <button
+                onClick={() => setRecordingAction(action.id)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: 'none',
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  color: '#cdd6f4',
+                  cursor: 'pointer',
+                  fontSize: 12
+                }}
+              >
+                Record
+              </button>
+              
+              {shortcut && (
+                <button
+                  onClick={() => unbindAction(action.id)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f38ba8',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    padding: 4
+                  }}
+                  title="Unbind"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

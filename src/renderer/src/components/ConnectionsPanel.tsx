@@ -1,0 +1,94 @@
+import { useEffect, useState, useCallback } from 'react'
+
+export interface ConnectionInfo {
+  name: string
+  command: string
+  source: 'docker' | 'ssh_global' | 'ssh_app'
+}
+
+export default function ConnectionsPanel({ 
+  isActive,
+  onRunScript 
+}: { 
+  isActive: boolean
+  onRunScript: (cmd: string, cwd: string) => void
+}) {
+  const [sshHosts, setSshHosts] = useState<ConnectionInfo[]>([])
+  const [dockerContainers, setDockerContainers] = useState<ConnectionInfo[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchConnections = useCallback(async () => {
+    const api = (window as any).connectionsApi
+    if (!api) return
+    setLoading(true)
+    const [ssh, docker] = await Promise.all([
+      api.getSshHosts(),
+      api.getDockerContainers()
+    ])
+    setSshHosts(ssh)
+    setDockerContainers(docker)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (isActive) fetchConnections()
+  }, [isActive, fetchConnections])
+
+  const renderItem = (item: ConnectionInfo, icon: string, color: string) => (
+    <div key={`${item.source}-${item.name}`} style={{ marginBottom: 8 }}>
+      <button
+        onClick={() => onRunScript(item.command, '')}
+        title={item.command}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          background: '#313244',
+          border: '1px solid #45475a',
+          color: '#cdd6f4',
+          padding: '6px 10px',
+          borderRadius: 6,
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+      >
+        <span style={{ fontWeight: 'bold', color, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{icon}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
+            {item.name}
+          </span>
+        </span>
+        <span style={{ fontSize: 16, color: '#a6adc8' }}>▶</span>
+      </button>
+    </div>
+  )
+
+  return (
+    <div style={{ padding: 12, color: '#cdd6f4', fontSize: 13, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Connections</h3>
+        <button 
+          onClick={fetchConnections}
+          style={{ background: 'none', border: 'none', color: '#89b4fa', cursor: 'pointer', fontSize: 12 }}
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#6c7086', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>Docker Containers</div>
+          {dockerContainers.length === 0 && <div style={{ color: '#585b70', fontStyle: 'italic', fontSize: 12 }}>No running containers</div>}
+          {dockerContainers.map(d => renderItem(d, '🐳', '#89b4fa'))}
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, color: '#6c7086', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>SSH Hosts</div>
+          {sshHosts.length === 0 && <div style={{ color: '#585b70', fontStyle: 'italic', fontSize: 12 }}>No SSH hosts found</div>}
+          {sshHosts.map(s => renderItem(s, '🌐', '#a6e3a1'))}
+        </div>
+      </div>
+    </div>
+  )
+}
