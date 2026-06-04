@@ -17,6 +17,7 @@ interface PtyProcess {
 const terminals: Map<string, PtyProcess> = new Map()
 const forwardTargets: Map<string, (event: string, ...args: unknown[]) => void> = new Map()
 const terminalHistories: Map<string, string> = new Map()
+const terminalSshHosts: Map<string, string> = new Map()
 
 export function setForwardTarget(terminalId: string, target: (event: string, ...args: unknown[]) => void): void {
   forwardTargets.set(terminalId, target)
@@ -26,12 +27,27 @@ export function removeForwardTarget(terminalId: string): void {
   forwardTargets.delete(terminalId)
 }
 
-export function getHistory(id: string): string {
-  return terminalHistories.get(id) || ''
+export function getHistory(id: string): { data: string; oldestTimestamp: number } {
+  const config = getConfig()
+  if (config.historyLoggingEnabled === false) {
+    return { data: terminalHistories.get(id) || '', oldestTimestamp: Date.now() }
+  } else {
+    const chunks = historyDb.getScrollbackChunk(id, Date.now() + 100000)
+    if (!chunks || chunks.length === 0) {
+      return { data: '', oldestTimestamp: Date.now() }
+    }
+    return {
+      data: chunks.map(c => c.data).join(''),
+      oldestTimestamp: chunks[0].timestamp
+    }
+  }
 }
 
-export function createTerminal(options: { cwd?: string, profileId?: string }): string {
+export function createTerminal(options: { cwd?: string, profileId?: string, sshHostId?: string }): string {
   const id = uuidv4()
+  if (options.sshHostId) {
+    terminalSshHosts.set(id, options.sshHostId)
+  }
   const config = getConfig()
   
   let shell = process.env['SHELL'] || '/bin/bash'
@@ -39,7 +55,22 @@ export function createTerminal(options: { cwd?: string, profileId?: string }): s
   let env = { ...process.env } as Record<string, string>
   let cwd = options.cwd || process.cwd()
   
-  if (config.profiles && Array.isArray(config.profiles) && config.profiles.length > 0) {
+  if (options.sshHostId) {
+    const host = (config.sshHosts || []).find((h: any) => h.id === options.sshHostId)
+    if (host) {
+      shell = 'ssh'
+      args = []
+      if (host.port) args.push('-p', String(host.port))
+      if (host.authType === 'key' && host.privateKeyPath) {
+        let keyPath = host.privateKeyPath
+        if (keyPath.startsWith('~') && process.env.HOME) {
+          keyPath = keyPath.replace(/^~/, process.env.HOME)
+        }
+        args.push('-i', keyPath)
+      }
+      args.push(`${host.username}@${host.host}`)
+    }
+  } else if (config.profiles && Array.isArray(config.profiles) && config.profiles.length > 0) {
     const profile = config.profiles.find((p: any) => p.id === options.profileId) || config.profiles[0]
     if (profile) {
       if (profile.shell) shell = profile.shell
@@ -122,14 +153,53 @@ export function destroyTerminal(id: string): void {
     terminals.delete(id)
     forwardTargets.delete(id)
     terminalHistories.delete(id)
+    terminalSshHosts.delete(id)
   }
 }
 
-export async function getTerminalInfo(id: string): Promise<{ title: string; cwd: string }> {
+export async function getTerminalInfo(id: string): Promise<{ title: string; cwd: string; sshHostId?: string }> {
   const terminal = terminals.get(id)
-  if (!terminal) return { title: 'Terminal', cwd: '' }
+  const sshHostId = terminalSshHosts.get(id)
+  if (!terminal) return { title: 'Terminal', cwd: '', sshHostId }
 
   let cwd = ''
+  let dynamicSshTarget = ''
+  let finalProcName = path.basename(terminal.pty.process || 'shell')
+
+  try {
+    if (platform() === 'linux' || platform() === 'darwin') {
+      // Find foreground process group
+      const { stdout: tpgidOut } = await execAsync(`ps -o tpgid= -p ${terminal.pty.pid}`)
+      const tpgid = tpgidOut.trim()
+      if (tpgid && tpgid !== String(terminal.pty.pid)) {
+        const { stdout: pgrepOut } = await execAsync(`pgrep -g ${tpgid}`)
+        const pids = pgrepOut.trim().split('\n').filter(Boolean)
+        if (pids.length > 0) {
+          const { stdout: psOut } = await execAsync(`ps -o comm=,args= -p ${pids.join(',')}`)
+          const lines = psOut.trim().split('\n')
+          for (const line of lines) {
+            const cmd = line.trim()
+            if (!cmd) continue
+            const parts = cmd.split(/\s+/)
+            const comm = parts[0]
+            if (comm === 'ssh' || comm.endsWith('/ssh')) {
+              finalProcName = 'ssh'
+              const args = cmd.substring(comm.length).trim().split(/\s+/)
+              for (let i = args.length - 1; i >= 0; i--) {
+                if (!args[i].startsWith('-')) {
+                  dynamicSshTarget = args[i]
+                  break
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
   try {
     if (platform() === 'linux') {
       cwd = await fs.readlink(`/proc/${terminal.pty.pid}/cwd`)
@@ -149,7 +219,11 @@ export async function getTerminalInfo(id: string): Promise<{ title: string; cwd:
 
   const resolvedCwd = cwd || process.cwd()
   const folder = resolvedCwd ? (resolvedCwd === '/' ? '/' : path.basename(resolvedCwd)) : '?'
-  const procName = path.basename(terminal.pty.process || 'shell')
 
-  return { title: `${folder} : ${procName}`, cwd: resolvedCwd }
+  let effectiveSshHostId = sshHostId
+  if (!effectiveSshHostId && dynamicSshTarget) {
+    effectiveSshHostId = `auto-${dynamicSshTarget}`
+  }
+
+  return { title: `${folder} : ${finalProcName}`, cwd: resolvedCwd, sshHostId: effectiveSshHostId }
 }

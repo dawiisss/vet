@@ -40,8 +40,9 @@ export function initConnectionsManager() {
 
     if (config.sshHosts && Array.isArray(config.sshHosts)) {
       for (const h of config.sshHosts) {
-        if (h.name && h.command) {
-          hosts.push({ name: h.name, command: h.command, source: 'ssh_app' })
+        if (h.name && h.host && h.username) {
+          const command = `ssh ${h.port ? `-p ${h.port} ` : ''}${h.username}@${h.host}`
+          hosts.push({ id: h.id, name: h.name, command, source: 'ssh_app' })
         }
       }
     }

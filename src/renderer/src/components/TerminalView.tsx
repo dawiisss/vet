@@ -50,6 +50,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
   const fitAddonRef = useRef<FitAddon | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
   const { config } = useConfig()
+  const configRef = useRef(config)
+  configRef.current = config
+
+  const webglAddonRef = useRef<WebglAddon | null>(null)
 
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const isSearchOpenRef = useRef(isSearchOpen)
@@ -118,8 +122,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
           webglAddon.onContextLoss(() => {
             console.warn('WebGL context lost, disposing addon to fallback to canvas renderer')
             webglAddon.dispose()
+            webglAddonRef.current = null
           })
           term.loadAddon(webglAddon)
+          webglAddonRef.current = webglAddon
         } catch (e) {
           console.warn('WebGL addon failed to load, falling back to canvas', e)
         }
@@ -132,18 +138,32 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
 
       // Fetch history (mainly useful when detaching to a new window)
       let oldestTimestamp = Date.now()
-      api.getHistory(terminalId).then(history => {
-        if (history) {
-          term.write(history)
-          // We don't have exact timestamp of the oldest line from memory cache, 
-          // so we'll just use Date.now() and accept a slight overlap on first virtual scroll
-        }
-      }).catch(() => {})
-
       let isFetchingHistory = false
       let hasMoreHistory = true
+      let initialWriteDone = false
+
+      api.getHistory(terminalId).then((res: any) => {
+        let historyData = ''
+        if (typeof res === 'string') {
+          historyData = res
+        } else if (res && typeof res === 'object') {
+          historyData = res.data || ''
+          if (res.oldestTimestamp) oldestTimestamp = res.oldestTimestamp
+        }
+        
+        if (historyData) {
+          term.write(historyData, () => {
+            initialWriteDone = true
+          })
+        } else {
+          initialWriteDone = true
+        }
+      }).catch(() => {
+        initialWriteDone = true
+      })
 
       term.onScroll(async (scrollPos) => {
+        if (!initialWriteDone) return
         if (!config.virtualScrollbackEnabled || isFetchingHistory || !hasMoreHistory || scrollPos > 10) return
 
         isFetchingHistory = true
@@ -241,26 +261,45 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
     const handleFocusIn = () => onFocus?.()
     container.addEventListener('focusin', handleFocusIn)
 
-    // Shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSearchOpenRef.current) {
-        setIsSearchOpen(false)
-        e.preventDefault()
-        e.stopPropagation()
-      } else if (e.ctrlKey && e.key === 'f') {
-        setIsSearchOpen(true)
-        e.preventDefault()
-        e.stopPropagation()
-      } else if (e.ctrlKey && e.shiftKey && e.key === 'C') {
-        const sel = term.getSelection()
-        if (sel) {
-          navigator.clipboard.writeText(sel).catch(() => {})
-          e.preventDefault()
-          e.stopPropagation()
+    // Shortcuts via xterm attachCustomKeyEventHandler
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type === 'keydown') {
+        if (e.key === 'Escape' && isSearchOpenRef.current) {
+          setIsSearchOpen(false)
+          return false
+        }
+        
+        let key = e.key.toLowerCase()
+        if (key === 'control') key = 'ctrl'
+        if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) return true
+
+        const parts = []
+        if (e.ctrlKey) parts.push('ctrl')
+        if (e.altKey) parts.push('alt')
+        if (e.shiftKey) parts.push('shift')
+        if (e.metaKey) parts.push('meta')
+        parts.push(key)
+
+        const shortcut = parts.join('+')
+        const action = (configRef.current.keybindings || {})[shortcut]
+        
+        if (action === 'terminal:search') {
+          setIsSearchOpen(true)
+          return false
+        } else if (action === 'terminal:copy') {
+          const sel = term.getSelection()
+          if (sel) navigator.clipboard.writeText(sel).catch(() => {})
+          return false
+        } else if (action === 'terminal:paste') {
+          navigator.clipboard.readText().then(text => window.terminalApi?.write(terminalId, text)).catch(() => {})
+          return false
+        } else if (action && !action.startsWith('terminal:')) {
+          // Let it bubble up to window/document listeners for global actions like tab switching or splits
+          return true
         }
       }
-    }
-    container.addEventListener('keydown', handleKeyDown, true)
+      return true
+    })
 
     function doFit() {
       try {
@@ -276,7 +315,6 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
     return () => {
       resizeObserver.disconnect()
       container.removeEventListener('focusin', handleFocusIn)
-      container.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [terminalId])
 
@@ -293,12 +331,19 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
     }
   }, [isActive])
 
-  // Focus when isFocused becomes true or sidebar closes
+  // Focus when isFocused becomes true
   useEffect(() => {
-    if (isFocused && !config.sidebarOpen && terminalRef.current) {
+    if (isFocused && terminalRef.current) {
       terminalRef.current.focus()
     }
-  }, [isFocused, config.sidebarOpen])
+  }, [isFocused])
+
+  // Focus when sidebar closes
+  useEffect(() => {
+    if (!config.sidebarOpen && isFocused && terminalRef.current) {
+      terminalRef.current.focus()
+    }
+  }, [config.sidebarOpen])
 
   // Dynamically update terminal options when config changes
   useEffect(() => {
@@ -325,6 +370,18 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       term.options.cursorStyle = config.cursorStyle as any
       term.options.theme = themeObj
       term.options.scrollback = config.virtualScrollbackEnabled ? (config.virtualScrollbackBufferSize || 1000) : 100000
+
+      if (config.webglEnabled && !webglAddonRef.current) {
+        try {
+          const webglAddon = new WebglAddon()
+          webglAddon.onContextLoss(() => { webglAddon.dispose(); webglAddonRef.current = null })
+          term.loadAddon(webglAddon)
+          webglAddonRef.current = webglAddon
+        } catch(e) { console.warn('Failed to enable WebGL', e) }
+      } else if (!config.webglEnabled && webglAddonRef.current) {
+        webglAddonRef.current.dispose()
+        webglAddonRef.current = null
+      }
     }
   }, [config])
 

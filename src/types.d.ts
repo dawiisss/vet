@@ -30,6 +30,18 @@ interface Profile {
   env?: Record<string, string>
 }
 
+interface SshHost {
+  id: string
+  name: string
+  host: string
+  port: number
+  username: string
+  authType: 'password' | 'key' | 'agent'
+  password?: string
+  privateKeyPath?: string
+  passphrase?: string
+}
+
 interface Config {
   shell: string
   fontFamily: string
@@ -47,14 +59,15 @@ interface Config {
   keybindings: Record<string, string>
   sidebarPlacement?: 'left' | 'right'
   sidebarOpen?: boolean
+  webglEnabled?: boolean
   sshParseGlobal?: boolean
-  sshHosts?: Array<{ name: string; command: string }>
+  sshHosts?: SshHost[] | Array<{ name: string; command: string }>
   dockerDefaultShell?: string
   profiles?: Profile[]
 }
 
 interface TerminalApi {
-  create: (opts?: { cwd?: string; profileId?: string }) => Promise<{ id: string }>
+  create: (opts?: { cwd?: string; profileId?: string; sshHostId?: string }) => Promise<{ id: string }>
   enableForwarding: (id: string) => Promise<void>
   write: (id: string, data: string) => Promise<void>
   resize: (id: string, cols: number, rows: number) => Promise<void>
@@ -65,7 +78,7 @@ interface TerminalApi {
   onData: (callback: (id: string, data: string) => void) => () => void
   onExit: (callback: (id: string, exitCode: number) => void) => () => void
   onReattachTab: (callback: (terminalIds: string[]) => void) => () => void
-  getTerminalInfo: (id: string) => Promise<{ title: string; cwd: string }>
+  getTerminalInfo: (id: string) => Promise<{ title: string; cwd: string; sshHostId?: string }>
   saveSession: (state: any) => Promise<void>
   getSession: () => Promise<any>
 }
@@ -108,11 +121,19 @@ interface WorkspaceApi {
   readFileHead: (filePath: string) => Promise<string>
 }
 
+interface SftpApi {
+  setTempPassword: (sshHostId: string, password: string) => Promise<void>
+  listDir: (sshHostId: string, dirPath: string) => Promise<WorkspaceItem[]>
+  readFileHead: (sshHostId: string, filePath: string) => Promise<string>
+  getHomeDir: (sshHostId: string) => Promise<string>
+}
+
 interface Window {
   terminalApi: TerminalApi
   windowApi: WindowApi
   configApi: ConfigApi
   historyApi: HistoryApi
   workspaceApi: WorkspaceApi
+  sftpApi: SftpApi
   serializeAddons: Map<string, any>
 }

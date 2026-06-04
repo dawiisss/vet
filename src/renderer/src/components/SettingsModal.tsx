@@ -3,6 +3,7 @@ import { useConfig } from '../ConfigContext'
 import { builtinThemes } from '../themes'
 import { ThemeEditor } from './ThemeEditor'
 import { KeybindingsManager } from './KeybindingsManager'
+import { SshProfilesManager } from './SshProfilesManager'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -10,7 +11,7 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { config, updateConfig, openConfig } = useConfig()
-  const [activeTab, setActiveTab] = useState<'general' | 'themes' | 'keybindings' | 'profiles' | 'history'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history'>('general')
 
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -147,7 +148,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     >
       <div
         style={{
-          width: activeTab === 'profiles' ? 680 : 500,
+          width: activeTab === 'profiles' || activeTab === 'ssh-profiles' ? 680 : 500,
           transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           backgroundColor: 'rgba(30, 30, 46, 0.75)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -231,6 +232,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             }}
           >
             Profiles
+          </button>
+          <button
+            onClick={() => setActiveTab('ssh-profiles')}
+            style={{
+              flex: 1,
+              padding: '12px 0',
+              background: activeTab === 'ssh-profiles' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none',
+              color: activeTab === 'ssh-profiles' ? '#cdd6f4' : '#6c7086',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'ssh-profiles' ? 600 : 400
+            }}
+          >
+            SSH Profiles
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -399,6 +414,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 </div>
               </div>
 
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label style={{ fontSize: 13, color: '#bac2de' }}>Terminal Opacity ({config.opacity ?? 1})</label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={config.opacity ?? 1}
+                    onChange={(e) => updateConfig({ opacity: parseFloat(e.target.value) })}
+                    style={{ accentColor: '#cba6f7' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label style={{ fontSize: 13, color: '#bac2de' }}>Hardware Acceleration (WebGL)</label>
+                  <select
+                    value={config.webglEnabled !== false ? 'true' : 'false'}
+                    onChange={(e) => updateConfig({ webglEnabled: e.target.value === 'true' })}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                  >
+                    <option value="true" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Enabled</option>
+                    <option value="false" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Disabled (Canvas)</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{ marginTop: 16 }}>
                 <button
                   onClick={openConfig}
@@ -424,6 +465,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
           {activeTab === 'keybindings' && (
             <KeybindingsManager />
+          )}
+
+          {activeTab === 'ssh-profiles' && (
+            <SshProfilesManager />
           )}
 
           {activeTab === 'history' && (

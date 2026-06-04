@@ -246,11 +246,11 @@ function App() {
     }
   }, [])
 
-  const newTab = useCallback(async (profileId?: string) => {
+  const newTab = useCallback(async (profileId?: string, sshHostId?: string) => {
     const api = window.terminalApi
     if (!api) return
     try {
-      const { id } = await api.create({ profileId })
+      const { id } = await api.create({ profileId, sshHostId })
       const tabId = generateTabId()
       let label: string | undefined
       try {
@@ -299,6 +299,9 @@ function App() {
     try {
       const terminalIds = collectTerminalIds(tab.root)
       await api.detachTab(tabId, terminalIds)
+      
+      terminalIds.forEach(id => destroyTerminalCache(id))
+
       setTabs((prev) => {
         const next = prev.filter((t) => t.id !== tabId)
         if (tabId === activeTabId) {
@@ -680,45 +683,25 @@ function App() {
             }
             break
           }
+          case 'split:horizontal':
+            splitTab('horizontal')
+            break
+          case 'split:vertical':
+            splitTab('vertical')
+            break
+          case 'pane:focus-next':
+            navigateSplit(1)
+            break
+          case 'pane:focus-prev':
+            navigateSplit(-1)
+            break
+          case 'settings:toggle':
+            setIsSettingsOpen(prev => !prev)
+            break
+          case 'command-palette:toggle':
+            setIsCommandPaletteOpen(prev => !prev)
+            break
         }
-        return
-      }
-
-      // Hardcoded split tab commands (not yet mapped to actions)
-      if (e.ctrlKey && e.shiftKey && e.key === '\\') {
-        e.preventDefault()
-        e.stopPropagation()
-        splitTab('horizontal')
-        return
-      }
-      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'D') {
-        e.preventDefault()
-        e.stopPropagation()
-        splitTab('vertical')
-        return
-      }
-      if (e.altKey && e.key === 'ArrowRight') {
-        e.preventDefault()
-        e.stopPropagation()
-        navigateSplit(1)
-        return
-      }
-      if (e.altKey && e.key === 'ArrowLeft') {
-        e.preventDefault()
-        e.stopPropagation()
-        navigateSplit(-1)
-        return
-      }
-      if (e.altKey && e.key === 'ArrowDown') {
-        e.preventDefault()
-        e.stopPropagation()
-        navigateSplit(1)
-        return
-      }
-      if (e.altKey && e.key === 'ArrowUp') {
-        e.preventDefault()
-        e.stopPropagation()
-        navigateSplit(-1)
         return
       }
     }
@@ -861,6 +844,9 @@ function App() {
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
+        onRenameTab={(id, newLabel) => {
+          setTabs(prev => prev.map(t => t.id === id ? { ...t, label: newLabel } : t))
+        }}
       />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {config.sidebarOpen && config.sidebarPlacement === 'left' && (
@@ -870,6 +856,7 @@ function App() {
             onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
             activeTerminalId={activeTerminalId}
             onViewFile={(filePath) => setPreviewFilePath(filePath)}
+            onLaunchConnection={(id) => newTab(undefined, id)}
           />
         )}
         <div ref={terminalAreaRef} style={{ flex: 1, overflow: 'hidden', position: 'relative', borderTop: '1px solid #313244' }}>
@@ -956,6 +943,7 @@ function App() {
             onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
             activeTerminalId={activeTerminalId}
             onViewFile={(filePath) => setPreviewFilePath(filePath)}
+            onLaunchConnection={(id) => newTab(undefined, id)}
           />
         )}
       </div>
@@ -982,7 +970,7 @@ function App() {
           { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
           { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
           { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
-          { id: 'extract', label: 'View: Detach Tab to Window', onExecute: detachTab },
+          { id: 'extract', label: 'View: Detach Tab to Window', onExecute: () => { if (activeTabId) detachTab(activeTabId) } },
           ...Object.keys(builtinThemes).map(themeName => ({
             id: `theme-${themeName}`,
             label: `Theme: Set to ${themeName.replace('-', ' ')}`,
@@ -992,6 +980,11 @@ function App() {
             id: `launch-profile-${profile.id}`,
             label: `Profiles: Launch ${profile.name}`,
             onExecute: () => newTab(profile.id)
+          })),
+          ...(config.sshHosts || []).map(host => ({
+            id: `launch-ssh-${host.id}`,
+            label: `SSH: Connect to ${host.name} (${host.host})`,
+            onExecute: () => newTab(undefined, host.id)
           }))
         ]}
       />

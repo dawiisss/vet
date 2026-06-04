@@ -16,12 +16,22 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const filteredActions = actions.filter(action => 
     action.label.toLowerCase().includes(query.toLowerCase())
   )
 
   const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (listRef.current) {
+      const selectedEl = listRef.current.children[selectedIndex] as HTMLElement
+      if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+        selectedEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [selectedIndex])
 
   useEffect(() => {
     if (isOpen) {
@@ -122,7 +132,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
             width: '100%'
           }}
         />
-        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+        <div ref={listRef} className="no-scrollbar" style={{ maxHeight: 300, overflowY: 'auto' }}>
           {filteredActions.map((action, index) => (
             <div
               key={action.id}

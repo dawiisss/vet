@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 
 export interface ConnectionInfo {
+  id?: string
   name: string
   command: string
   source: 'docker' | 'ssh_global' | 'ssh_app'
@@ -8,10 +9,12 @@ export interface ConnectionInfo {
 
 export default function ConnectionsPanel({ 
   isActive,
-  onRunScript 
+  onRunScript,
+  onLaunchConnection
 }: { 
   isActive: boolean
   onRunScript: (cmd: string, cwd: string) => void
+  onLaunchConnection?: (id: string) => void
 }) {
   const [sshHosts, setSshHosts] = useState<ConnectionInfo[]>([])
   const [dockerContainers, setDockerContainers] = useState<ConnectionInfo[]>([])
@@ -37,7 +40,13 @@ export default function ConnectionsPanel({
   const renderItem = (item: ConnectionInfo, icon: string, color: string) => (
     <div key={`${item.source}-${item.name}`} style={{ marginBottom: 8 }}>
       <button
-        onClick={() => onRunScript(item.command, '')}
+        onClick={() => {
+          if (item.source === 'ssh_app' && item.id && onLaunchConnection) {
+            onLaunchConnection(item.id)
+          } else {
+            onRunScript(item.command, '')
+          }
+        }}
         title={item.command}
         style={{
           width: '100%',

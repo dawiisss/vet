@@ -15,13 +15,16 @@ export default function WorkspacePanel({
 }: {
   isActive: boolean
   activeTerminalId: string | null
-  onViewFile: (filePath: string) => void
+  onViewFile: (filePath: string, sshHostId?: string) => void
 }) {
   const { config } = useConfig()
   const [cwd, setCwd] = useState<string | null>(null)
+  const [sshHostId, setSshHostId] = useState<string | null>(null)
   const [items, setItems] = useState<WorkspaceItem[]>([])
   const [loading, setLoading] = useState(false)
   const [keyboardIndex, setKeyboardIndex] = useState(0)
+  const [authRequired, setAuthRequired] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
 
   const containerRef = useRef<HTMLDivElement>(null)
   const activeTerminalIdRef = useRef(activeTerminalId)
@@ -32,15 +35,29 @@ export default function WorkspacePanel({
     if (!isActive || !activeTerminalId) {
       setItems([])
       setCwd(null)
+      setSshHostId(null)
       return
     }
 
+    let isSubscribed = true
     const checkCwd = async () => {
       if (!activeTerminalIdRef.current) return
       try {
         const info = await window.terminalApi.getTerminalInfo(activeTerminalIdRef.current)
-        if (info.cwd && info.cwd !== cwd) {
-          setCwd(info.cwd)
+        if (!isSubscribed) return
+        
+        const fetchedSshHostId = info.sshHostId || null
+        if (fetchedSshHostId !== sshHostId) {
+          setSshHostId(fetchedSshHostId)
+          // Reset CWD when switching between remote/local or different hosts
+          setCwd(null)
+          return
+        }
+        
+        if (!info.sshHostId) {
+          if (info.cwd && info.cwd !== cwd) {
+            setCwd(info.cwd)
+          }
         }
       } catch (err) {
         console.error('Error fetching terminal info', err)
@@ -49,28 +66,48 @@ export default function WorkspacePanel({
 
     checkCwd()
     const intv = setInterval(checkCwd, 1500)
-    return () => clearInterval(intv)
-  }, [isActive, activeTerminalId, cwd])
+    return () => {
+      isSubscribed = false
+      clearInterval(intv)
+    }
+  }, [isActive, activeTerminalId, cwd, sshHostId])
 
   // Load files when CWD changes
   useEffect(() => {
+    if (sshHostId && !cwd) {
+      window.sftpApi.getHomeDir(sshHostId)
+        .then(home => setCwd(home || '/'))
+        .catch(() => setCwd('/'))
+      return
+    }
+
     if (!cwd) return
 
     const loadDir = async () => {
       setLoading(true)
+      setAuthRequired(false)
+      setItems([])
       try {
-        const res = await window.workspaceApi.listDir(cwd)
+        let res
+        if (sshHostId) {
+          res = await window.sftpApi.listDir(sshHostId, cwd)
+        } else {
+          res = await window.workspaceApi.listDir(cwd)
+        }
         setItems(res)
         setKeyboardIndex(0) // Reset keyboard selection to the top of list
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error loading directory files', err)
+        if (sshHostId && (err.message?.includes('All configured authentication methods failed') || err.message?.includes('Password required'))) {
+          setAuthRequired(true)
+        }
       } finally {
         setLoading(false)
       }
     }
 
     loadDir()
-  }, [cwd])
+  }, [cwd, sshHostId])
 
   // Focus container when tab changes or sidebar opens
   useEffect(() => {
@@ -197,7 +234,7 @@ export default function WorkspacePanel({
         }
       } else {
         const fullPath = cwd === '/' ? `/${target.name}` : `${cwd}/${target.name}`
-        onViewFile(fullPath)
+        onViewFile(fullPath, sshHostId || undefined)
       }
     }
   }
@@ -228,7 +265,11 @@ export default function WorkspacePanel({
           onClick={() => {
             if (cwd) {
               setLoading(true)
-              window.workspaceApi.listDir(cwd).then(setItems).finally(() => setLoading(false))
+              if (sshHostId) {
+                window.sftpApi.listDir(sshHostId, cwd).then(setItems).finally(() => setLoading(false))
+              } else {
+                window.workspaceApi.listDir(cwd).then(setItems).finally(() => setLoading(false))
+              }
             }
           }}
           style={{ background: 'none', border: 'none', color: '#89b4fa', cursor: 'pointer', fontSize: 12 }}
@@ -272,7 +313,47 @@ export default function WorkspacePanel({
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-            {cwd && cwd !== '/' && (
+            {authRequired ? (
+              <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(243, 139, 168, 0.1)', borderRadius: 6, margin: '12px 0' }}>
+                <div style={{ color: '#f38ba8', fontWeight: 'bold' }}>Authentication Required</div>
+                <div style={{ color: '#bac2de', fontSize: 12, marginBottom: 8 }}>Please enter the SSH password for this session:</div>
+                <input
+                  type="password"
+                  value={tempPassword}
+                  onChange={e => setTempPassword(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter' && sshHostId && tempPassword) {
+                      await window.sftpApi.setTempPassword(sshHostId, tempPassword)
+                      setTempPassword('')
+                      // Trigger a re-fetch of the home dir or root
+                      setCwd(null)
+                      setAuthRequired(false)
+                    }
+                  }}
+                  placeholder="Password..."
+                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 4, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                />
+                <button
+                  onClick={async () => {
+                    if (sshHostId && tempPassword) {
+                      await window.sftpApi.setTempPassword(sshHostId, tempPassword)
+                      setTempPassword('')
+                      setCwd(null)
+                      setAuthRequired(false)
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(137, 180, 250, 0.15)', border: '1px solid #89b4fa', padding: '6px', borderRadius: 4, color: '#89b4fa', cursor: 'pointer', fontSize: 12, fontWeight: 600
+                  }}
+                >
+                  Unlock Remote Workspace
+                </button>
+              </div>
+            ) : loading ? (
+              <div style={{ textAlign: 'center', padding: 20, color: '#6c7086' }}>Loading...</div>
+            ) : (
+              <>
+                {cwd && cwd !== '/' && (
               <div
                 onClick={handleGoUp}
                 onMouseEnter={() => setKeyboardIndex(0)}
@@ -309,8 +390,8 @@ export default function WorkspacePanel({
                   key={item.name}
                   draggable
                   onDragStart={(e) => handleDragStart(e, item.name)}
-                  onDoubleClick={() => item.isDirectory ? handleFolderDoubleClick(item.name) : onViewFile(cwd === '/' ? `/${item.name}` : `${cwd}/${item.name}`)}
-                  onClick={() => !item.isDirectory && onViewFile(cwd === '/' ? `/${item.name}` : `${cwd}/${item.name}`)}
+                  onDoubleClick={() => item.isDirectory ? handleFolderDoubleClick(item.name) : onViewFile(cwd === '/' ? `/${item.name}` : `${cwd}/${item.name}`, sshHostId || undefined)}
+                  onClick={() => !item.isDirectory && onViewFile(cwd === '/' ? `/${item.name}` : `${cwd}/${item.name}`, sshHostId || undefined)}
                   onContextMenu={(e) => handleContextMenu(e, item.name)}
                   onMouseEnter={() => setKeyboardIndex(navIdx)}
                   data-active={isSel}
@@ -346,6 +427,8 @@ export default function WorkspacePanel({
                 </div>
               )
             })}
+              </>
+            )}
           </div>
         </>
       )}
@@ -371,17 +454,19 @@ export default function WorkspacePanel({
             boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
             color: '#cdd6f4'
           }}>
-            <div
-              onClick={() => {
-                handleReveal(contextMenu.itemName)
-                setContextMenu(null)
-              }}
-              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, transition: 'background 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-            >
-              Reveal in File Manager
-            </div>
+            {!sshHostId && (
+              <div
+                onClick={() => {
+                  handleReveal(contextMenu.itemName)
+                  setContextMenu(null)
+                }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, transition: 'background 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Reveal in File Manager
+              </div>
+            )}
             <div
               onClick={() => {
                 handleCopyPath(contextMenu.itemName)

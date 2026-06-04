@@ -12,13 +12,15 @@ export default function Sidebar({
   onInjectSnippet,
   onViewSession,
   activeTerminalId,
-  onViewFile
+  onViewFile,
+  onLaunchConnection
 }: { 
   onRunScript: (cmd: string, cwd: string) => void
   onInjectSnippet: (snippet: string) => void
   onViewSession: (sessionId: string) => void
   activeTerminalId: string | null
   onViewFile: (filePath: string) => void
+  onLaunchConnection?: (id: string) => void
 }) {
   const [activeTab, setActiveTab] = useState(0)
 
@@ -93,7 +95,7 @@ export default function Sidebar({
           <SnippetLibraryPanel isActive={activeTab === 4} onInjectSnippet={onInjectSnippet} />
         </div>
         <div style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%' }}>
-          <ConnectionsPanel isActive={activeTab === 5} onRunScript={onRunScript} />
+          <ConnectionsPanel isActive={activeTab === 5} onRunScript={onRunScript} onLaunchConnection={onLaunchConnection} />
         </div>
         <div style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%' }}>
           <HistoryPanel isActive={activeTab === 6} onViewSession={onViewSession} />

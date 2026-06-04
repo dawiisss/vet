@@ -15,11 +15,15 @@ interface TabBarProps {
   onDragStart?: (tabId: string) => void
   onDragMove?: (x: number, y: number) => void
   onDragEnd?: (tabId: string, x: number, y: number) => void
+  onRenameTab?: (id: string, newLabel: string) => void
+  onDoubleClickTab?: (id: string) => void
 }
 
-function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDragMove, onDragEnd }: TabBarProps) {
+function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDragMove, onDragEnd, onRenameTab, onDoubleClickTab }: TabBarProps) {
   const { config } = useConfig()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [editingTabId, setEditingTabId] = useState<string | null>(null)
+  const [editingLabel, setEditingLabel] = useState<string>('')
   const barRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{
     tabId: string
@@ -138,6 +142,15 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
             className="tab-item"
             data-tabid={tab.id}
             onMouseDown={handleTabMouseDown(tab.id)}
+            onDoubleClick={(e) => {
+              if (e.target instanceof HTMLElement && e.target.closest('.tab-close-btn')) return
+              if (onDoubleClickTab) {
+                onDoubleClickTab(tab.id)
+              } else {
+                setEditingTabId(tab.id)
+                setEditingLabel(tab.label)
+              }
+            }}
             onClick={(e) => {
               // Don't select if we were dragging
               if (!dragRef.current?.dragging) {
@@ -168,7 +181,39 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                 maxWidth: 180
               }}
             >
-              {tab.label}
+              {editingTabId === tab.id ? (
+                <input
+                  type="text"
+                  value={editingLabel}
+                  onChange={(e) => setEditingLabel(e.target.value)}
+                  onBlur={() => {
+                    if (onRenameTab && editingLabel.trim()) onRenameTab(tab.id, editingLabel.trim())
+                    setEditingTabId(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (onRenameTab && editingLabel.trim()) onRenameTab(tab.id, editingLabel.trim())
+                      setEditingTabId(null)
+                    } else if (e.key === 'Escape') {
+                      setEditingTabId(null)
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid #cba6f7',
+                    color: '#cdd6f4',
+                    outline: 'none',
+                    borderRadius: 4,
+                    padding: '2px 4px',
+                    width: 120,
+                    fontSize: 13,
+                    fontFamily: 'inherit'
+                  }}
+                />
+              ) : (
+                tab.label
+              )}
             </span>
             <span
               className="tab-close-btn"

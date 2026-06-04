@@ -107,10 +107,11 @@ function registerIpcHandlers(): void {
   })
 
   // Terminal
-  ipcMain.handle('terminal:create', async (event, { cwd, profileId }: { cwd?: string, profileId?: string }) => {
+  ipcMain.handle('terminal:create', async (event, { cwd, profileId, sshHostId }: { cwd?: string, profileId?: string, sshHostId?: string }) => {
     const id = createTerminal({
       cwd: cwd || process.cwd(),
-      profileId
+      profileId,
+      sshHostId
     })
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win) {
@@ -239,6 +240,7 @@ import { initSysInfoManager } from './sysinfo'
 import { initPortsManager } from './ports'
 import { initWorkspaceManager } from './workspace'
 import { initConnectionsManager } from './connections'
+import { initSftpManager } from './sftp'
 import * as historyDb from './historyDb'
 
 app.whenReady().then(async () => {
@@ -258,6 +260,7 @@ app.whenReady().then(async () => {
   initPortsManager()
   initWorkspaceManager()
   initConnectionsManager()
+  initSftpManager()
   historyDb.initHistoryDb()
 
   loadWindow(mainWindow)

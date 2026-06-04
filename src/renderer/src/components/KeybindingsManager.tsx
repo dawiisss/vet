@@ -7,7 +7,16 @@ const AVAILABLE_ACTIONS = [
   { id: 'tab:next', label: 'Next Tab' },
   { id: 'tab:prev', label: 'Previous Tab' },
   { id: 'split:extract', label: 'Extract Split' },
-  { id: 'sidebar:toggle', label: 'Toggle Sidebar' }
+  { id: 'split:horizontal', label: 'Split Horizontal' },
+  { id: 'split:vertical', label: 'Split Vertical' },
+  { id: 'pane:focus-next', label: 'Focus Next Pane' },
+  { id: 'pane:focus-prev', label: 'Focus Previous Pane' },
+  { id: 'terminal:copy', label: 'Copy to Clipboard' },
+  { id: 'terminal:paste', label: 'Paste from Clipboard' },
+  { id: 'terminal:search', label: 'Find / Search' },
+  { id: 'sidebar:toggle', label: 'Toggle Sidebar' },
+  { id: 'settings:toggle', label: 'Open Settings' },
+  { id: 'command-palette:toggle', label: 'Open Command Palette' }
 ]
 
 export const KeybindingsManager: React.FC = () => {

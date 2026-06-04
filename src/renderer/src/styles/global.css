@@ -61,3 +61,11 @@ div:hover > .extract-btn {
   background: #313244;
   color: #cdd6f4;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

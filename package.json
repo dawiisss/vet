@@ -10,7 +10,38 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --forceExit",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage --forceExit"
+    "test:coverage": "jest --coverage --forceExit",
+    "dist:linux": "electron-vite build && electron-builder --linux",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.vet.app",
+    "productName": "Vet",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
@@ -26,6 +57,7 @@
     "chokidar": "^4.0.3",
     "json5": "^2.2.3",
     "node-pty": "^1.0.0",
+    "ssh2": "^1.17.0",
     "systeminformation": "^5.31.7",
     "uuid": "^13.0.0"
   },
@@ -38,8 +70,10 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ssh2": "^1.15.5",
     "@vitejs/plugin-react": "^4.4.0",
     "electron": "^42.3.2",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",

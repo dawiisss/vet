@@ -24,7 +24,7 @@ ipcRenderer.on('win:maximize-change', (_event, maximized: boolean) => {
 })
 
 const terminalApi: TerminalApi = {
-  create: (opts?: { cwd?: string; forward?: boolean; isRestore?: boolean; profileId?: string }) => ipcRenderer.invoke('terminal:create', opts || {}),
+  create: (opts?: { cwd?: string; forward?: boolean; isRestore?: boolean; profileId?: string; sshHostId?: string }) => ipcRenderer.invoke('terminal:create', opts || {}),
   enableForwarding: (id: string) => ipcRenderer.invoke('terminal:enable-forwarding', { id }),
   write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', { id, data }),
   resize: (id: string, cols: number, rows: number) =>
@@ -110,6 +110,19 @@ const connectionsApi = {
   getDockerContainers: () => ipcRenderer.invoke('connections:get-docker')
 }
 
+const unwrap = async (promise: Promise<any>) => {
+  const res = await promise
+  if (res && res.__ipcError) throw new Error(res.message)
+  return res
+}
+
+const sftpApi: SftpApi = {
+  setTempPassword: (sshHostId: string, password: string) => ipcRenderer.invoke('sftp:set-temp-password', sshHostId, password),
+  listDir: (sshHostId: string, dirPath: string) => unwrap(ipcRenderer.invoke('sftp:list-dir', sshHostId, dirPath)),
+  readFileHead: (sshHostId: string, filePath: string) => unwrap(ipcRenderer.invoke('sftp:read-file-head', sshHostId, filePath)),
+  getHomeDir: (sshHostId: string) => unwrap(ipcRenderer.invoke('sftp:get-home', sshHostId))
+}
+
 const historyApi: HistoryApi = {
   search: (query: string) => ipcRenderer.invoke('history:search', query),
   getSessions: () => ipcRenderer.invoke('history:get-sessions'),
@@ -127,3 +140,4 @@ contextBridge.exposeInMainWorld('portsApi', portsApi)
 contextBridge.exposeInMainWorld('workspaceApi', workspaceApi)
 contextBridge.exposeInMainWorld('connectionsApi', connectionsApi)
 contextBridge.exposeInMainWorld('historyApi', historyApi)
+contextBridge.exposeInMainWorld('sftpApi', sftpApi)

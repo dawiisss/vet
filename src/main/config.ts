@@ -35,6 +35,15 @@ const DEFAULT_CONFIG: any = {
     'ctrl+tab': 'tab:next',
     'ctrl+shift+tab': 'tab:prev',
     'ctrl+shift+e': 'split:extract',
+    'ctrl+shift+\\': 'split:horizontal',
+    'ctrl+shift+d': 'split:vertical',
+    'alt+arrowright': 'pane:focus-next',
+    'alt+arrowleft': 'pane:focus-prev',
+    'ctrl+shift+c': 'terminal:copy',
+    'ctrl+shift+v': 'terminal:paste',
+    'ctrl+f': 'terminal:search',
+    'ctrl+,': 'settings:toggle',
+    'ctrl+shift+p': 'command-palette:toggle',
   },
   profiles: [
     {
@@ -82,6 +91,17 @@ export function sanitizeConfig(conf: any): any {
     }
   }
   
+  if (!sanitized.sshHosts || !Array.isArray(sanitized.sshHosts)) {
+    sanitized.sshHosts = []
+  } else {
+    sanitized.sshHosts = sanitized.sshHosts.map((h: any, idx: number) => {
+      if (!h.id) {
+        h.id = `ssh-${Date.now()}-${idx}`
+      }
+      return h
+    })
+  }
+
   if (!sanitized.profiles || !Array.isArray(sanitized.profiles) || sanitized.profiles.length === 0) {
     sanitized.profiles = [ ...DEFAULT_CONFIG.profiles ]
   } else {
