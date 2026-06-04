@@ -6,8 +6,8 @@ import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { setupMockedApis, resetMockedApis } from '../__tests__/rendererHelpers'
-import { leafNode, splitNode } from '../renderer/src/splitTree'
-import SplitPane from '../renderer/src/components/SplitPane'
+import { leafNode, splitNode } from '../renderer/src/features/terminal/splitTree'
+import SplitPane from '../renderer/src/features/terminal/components/SplitPane'
 
 setupMockedApis()
 
@@ -36,6 +36,7 @@ jest.mock('@xterm/xterm', () => ({
     onScroll: jest.fn(),
     getSelection: jest.fn(() => ''),
     options: {},
+    attachCustomKeyEventHandler: jest.fn(),
   })),
 }))
 
@@ -58,7 +59,7 @@ jest.mock('@xterm/addon-image', () => ({
   ImageAddon: jest.fn().mockImplementation(() => ({ dispose: jest.fn() })),
 }))
 
-jest.mock('../renderer/src/ConfigContext', () => ({
+jest.mock('../renderer/src/features/settings/useConfigStore', () => ({
   useConfig: () => ({
     config: {
       fontFamily: 'monospace',

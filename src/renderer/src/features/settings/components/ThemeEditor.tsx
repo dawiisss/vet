@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useConfig } from '../ConfigContext'
-import { builtinThemes } from '../themes'
+import { useConfig } from '@/features/settings/useConfigStore'
+import { builtinThemes } from '@/themes'
 
 const ANSI_COLORS = [
   'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
@@ -69,13 +69,13 @@ export const ThemeEditor: React.FC = () => {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={() => { setEditingThemeId(null); setDraftTheme(null) }}
-              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 6, color: '#cdd6f4', cursor: 'pointer' }}
+              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 6, color: 'var(--app-fg)', cursor: 'pointer' }}
             >
               Cancel
             </button>
             <button
               onClick={saveTheme}
-              style={{ background: 'rgba(166, 227, 161, 0.15)', border: '1px solid #a6e3a1', padding: '6px 12px', borderRadius: 6, color: '#a6e3a1', cursor: 'pointer', fontWeight: 600 }}
+              style={{ background: 'color-mix(in srgb, var(--app-green) 15%, transparent)', border: '1px solid var(--app-green)', padding: '6px 12px', borderRadius: 6, color: 'var(--app-green)', cursor: 'pointer', fontWeight: 600 }}
             >
               Save Theme
             </button>
@@ -89,7 +89,7 @@ export const ThemeEditor: React.FC = () => {
               type="text"
               value={newThemeName}
               onChange={(e) => setNewThemeName(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
             />
           </div>
         )}
@@ -97,10 +97,10 @@ export const ThemeEditor: React.FC = () => {
         <div style={{ display: 'flex', gap: 16 }}>
           {/* Core colors */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <h4 style={{ margin: 0, fontSize: 13, color: '#a6adc8' }}>Core Colors</h4>
+            <h4 style={{ margin: 0, fontSize: 13, color: 'var(--app-fg-subtle)' }}>Core Colors</h4>
             {['background', 'foreground', 'cursor', 'selection'].map(key => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: '#cdd6f4', textTransform: 'capitalize' }}>{key}</span>
+                <span style={{ fontSize: 13, color: 'var(--app-fg)', textTransform: 'capitalize' }}>{key}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="color"
@@ -112,7 +112,7 @@ export const ThemeEditor: React.FC = () => {
                     type="text"
                     value={draftTheme[key]}
                     onChange={(e) => setDraftTheme({ ...draftTheme, [key]: e.target.value })}
-                    style={{ width: 70, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 6px', borderRadius: 4, color: '#cdd6f4', fontSize: 12, outline: 'none', fontFamily: 'monospace' }}
+                    style={{ width: 70, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 6px', borderRadius: 4, color: 'var(--app-fg)', fontSize: 12, outline: 'none', fontFamily: 'monospace' }}
                   />
                 </div>
               </div>
@@ -140,11 +140,11 @@ export const ThemeEditor: React.FC = () => {
         </div>
 
         <div>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: '#a6adc8' }}>ANSI Colors</h4>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--app-fg-subtle)' }}>ANSI Colors</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 16px' }}>
             {ANSI_COLORS.map(key => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: '#cdd6f4' }}>{key.replace('bright', 'Br.')}</span>
+                <span style={{ fontSize: 12, color: 'var(--app-fg)' }}>{key.replace('bright', 'Br.')}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <input
                     type="color"
@@ -156,7 +156,7 @@ export const ThemeEditor: React.FC = () => {
                     type="text"
                     value={draftTheme[key]}
                     onChange={(e) => setDraftTheme({ ...draftTheme, [key]: e.target.value })}
-                    style={{ width: 60, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: 4, color: '#cdd6f4', fontSize: 11, outline: 'none', fontFamily: 'monospace' }}
+                    style={{ width: 60, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: 4, color: 'var(--app-fg)', fontSize: 11, outline: 'none', fontFamily: 'monospace' }}
                   />
                 </div>
               </div>
@@ -172,11 +172,11 @@ export const ThemeEditor: React.FC = () => {
       <button
         onClick={startNewTheme}
         style={{
-          background: 'rgba(166, 227, 161, 0.15)',
-          border: '1px solid #a6e3a1',
+          background: 'color-mix(in srgb, var(--app-green) 15%, transparent)',
+          border: '1px solid var(--app-green)',
           padding: '8px 12px',
           borderRadius: 6,
-          color: '#a6e3a1',
+          color: 'var(--app-green)',
           cursor: 'pointer',
           fontSize: 12,
           fontWeight: 600,
@@ -200,10 +200,10 @@ export const ThemeEditor: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 16px',
-              background: isActive ? 'rgba(137, 180, 250, 0.15)' : 'rgba(0,0,0,0.2)',
-              border: `1px solid ${isActive ? '#89b4fa' : 'rgba(255,255,255,0.05)'}`,
+              background: isActive ? 'color-mix(in srgb, var(--app-blue) 15%, transparent)' : 'rgba(0,0,0,0.2)',
+              border: `1px solid ${isActive ? 'var(--app-blue)' : 'rgba(255,255,255,0.05)'}`,
               borderRadius: 8,
-              color: '#cdd6f4',
+              color: 'var(--app-fg)',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
@@ -225,13 +225,13 @@ export const ThemeEditor: React.FC = () => {
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); startEditTheme(themeName) }}
-                    style={{ background: 'transparent', border: 'none', color: '#89b4fa', cursor: 'pointer', padding: 4 }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--app-blue)', cursor: 'pointer', padding: 4 }}
                   >
                     ✎
                   </button>
                   <button
                     onClick={(e) => deleteTheme(themeName, e)}
-                    style={{ background: 'transparent', border: 'none', color: '#f38ba8', cursor: 'pointer', padding: 4 }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--app-red)', cursor: 'pointer', padding: 4 }}
                   >
                     🗑
                   </button>

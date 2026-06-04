@@ -6,7 +6,7 @@ import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { setupMockedApis, configApi, resetMockedApis } from '../__tests__/rendererHelpers'
-import Sidebar from '../renderer/src/components/Sidebar'
+import Sidebar from '../renderer/src/shared/components/Sidebar'
 
 setupMockedApis()
 

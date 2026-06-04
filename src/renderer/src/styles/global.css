@@ -12,7 +12,7 @@ html, body, #root {
 }
 
 .titlebar-btn:hover {
-  background: #313244 !important;
+  background: var(--app-border) !important;
 }
 
 .titlebar-close-btn:hover {
@@ -21,17 +21,17 @@ html, body, #root {
 }
 
 .tab-close-btn:hover {
-  background: #313244 !important;
-  color: #cdd6f4 !important;
+  background: var(--app-border) !important;
+  color: var(--app-fg) !important;
 }
 
 .tab-new-btn:hover {
-  background: #313244 !important;
-  color: #cdd6f4 !important;
+  background: var(--app-border) !important;
+  color: var(--app-fg) !important;
 }
 
 .split-handle:hover {
-  background: #cba6f7 !important;
+  background: var(--app-accent) !important;
 }
 
 .extract-btn {
@@ -42,8 +42,8 @@ html, body, #root {
   height: 28px;
   border-radius: 4px;
   border: none;
-  background: rgba(30, 30, 46, 0.8);
-  color: #6c7086;
+  background: color-mix(in srgb, var(--app-bg) 80%, transparent);
+  color: var(--app-fg-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -58,8 +58,8 @@ div:hover > .extract-btn {
 }
 
 .extract-btn:hover {
-  background: #313244;
-  color: #cdd6f4;
+  background: var(--app-border);
+  color: var(--app-fg);
 }
 
 .no-scrollbar::-webkit-scrollbar {

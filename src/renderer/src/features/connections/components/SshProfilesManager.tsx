@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useConfig } from '../ConfigContext'
+import { useConfig } from '@/features/settings/useConfigStore'
 
 export const SshProfilesManager: React.FC = () => {
   const { config, updateConfig } = useConfig()
@@ -107,11 +107,11 @@ export const SshProfilesManager: React.FC = () => {
         <button
           onClick={initNewHost}
           style={{
-            background: 'rgba(166, 227, 161, 0.15)',
-            border: '1px solid #a6e3a1',
+            background: 'color-mix(in srgb, var(--app-green) 15%, transparent)',
+            border: '1px solid var(--app-green)',
             padding: '8px 12px',
             borderRadius: 6,
-            color: '#a6e3a1',
+            color: 'var(--app-green)',
             cursor: 'pointer',
             fontSize: 12,
             fontWeight: 600,
@@ -147,7 +147,7 @@ export const SshProfilesManager: React.FC = () => {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#f38ba8',
+                    color: 'var(--app-red)',
                     cursor: 'pointer',
                     padding: 4,
                     fontSize: 12
@@ -170,7 +170,7 @@ export const SshProfilesManager: React.FC = () => {
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
             />
           </div>
         </div>
@@ -183,7 +183,7 @@ export const SshProfilesManager: React.FC = () => {
               value={editHost}
               onChange={(e) => setEditHost(e.target.value)}
               placeholder="e.g. 192.168.1.10"
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -192,7 +192,7 @@ export const SshProfilesManager: React.FC = () => {
               type="number"
               value={editPort}
               onChange={(e) => setEditPort(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
             />
           </div>
         </div>
@@ -203,7 +203,7 @@ export const SshProfilesManager: React.FC = () => {
             type="text"
             value={editUser}
             onChange={(e) => setEditUser(e.target.value)}
-            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
           />
         </div>
 
@@ -226,7 +226,7 @@ export const SshProfilesManager: React.FC = () => {
               type="password"
               value={editPassword}
               onChange={(e) => setEditPassword(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
             />
           </div>
         )}
@@ -240,7 +240,7 @@ export const SshProfilesManager: React.FC = () => {
                 value={editKeyPath}
                 onChange={(e) => setEditKeyPath(e.target.value)}
                 placeholder="~/.ssh/id_rsa"
-                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -249,7 +249,7 @@ export const SshProfilesManager: React.FC = () => {
                 type="password"
                 value={editPassphrase}
                 onChange={(e) => setEditPassphrase(e.target.value)}
-                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
               />
             </div>
           </>
@@ -259,11 +259,11 @@ export const SshProfilesManager: React.FC = () => {
           <button
             onClick={saveHost}
             style={{
-              background: 'rgba(137, 180, 250, 0.15)',
-              border: '1px solid #89b4fa',
+              background: 'color-mix(in srgb, var(--app-blue) 15%, transparent)',
+              border: '1px solid var(--app-blue)',
               padding: '8px 16px',
               borderRadius: 6,
-              color: '#89b4fa',
+              color: 'var(--app-blue)',
               cursor: 'pointer',
               fontSize: 12,
               fontWeight: 600

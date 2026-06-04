@@ -6,13 +6,11 @@ import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { setupMockedApis, configApi, resetMockedApis } from '../__tests__/rendererHelpers'
-import { ConfigProvider } from '../renderer/src/ConfigContext'
-import TabBar, { TabBarTab } from '../renderer/src/components/TabBar'
+import TabBar, { TabBarTab } from '../renderer/src/features/terminal/components/TabBar'
 
 setupMockedApis()
 
-jest.mock('../renderer/src/ConfigContext', () => ({
-  ...jest.requireActual('../renderer/src/ConfigContext'),
+jest.mock('../renderer/src/features/settings/useConfigStore', () => ({
   useConfig: () => ({
     config: {
       shell: '/bin/bash',

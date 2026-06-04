@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { useConfig } from '../ConfigContext'
-import { builtinThemes } from '../themes'
+import { useConfig } from '@/features/settings/useConfigStore'
+import { builtinThemes } from '@/themes'
 import { ThemeEditor } from './ThemeEditor'
 import { KeybindingsManager } from './KeybindingsManager'
-import { SshProfilesManager } from './SshProfilesManager'
+import { SshProfilesManager } from '@/features/connections/components/SshProfilesManager'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -150,14 +150,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         style={{
           width: activeTab === 'profiles' || activeTab === 'ssh-profiles' ? 680 : 500,
           transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-          backgroundColor: 'rgba(30, 30, 46, 0.75)',
+          backgroundColor: 'color-mix(in srgb, var(--app-bg) 75%, transparent)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: 12,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          color: '#cdd6f4'
+          color: 'var(--app-fg)'
         }}
       >
         <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -167,7 +167,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#a6adc8',
+              color: 'var(--app-fg-subtle)',
               cursor: 'pointer',
               fontSize: 20
             }}
@@ -184,7 +184,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'general' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'general' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'general' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'general' ? 600 : 400
             }}
@@ -198,7 +198,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'themes' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'themes' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'themes' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'themes' ? 600 : 400
             }}
@@ -212,7 +212,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'keybindings' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'keybindings' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'keybindings' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'keybindings' ? 600 : 400
             }}
@@ -226,7 +226,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'profiles' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'profiles' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'profiles' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'profiles' ? 600 : 400
             }}
@@ -240,7 +240,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'ssh-profiles' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'ssh-profiles' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'ssh-profiles' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'ssh-profiles' ? 600 : 400
             }}
@@ -254,7 +254,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               padding: '12px 0',
               background: activeTab === 'history' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              color: activeTab === 'history' ? '#cdd6f4' : '#6c7086',
+              color: activeTab === 'history' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               cursor: 'pointer',
               fontWeight: activeTab === 'history' ? 600 : 400
             }}
@@ -277,7 +277,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     border: '1px solid rgba(255,255,255,0.1)',
                     padding: '8px 12px',
                     borderRadius: 6,
-                    color: '#cdd6f4',
+                    color: 'var(--app-fg)',
                     outline: 'none'
                   }}
                 />
@@ -294,7 +294,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     border: '1px solid rgba(255,255,255,0.1)',
                     padding: '8px 12px',
                     borderRadius: 6,
-                    color: '#cdd6f4',
+                    color: 'var(--app-fg)',
                     outline: 'none'
                   }}
                 />
@@ -312,7 +312,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   />
@@ -327,13 +327,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   >
-                    <option value="block" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Block</option>
-                    <option value="underline" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Underline</option>
-                    <option value="bar" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Bar</option>
+                    <option value="block" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Block</option>
+                    <option value="underline" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Underline</option>
+                    <option value="bar" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Bar</option>
                   </select>
                 </div>
               </div>
@@ -349,12 +349,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   >
-                    <option value="open" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Open</option>
-                    <option value="closed" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Closed</option>
+                    <option value="open" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Open</option>
+                    <option value="closed" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Closed</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -367,12 +367,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   >
-                    <option value="right" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Right</option>
-                    <option value="left" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Left</option>
+                    <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
+                    <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
                   </select>
                 </div>
               </div>
@@ -388,12 +388,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   >
-                    <option value="true" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Enabled</option>
-                    <option value="false" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Disabled</option>
+                    <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
+                    <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -407,7 +407,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: '#cdd6f4',
+                      color: 'var(--app-fg)',
                       outline: 'none'
                     }}
                   />
@@ -424,7 +424,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     step="0.1"
                     value={config.opacity ?? 1}
                     onChange={(e) => updateConfig({ opacity: parseFloat(e.target.value) })}
-                    style={{ accentColor: '#cba6f7' }}
+                    style={{ accentColor: 'var(--app-accent)' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -432,10 +432,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.webglEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ webglEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                   >
-                    <option value="true" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Enabled</option>
-                    <option value="false" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Disabled (Canvas)</option>
+                    <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
+                    <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled (Canvas)</option>
                   </select>
                 </div>
               </div>
@@ -448,7 +448,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     border: 'none',
                     padding: '8px 16px',
                     borderRadius: 6,
-                    color: '#cdd6f4',
+                    color: 'var(--app-fg)',
                     cursor: 'pointer',
                     fontSize: 13
                   }}
@@ -479,10 +479,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.historyLoggingEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ historyLoggingEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                   >
-                    <option value="true" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Enabled</option>
-                    <option value="false" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Disabled</option>
+                    <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
+                    <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -491,7 +491,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="number"
                     value={config.historyDatabaseLimitMb || 500}
                     onChange={(e) => updateConfig({ historyDatabaseLimitMb: parseInt(e.target.value) || 500 })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                   />
                 </div>
               </div>
@@ -503,7 +503,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="number"
                     value={config.historyKeepDays || 30}
                     onChange={(e) => updateConfig({ historyKeepDays: parseInt(e.target.value) || 30 })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -511,10 +511,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.virtualScrollbackEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ virtualScrollbackEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                   >
-                    <option value="true" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Enabled</option>
-                    <option value="false" style={{ background: '#1e1e2e', color: '#cdd6f4' }}>Disabled</option>
+                    <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
+                    <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
                   </select>
                 </div>
               </div>
@@ -525,7 +525,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   type="number"
                   value={config.virtualScrollbackBufferSize || 1000}
                   onChange={(e) => updateConfig({ virtualScrollbackBufferSize: parseInt(e.target.value) || 1000 })}
-                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: '#cdd6f4', outline: 'none' }}
+                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
                 />
               </div>
 
@@ -543,10 +543,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   }}
                   style={{
                     background: 'rgba(243, 139, 168, 0.15)',
-                    border: '1px solid #f38ba8',
+                    border: '1px solid var(--app-red)',
                     padding: '8px 16px',
                     borderRadius: 6,
-                    color: '#f38ba8',
+                    color: 'var(--app-red)',
                     cursor: 'pointer',
                     fontSize: 13,
                     fontWeight: 600
@@ -573,11 +573,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 <button
                   onClick={initNewProfile}
                   style={{
-                    background: 'rgba(166, 227, 161, 0.15)',
-                    border: '1px solid #a6e3a1',
+                    background: 'color-mix(in srgb, var(--app-green) 15%, transparent)',
+                    border: '1px solid var(--app-green)',
                     padding: '8px 12px',
                     borderRadius: 6,
-                    color: '#a6e3a1',
+                    color: 'var(--app-green)',
                     cursor: 'pointer',
                     fontSize: 12,
                     fontWeight: 600,
@@ -614,7 +614,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              color: '#f38ba8',
+                              color: 'var(--app-red)',
                               cursor: 'pointer',
                               padding: 4,
                               fontSize: 12
@@ -638,7 +638,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
                   />
                 </div>
 
@@ -648,7 +648,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="text"
                     value={editShell}
                     onChange={(e) => setEditShell(e.target.value)}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
                   />
                 </div>
 
@@ -660,7 +660,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={editArgs}
                       onChange={(e) => setEditArgs(e.target.value)}
                       placeholder="e.g. -l -v"
-                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -670,7 +670,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={editCwd}
                       onChange={(e) => setEditCwd(e.target.value)}
                       placeholder="e.g. ~/Downloads"
-                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
                     />
                   </div>
                 </div>
@@ -681,7 +681,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     value={editEnv}
                     onChange={(e) => setEditEnv(e.target.value)}
                     placeholder="e.g.&#10;NODE_ENV=production&#10;MY_VAR=hello"
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: '#cdd6f4', fontSize: 13, outline: 'none', height: 80, resize: 'none', fontFamily: 'monospace' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', height: 80, resize: 'none', fontFamily: 'monospace' }}
                   />
                 </div>
 
@@ -689,11 +689,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <button
                     onClick={saveProfile}
                     style={{
-                      background: 'rgba(137, 180, 250, 0.15)',
-                      border: '1px solid #89b4fa',
+                      background: 'color-mix(in srgb, var(--app-blue) 15%, transparent)',
+                      border: '1px solid var(--app-blue)',
                       padding: '8px 16px',
                       borderRadius: 6,
-                      color: '#89b4fa',
+                      color: 'var(--app-blue)',
                       cursor: 'pointer',
                       fontSize: 12,
                       fontWeight: 600

@@ -77,13 +77,13 @@ export default function HistoryPanel({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', color: '#cdd6f4' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', color: 'var(--app-fg)' }}>
       <div style={{ padding: 12, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#bac2de' }}>Terminal History</span>
           <button 
             onClick={handleClear}
-            style={{ background: 'transparent', border: 'none', color: '#f38ba8', cursor: 'pointer', fontSize: 12 }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12 }}
             title="Clear all history"
           >
             Clear
@@ -100,7 +100,7 @@ export default function HistoryPanel({
             border: '1px solid rgba(255,255,255,0.1)',
             padding: '6px 8px',
             borderRadius: 4,
-            color: '#cdd6f4',
+            color: 'var(--app-fg)',
             outline: 'none',
             fontSize: 12,
             boxSizing: 'border-box'
@@ -110,9 +110,9 @@ export default function HistoryPanel({
       
       <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
         {isSearching ? (
-          <div style={{ textAlign: 'center', fontSize: 12, color: '#6c7086', marginTop: 20 }}>Searching...</div>
+          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--app-fg-muted)', marginTop: 20 }}>Searching...</div>
         ) : sessions.length === 0 ? (
-          <div style={{ textAlign: 'center', fontSize: 12, color: '#6c7086', marginTop: 20 }}>No history found.</div>
+          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--app-fg-muted)', marginTop: 20 }}>No history found.</div>
         ) : (
           sessions.map(session => (
             <div 
@@ -141,14 +141,14 @@ export default function HistoryPanel({
                 </div>
                 <button 
                   onClick={(e) => handleDelete(e, session.id)}
-                  style={{ background: 'transparent', border: 'none', color: '#6c7086', cursor: 'pointer', padding: 0 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--app-fg-muted)', cursor: 'pointer', padding: 0 }}
                   title="Delete session"
                 >
                   ×
                 </button>
               </div>
               
-              <div style={{ fontSize: 10, color: '#6c7086', marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: 'var(--app-fg-muted)', marginTop: 4 }}>
                 {new Date(session.created_at).toLocaleString()}
               </div>
 
@@ -157,7 +157,7 @@ export default function HistoryPanel({
                   style={{
                     marginTop: 6,
                     fontSize: 11,
-                    color: '#a6adc8',
+                    color: 'var(--app-fg-subtle)',
                     background: 'rgba(0,0,0,0.2)',
                     padding: 6,
                     borderRadius: 4,

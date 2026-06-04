@@ -21,9 +21,11 @@ const mockWindowInstance = {
 }
 
 let ipcHandleMock: jest.Mock
+let ipcOnMock: jest.Mock
 
 jest.mock('electron', () => {
   ipcHandleMock = jest.fn()
+  ipcOnMock = jest.fn()
   const BrowserWindow = jest.fn(() => mockWindowInstance)
   BrowserWindow.fromWebContents = jest.fn(() => mockWindowInstance)
   BrowserWindow.getAllWindows = jest.fn(() => [mockWindowInstance])
@@ -35,7 +37,7 @@ jest.mock('electron', () => {
       quit: jest.fn(),
     },
     BrowserWindow,
-    ipcMain: { handle: ipcHandleMock },
+    ipcMain: { handle: ipcHandleMock, on: ipcOnMock },
   }
 })
 
@@ -101,7 +103,9 @@ describe('main process index', () => {
     require('../main/index')
     await new Promise((resolve) => setImmediate(resolve))
 
-    const calls = ipcHandleMock.mock.calls.map((c: string[]) => c[0])
+    const handleCalls = ipcHandleMock.mock.calls.map((c: string[]) => c[0])
+    const onCalls = ipcOnMock.mock.calls.map((c: string[]) => c[0])
+    const calls = [...handleCalls, ...onCalls]
 
     // Window control
     expect(calls).toContain('win:minimize')

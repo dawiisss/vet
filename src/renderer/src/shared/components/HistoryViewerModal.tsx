@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
-import { useConfig } from '../ConfigContext'
-import { builtinThemes } from '../themes'
+import { useConfig } from '@/features/settings/useConfigStore'
+import { builtinThemes } from '@/themes'
 import '@xterm/xterm/css/xterm.css'
 
 interface HistoryViewerModalProps {
@@ -28,7 +28,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
 
     const themeObj = { ...baseThemeObj }
     if (themeObj.background && typeof config.opacity === 'number') {
-      themeObj.background = `rgba(30, 30, 46, 0.95)` // Enforce solid/opaque for modal
+      themeObj.background = `color-mix(in srgb, var(--app-bg) 95%, transparent)` // Enforce solid/opaque for modal
     }
 
     const term = new Terminal({
@@ -106,7 +106,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
         style={{
           width: '80%',
           height: '80%',
-          backgroundColor: '#1e1e2e',
+          backgroundColor: 'var(--app-bg)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: 12,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -122,9 +122,9 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'rgba(24, 24, 37, 0.5)'
+          background: 'color-mix(in srgb, var(--app-bg) 50%, transparent)'
         }}>
-          <h3 style={{ margin: 0, color: '#cdd6f4', fontSize: 16, fontWeight: 500 }}>
+          <h3 style={{ margin: 0, color: 'var(--app-fg)', fontSize: 16, fontWeight: 500 }}>
             Historical Session Viewer
           </h3>
           <div style={{ display: 'flex', gap: 12 }}>
@@ -136,7 +136,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
                 border: 'none',
                 padding: '4px 12px',
                 borderRadius: 4,
-                color: '#cdd6f4',
+                color: 'var(--app-fg)',
                 cursor: 'pointer',
                 fontSize: 12
               }}
@@ -148,7 +148,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#a6adc8',
+                color: 'var(--app-fg-subtle)',
                 cursor: 'pointer',
                 fontSize: 20,
                 lineHeight: 1

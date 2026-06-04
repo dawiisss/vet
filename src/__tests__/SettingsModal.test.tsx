@@ -4,8 +4,10 @@
 
 import '@testing-library/jest-dom'
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { setupMockedApis, resetMockedApis, configApi } from '../__tests__/rendererHelpers'
+import { useConfigStore } from '../renderer/src/features/settings/useConfigStore'
+import SettingsModal from '../renderer/src/features/settings/components/SettingsModal'
 
 setupMockedApis()
 
@@ -23,9 +25,6 @@ jest.mock('../renderer/src/themes', () => ({
     },
   },
 }))
-
-import { ConfigProvider } from '../renderer/src/ConfigContext'
-import SettingsModal from '../renderer/src/components/SettingsModal'
 
 describe('SettingsModal', () => {
   const onClose = jest.fn()
@@ -54,14 +53,14 @@ describe('SettingsModal', () => {
       virtualScrollbackEnabled: true,
       virtualScrollbackBufferSize: 1000,
     })
+
+    await act(async () => {
+      useConfigStore.getState().initialize()
+    })
   })
 
   it('renders the settings modal title', async () => {
-    render(
-      <ConfigProvider>
-        <SettingsModal onClose={onClose} />
-      </ConfigProvider>
-    )
+    render(<SettingsModal onClose={onClose} />)
 
     await waitFor(() => {
       expect(screen.getByText('Settings')).toBeInTheDocument()
@@ -69,11 +68,7 @@ describe('SettingsModal', () => {
   })
 
   it('renders tab buttons', async () => {
-    render(
-      <ConfigProvider>
-        <SettingsModal onClose={onClose} />
-      </ConfigProvider>
-    )
+    render(<SettingsModal onClose={onClose} />)
 
     await waitFor(() => {
       expect(screen.getByText('General')).toBeInTheDocument()
@@ -82,11 +77,7 @@ describe('SettingsModal', () => {
   })
 
   it('closes on close button click', async () => {
-    render(
-      <ConfigProvider>
-        <SettingsModal onClose={onClose} />
-      </ConfigProvider>
-    )
+    render(<SettingsModal onClose={onClose} />)
 
     await waitFor(() => {
       screen.getByText('Settings')

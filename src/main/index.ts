@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
 import {
@@ -106,6 +106,10 @@ function registerIpcHandlers(): void {
     return win?.isMaximized() ?? false
   })
 
+  ipcMain.handle('win:open-external', async (_event, url: string) => {
+    await shell.openExternal(url)
+  })
+
   // Terminal
   ipcMain.handle('terminal:create', async (event, { cwd, profileId, sshHostId }: { cwd?: string, profileId?: string, sshHostId?: string }) => {
     const id = createTerminal({
@@ -131,7 +135,7 @@ function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('terminal:write', async (_event, { id, data }: { id: string; data: string }) => {
+  ipcMain.on('terminal:write', (_event, { id, data }: { id: string; data: string }) => {
     writeToTerminal(id, data)
   })
 

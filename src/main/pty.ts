@@ -18,6 +18,8 @@ const terminals: Map<string, PtyProcess> = new Map()
 const forwardTargets: Map<string, (event: string, ...args: unknown[]) => void> = new Map()
 const terminalHistories: Map<string, string> = new Map()
 const terminalSshHosts: Map<string, string> = new Map()
+const outputBuffers: Map<string, string> = new Map()
+const outputTimeouts: Map<string, NodeJS.Timeout> = new Map()
 
 export function setForwardTarget(terminalId: string, target: (event: string, ...args: unknown[]) => void): void {
   forwardTargets.set(terminalId, target)
@@ -107,17 +109,42 @@ export function createTerminal(options: { cwd?: string, profileId?: string, sshH
   historyDb.startSession(id, `${path.basename(cwd)} : ${path.basename(shell)}`, connectionType, connectionTarget)
 
   pty.onData((data: string) => {
-    const history = terminalHistories.get(id) || ''
-    terminalHistories.set(id, (history + data).slice(-100000))
-    historyDb.logOutput(id, data)
-    
-    const target = forwardTargets.get(id)
-    if (target) {
-      target('terminal:data', { id, data })
+    outputBuffers.set(id, (outputBuffers.get(id) || '') + data)
+    if (!outputTimeouts.has(id)) {
+      outputTimeouts.set(id, setTimeout(() => {
+        const bufferedData = outputBuffers.get(id)
+        if (bufferedData) {
+          const history = terminalHistories.get(id) || ''
+          terminalHistories.set(id, (history + bufferedData).slice(-100000))
+          historyDb.logOutput(id, bufferedData)
+          
+          const target = forwardTargets.get(id)
+          if (target) {
+            target('terminal:data', { id, data: bufferedData })
+          }
+        }
+        outputBuffers.delete(id)
+        outputTimeouts.delete(id)
+      }, 10))
     }
   })
 
   pty.onExit(({ exitCode }: { exitCode: number }) => {
+    const timeout = outputTimeouts.get(id)
+    if (timeout) {
+      clearTimeout(timeout)
+      outputTimeouts.delete(id)
+    }
+    const bufferedData = outputBuffers.get(id)
+    if (bufferedData) {
+      const target = forwardTargets.get(id)
+      if (target) {
+        target('terminal:data', { id, data: bufferedData })
+      }
+      historyDb.logOutput(id, bufferedData)
+    }
+    outputBuffers.delete(id)
+
     const target = forwardTargets.get(id)
     if (target) {
       target('terminal:exit', { id, exitCode })
@@ -148,6 +175,13 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
 export function destroyTerminal(id: string): void {
   const terminal = terminals.get(id)
   if (terminal) {
+    const timeout = outputTimeouts.get(id)
+    if (timeout) {
+      clearTimeout(timeout)
+      outputTimeouts.delete(id)
+    }
+    outputBuffers.delete(id)
+
     terminal.pty.kill()
     historyDb.closeSession(id)
     terminals.delete(id)

@@ -30,7 +30,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
-    color: '#cdd6f4',
+    color: 'var(--app-fg)',
     fontFamily: 'system-ui, sans-serif',
     fontSize: 14,
     WebkitAppRegion: 'no-drag',
@@ -44,7 +44,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
         alignItems: 'center',
         justifyContent: 'space-between',
         height: 32,
-        background: '#11111b',
+        background: 'color-mix(in srgb, var(--app-bg) 75%, transparent)',
         userSelect: 'none',
         WebkitAppRegion: 'drag',
         flexShrink: 0
@@ -53,7 +53,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
       <div
         style={{
           paddingLeft: 12,
-          color: '#6c7086',
+          color: 'var(--app-fg-muted)',
           fontSize: 12,
           fontFamily: 'system-ui, sans-serif'
         }}
@@ -65,7 +65,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
           <button
             className="titlebar-btn"
             onClick={onOpenSettings}
-            style={{ ...btnStyle, color: '#a6adc8' }}
+            style={{ ...btnStyle, color: 'var(--app-fg-subtle)' }}
             title="Settings (Ctrl+,)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +91,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
           {maximized ? (
             <svg width="14" height="14" viewBox="0 0 14 14">
               <rect x="2" y="0" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="0" y="2" width="10" height="10" fill="#11111b" stroke="currentColor" strokeWidth="1.5" />
+              <rect x="0" y="2" width="10" height="10" fill="var(--app-bg, var(--app-modal-bg))" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           ) : (
             <svg width="14" height="14" viewBox="0 0 14 14">

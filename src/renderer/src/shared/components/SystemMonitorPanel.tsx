@@ -22,7 +22,7 @@ export default function SystemMonitorPanel({ isActive }: { isActive: boolean }) 
   }, [isActive])
 
   if (!data) {
-    return <div style={{ padding: 12, color: '#a6adc8', fontSize: 13 }}>Loading system metrics...</div>
+    return <div style={{ padding: 12, color: 'var(--app-fg-subtle)', fontSize: 13 }}>Loading system metrics...</div>
   }
 
   const cpuPct = data.cpu.toFixed(1)
@@ -31,14 +31,14 @@ export default function SystemMonitorPanel({ isActive }: { isActive: boolean }) 
   const memTotalGB = (data.mem.total / (1024 ** 3)).toFixed(2)
 
   return (
-    <div style={{ padding: 12, color: '#cdd6f4', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ padding: 12, color: 'var(--app-fg)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
           <span>CPU Usage</span>
           <span>{cpuPct}%</span>
         </div>
-        <div style={{ width: '100%', height: 8, background: '#313244', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ width: `${data.cpu}%`, height: '100%', background: '#89b4fa', transition: 'width 0.5s' }} />
+        <div style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ width: `${data.cpu}%`, height: '100%', background: 'var(--app-blue)', transition: 'width 0.5s' }} />
         </div>
       </div>
       <div>
@@ -46,8 +46,8 @@ export default function SystemMonitorPanel({ isActive }: { isActive: boolean }) 
           <span>RAM Usage</span>
           <span>{memPct}% ({memUsedGB}GB / {memTotalGB}GB)</span>
         </div>
-        <div style={{ width: '100%', height: 8, background: '#313244', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ width: `${memPct}%`, height: '100%', background: '#a6e3a1', transition: 'width 0.5s' }} />
+        <div style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ width: `${memPct}%`, height: '100%', background: 'var(--app-green)', transition: 'width 0.5s' }} />
         </div>
       </div>
     </div>

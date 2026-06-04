@@ -7,10 +7,11 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ImageAddon } from '@xterm/addon-image'
 import '@xterm/xterm/css/xterm.css'
-import { useConfig } from '../ConfigContext'
-import { builtinThemes } from '../themes'
-import SearchOverlay from './SearchOverlay'
-import ContextMenu, { ContextMenuAction } from './ContextMenu'
+import { useConfig } from '@/features/settings/useConfigStore'
+import { builtinThemes } from '@/themes'
+import SearchOverlay from '@/shared/components/SearchOverlay'
+import ContextMenu, { ContextMenuAction } from '@/shared/components/ContextMenu'
+import { registerDestroyTerminalCache } from '../useTabStore'
 
 interface TerminalViewProps {
   terminalId: string
@@ -29,6 +30,7 @@ interface TerminalCacheEntry {
   unsubData: () => void
   unsubExit: () => void
   onExit?: (terminalId: string) => void
+  webglAddon?: WebglAddon | null
 }
 
 const terminalCache = new Map<string, TerminalCacheEntry>()
@@ -39,10 +41,13 @@ export function destroyTerminalCache(terminalId: string) {
     entry.unsubData()
     entry.unsubExit()
     window.serializeAddons?.delete(terminalId)
+    if (entry.webglAddon) entry.webglAddon.dispose()
     entry.term.dispose()
     terminalCache.delete(terminalId)
   }
 }
+
+registerDestroyTerminalCache(destroyTerminalCache)
 
 function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtract, onContextMenuAction }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -81,10 +86,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       if (themeObj.background && typeof config.opacity === 'number') {
         const hex = themeObj.background.replace('#', '')
         if (hex.length === 6) {
-          const r = parseInt(hex.substring(0, 2), 16)
-          const g = parseInt(hex.substring(2, 4), 16)
-          const b = parseInt(hex.substring(4, 6), 16)
-          themeObj.background = `rgba(${r}, ${g}, ${b}, ${config.opacity})`
+          const alphaHex = Math.round(config.opacity * 255).toString(16).padStart(2, '0')
+          themeObj.background = `#${hex}${alphaHex}`
         }
       }
 
@@ -106,7 +109,9 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       term.loadAddon(fitAddon)
       term.loadAddon(serializeAddon)
       term.loadAddon(searchAddon)
-      term.loadAddon(new WebLinksAddon())
+      term.loadAddon(new WebLinksAddon((_event, uri) => {
+        window.windowApi?.openExternal?.(uri)
+      }))
       
       try {
         term.loadAddon(new ImageAddon())
@@ -123,6 +128,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
             console.warn('WebGL context lost, disposing addon to fallback to canvas renderer')
             webglAddon.dispose()
             webglAddonRef.current = null
+            const ent = terminalCache.get(terminalId)
+            if (ent) ent.webglAddon = null
           })
           term.loadAddon(webglAddon)
           webglAddonRef.current = webglAddon
@@ -228,7 +235,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
         searchAddon,
         unsubData,
         unsubExit,
-        onExit
+        onExit,
+        webglAddon: webglAddonRef.current
       }
       terminalCache.set(terminalId, entry)
     } else {
@@ -236,6 +244,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       term = entry.term
       fitAddon = entry.fitAddon
       searchAddon = entry.searchAddon
+      webglAddonRef.current = entry.webglAddon || null
       
       if (term.element) {
         container.appendChild(term.element)
@@ -281,6 +290,12 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
         parts.push(key)
 
         const shortcut = parts.join('+')
+
+        if (shortcut === 'ctrl+backspace') {
+          window.terminalApi?.write(terminalId, '\x17')
+          return false
+        }
+
         const action = (configRef.current.keybindings || {})[shortcut]
         
         if (action === 'terminal:search') {
@@ -357,10 +372,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       if (themeObj.background && typeof config.opacity === 'number') {
         const hex = themeObj.background.replace('#', '')
         if (hex.length === 6) {
-          const r = parseInt(hex.substring(0, 2), 16)
-          const g = parseInt(hex.substring(2, 4), 16)
-          const b = parseInt(hex.substring(4, 6), 16)
-          themeObj.background = `rgba(${r}, ${g}, ${b}, ${config.opacity})`
+          const alphaHex = Math.round(config.opacity * 255).toString(16).padStart(2, '0')
+          themeObj.background = `#${hex}${alphaHex}`
         }
       }
 
@@ -374,13 +387,22 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       if (config.webglEnabled && !webglAddonRef.current) {
         try {
           const webglAddon = new WebglAddon()
-          webglAddon.onContextLoss(() => { webglAddon.dispose(); webglAddonRef.current = null })
+          webglAddon.onContextLoss(() => { 
+            webglAddon.dispose(); 
+            webglAddonRef.current = null;
+            const entry = terminalCache.get(terminalId);
+            if (entry) entry.webglAddon = null;
+          })
           term.loadAddon(webglAddon)
           webglAddonRef.current = webglAddon
+          const entry = terminalCache.get(terminalId);
+          if (entry) entry.webglAddon = webglAddon;
         } catch(e) { console.warn('Failed to enable WebGL', e) }
       } else if (!config.webglEnabled && webglAddonRef.current) {
         webglAddonRef.current.dispose()
         webglAddonRef.current = null
+        const entry = terminalCache.get(terminalId);
+        if (entry) entry.webglAddon = null;
       }
     }
   }, [config])
@@ -465,7 +487,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
           display: 'block',
           width: '100%',
           height: '100%',
-          outline: isFocused ? '2px solid #cba6f7' : 'none',
+          outline: isFocused ? '2px solid var(--app-accent)' : 'none',
           outlineOffset: -2
         }}
       />

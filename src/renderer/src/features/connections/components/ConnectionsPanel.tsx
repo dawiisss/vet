@@ -51,9 +51,9 @@ export default function ConnectionsPanel({
         style={{
           width: '100%',
           textAlign: 'left',
-          background: '#313244',
+          background: 'var(--app-border)',
           border: '1px solid #45475a',
-          color: '#cdd6f4',
+          color: 'var(--app-fg)',
           padding: '6px 10px',
           borderRadius: 6,
           cursor: 'pointer',
@@ -68,18 +68,18 @@ export default function ConnectionsPanel({
             {item.name}
           </span>
         </span>
-        <span style={{ fontSize: 16, color: '#a6adc8' }}>▶</span>
+        <span style={{ fontSize: 16, color: 'var(--app-fg-subtle)' }}>▶</span>
       </button>
     </div>
   )
 
   return (
-    <div style={{ padding: 12, color: '#cdd6f4', fontSize: 13, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ padding: 12, color: 'var(--app-fg)', fontSize: 13, display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Connections</h3>
         <button 
           onClick={fetchConnections}
-          style={{ background: 'none', border: 'none', color: '#89b4fa', cursor: 'pointer', fontSize: 12 }}
+          style={{ background: 'none', border: 'none', color: 'var(--app-blue)', cursor: 'pointer', fontSize: 12 }}
         >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
@@ -87,15 +87,15 @@ export default function ConnectionsPanel({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: '#6c7086', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>Docker Containers</div>
+          <div style={{ fontSize: 11, color: 'var(--app-fg-muted)', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>Docker Containers</div>
           {dockerContainers.length === 0 && <div style={{ color: '#585b70', fontStyle: 'italic', fontSize: 12 }}>No running containers</div>}
-          {dockerContainers.map(d => renderItem(d, '🐳', '#89b4fa'))}
+          {dockerContainers.map(d => renderItem(d, '🐳', 'var(--app-blue)'))}
         </div>
 
         <div>
-          <div style={{ fontSize: 11, color: '#6c7086', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>SSH Hosts</div>
+          <div style={{ fontSize: 11, color: 'var(--app-fg-muted)', marginBottom: 8, textTransform: 'uppercase', fontWeight: 'bold' }}>SSH Hosts</div>
           {sshHosts.length === 0 && <div style={{ color: '#585b70', fontStyle: 'italic', fontSize: 12 }}>No SSH hosts found</div>}
-          {sshHosts.map(s => renderItem(s, '🌐', '#a6e3a1'))}
+          {sshHosts.map(s => renderItem(s, '🌐', 'var(--app-green)'))}
         </div>
       </div>
     </div>

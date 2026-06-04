@@ -26,7 +26,7 @@ ipcRenderer.on('win:maximize-change', (_event, maximized: boolean) => {
 const terminalApi: TerminalApi = {
   create: (opts?: { cwd?: string; forward?: boolean; isRestore?: boolean; profileId?: string; sshHostId?: string }) => ipcRenderer.invoke('terminal:create', opts || {}),
   enableForwarding: (id: string) => ipcRenderer.invoke('terminal:enable-forwarding', { id }),
-  write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', { id, data }),
+  write: (id: string, data: string) => ipcRenderer.send('terminal:write', { id, data }),
   resize: (id: string, cols: number, rows: number) =>
     ipcRenderer.invoke('terminal:resize', { id, cols, rows }),
   getHistory: (id: string) => ipcRenderer.invoke('terminal:get-history', { id }),
@@ -57,6 +57,7 @@ const windowApi: WindowApi = {
   maximize: () => ipcRenderer.invoke('win:maximize'),
   close: () => ipcRenderer.invoke('win:close'),
   isMaximized: () => ipcRenderer.invoke('win:is-maximized'),
+  openExternal: (url: string) => ipcRenderer.invoke('win:open-external', url),
   onMaximizeChange: (callback) => {
     maximizeHandlers.add(callback)
     return () => maximizeHandlers.delete(callback)

@@ -165,7 +165,7 @@ function SplitContainer({
                 width: direction === 'horizontal' ? 4 : '100%',
                 height: direction === 'vertical' ? 4 : '100%',
                 cursor: direction === 'horizontal' ? 'col-resize' : 'row-resize',
-                background: '#313244',
+                background: 'var(--app-border)',
                 flexShrink: 0,
                 zIndex: 1,
                 transition: 'background 0.15s'

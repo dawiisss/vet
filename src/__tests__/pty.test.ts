@@ -25,7 +25,11 @@ jest.mock('fs', () => ({
 }))
 
 jest.mock('child_process', () => ({
-  exec: jest.fn(),
+  exec: jest.fn((_cmd, cb) => {
+    if (typeof cb === 'function') {
+      cb(null, { stdout: '', stderr: '' })
+    }
+  }),
 }))
 
 jest.mock('os', () => ({
@@ -35,6 +39,7 @@ jest.mock('os', () => ({
 jest.mock('../main/config', () => ({
   getConfig: jest.fn(() => ({
     shell: '/bin/bash',
+    historyLoggingEnabled: false,
     profiles: [
       { id: 'default', name: 'Default', shell: '/bin/bash', args: [] },
       { id: 'ssh-profile', name: 'SSH', shell: 'ssh', args: ['user@host'] },
@@ -46,6 +51,7 @@ jest.mock('../main/historyDb', () => ({
   startSession: jest.fn(),
   closeSession: jest.fn(),
   logOutput: jest.fn(),
+  getScrollbackChunk: jest.fn(() => []),
 }))
 
 import { spawn } from 'node-pty'
@@ -64,16 +70,22 @@ describe('pty', () => {
   let terminalId: string
 
   beforeEach(() => {
+    jest.useFakeTimers()
     jest.clearAllMocks()
     const config = require('../main/config')
     config.getConfig.mockReturnValue({
       shell: '/bin/bash',
+      historyLoggingEnabled: false,
       profiles: [
         { id: 'default', name: 'Default', shell: '/bin/bash', args: [] },
         { id: 'ssh-profile', name: 'SSH', shell: 'ssh', args: ['user@host'] },
       ],
     })
     terminalId = createTerminal({})
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   describe('createTerminal', () => {
@@ -119,7 +131,8 @@ describe('pty', () => {
       const onDataCallback = mockPty.onData.mock.calls[0][0]
       
       onDataCallback('test data')
-      expect(getHistory(terminalId)).toContain('test data')
+      jest.advanceTimersByTime(15)
+      expect(getHistory(terminalId).data).toContain('test data')
     })
 
     it('registers onData handler that calls forward target', () => {
@@ -130,6 +143,7 @@ describe('pty', () => {
       const onDataCallback = mockPty.onData.mock.calls[0][0]
       
       onDataCallback('fwd data')
+      jest.advanceTimersByTime(15)
       expect(forwardFn).toHaveBeenCalledWith('terminal:data', expect.objectContaining({ id: terminalId, data: 'fwd data' }))
     })
 
@@ -139,8 +153,9 @@ describe('pty', () => {
       
       const bigData = 'x'.repeat(150000)
       onDataCallback(bigData)
+      jest.advanceTimersByTime(15)
       const history = getHistory(terminalId)
-      expect(history.length).toBeLessThanOrEqual(100000)
+      expect(history.data.length).toBeLessThanOrEqual(100000)
     })
   })
 

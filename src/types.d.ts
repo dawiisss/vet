@@ -88,6 +88,7 @@ interface WindowApi {
   maximize: () => Promise<void>
   close: () => Promise<void>
   isMaximized: () => Promise<boolean>
+  openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void
 }
 

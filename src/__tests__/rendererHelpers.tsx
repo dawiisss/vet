@@ -27,6 +27,7 @@ const windowApi = {
   maximize: jest.fn(() => Promise.resolve()),
   close: jest.fn(() => Promise.resolve()),
   isMaximized: jest.fn(() => Promise.resolve(false)),
+  openExternal: jest.fn(() => Promise.resolve()),
   onMaximizeChange: jest.fn(() => jest.fn()),
 }
 

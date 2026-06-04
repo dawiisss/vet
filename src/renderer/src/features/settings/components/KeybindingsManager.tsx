@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useConfig } from '../ConfigContext'
+import { useConfig } from '@/features/settings/useConfigStore'
 
 const AVAILABLE_ACTIONS = [
   { id: 'tab:new', label: 'New Tab' },
@@ -103,7 +103,7 @@ export const KeybindingsManager: React.FC = () => {
         <div style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(30, 30, 46, 0.9)',
+          background: 'color-mix(in srgb, var(--app-bg) 90%, transparent)',
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
@@ -112,11 +112,11 @@ export const KeybindingsManager: React.FC = () => {
           borderRadius: 8,
           gap: 16
         }}>
-          <h3 style={{ margin: 0, color: '#cdd6f4' }}>Recording Keybinding</h3>
+          <h3 style={{ margin: 0, color: 'var(--app-fg)' }}>Recording Keybinding</h3>
           <p style={{ margin: 0, color: '#bac2de', fontSize: 13 }}>
             Press the new key combination for <strong>{AVAILABLE_ACTIONS.find(a => a.id === recordingAction)?.label}</strong>.
           </p>
-          <p style={{ margin: 0, color: '#f38ba8', fontSize: 12 }}>Press ESC to cancel.</p>
+          <p style={{ margin: 0, color: 'var(--app-red)', fontSize: 12 }}>Press ESC to cancel.</p>
         </div>
       )}
 
@@ -133,7 +133,7 @@ export const KeybindingsManager: React.FC = () => {
             border: '1px solid rgba(255,255,255,0.05)',
             borderRadius: 8
           }}>
-            <span style={{ color: '#cdd6f4', fontSize: 14 }}>{action.label}</span>
+            <span style={{ color: 'var(--app-fg)', fontSize: 14 }}>{action.label}</span>
             
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {shortcut ? (
@@ -142,14 +142,14 @@ export const KeybindingsManager: React.FC = () => {
                   padding: '4px 8px', 
                   borderRadius: 4, 
                   fontFamily: 'monospace',
-                  color: '#89b4fa',
+                  color: 'var(--app-blue)',
                   fontSize: 12,
                   textTransform: 'uppercase'
                 }}>
                   {shortcut.replace(/\+/g, ' + ')}
                 </div>
               ) : (
-                <span style={{ color: '#6c7086', fontSize: 12, fontStyle: 'italic' }}>Unbound</span>
+                <span style={{ color: 'var(--app-fg-muted)', fontSize: 12, fontStyle: 'italic' }}>Unbound</span>
               )}
               
               <button
@@ -159,7 +159,7 @@ export const KeybindingsManager: React.FC = () => {
                   border: 'none',
                   padding: '4px 8px',
                   borderRadius: 4,
-                  color: '#cdd6f4',
+                  color: 'var(--app-fg)',
                   cursor: 'pointer',
                   fontSize: 12
                 }}
@@ -173,7 +173,7 @@ export const KeybindingsManager: React.FC = () => {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#f38ba8',
+                    color: 'var(--app-red)',
                     cursor: 'pointer',
                     fontSize: 12,
                     padding: 4

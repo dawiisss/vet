@@ -136,25 +136,39 @@ function flushBuffer() {
       INSERT INTO session_search (session_id, text) VALUES (?, ?)
     `)
 
-    // We can group chunks by session to reduce FTS5 inserts, but for now just insert linearly
-    // To optimize, let's group by session
+    db.exec('BEGIN TRANSACTION;')
+
     const sessionTextMap = new Map<string, string>()
 
     for (const chunk of chunks) {
-      insertChunk.run(chunk.sessionId, chunk.timestamp, chunk.data)
-      
-      const plainText = chunk.data.replace(ANSI_REGEX, '')
-      if (plainText.trim()) {
-        const existing = sessionTextMap.get(chunk.sessionId) || ''
-        sessionTextMap.set(chunk.sessionId, existing + plainText)
+      try {
+        insertChunk.run(chunk.sessionId, chunk.timestamp, chunk.data)
+        
+        const plainText = chunk.data.replace(ANSI_REGEX, '')
+        if (plainText.trim()) {
+          const existing = sessionTextMap.get(chunk.sessionId) || ''
+          sessionTextMap.set(chunk.sessionId, existing + plainText)
+        }
+      } catch (err: any) {
+        // If the session was deleted (e.g. user cleared history), silently ignore the orphaned logs.
+        if (err?.code !== 'ERR_SQLITE_ERROR' || !err?.errstr?.includes('constraint failed')) {
+          console.warn('Failed to insert chunk:', err)
+        }
       }
     }
 
     for (const [sessionId, text] of sessionTextMap.entries()) {
-      insertSearch.run(sessionId, text)
+      try {
+        insertSearch.run(sessionId, text)
+      } catch (e) {
+        // Ignore orphaned full-text search entries too
+      }
     }
 
+    db.exec('COMMIT;')
+
   } catch (err) {
+    try { db?.exec('ROLLBACK;') } catch (e) {} // Attempt rollback if possible
     console.error('DB Flush Error:', err)
   }
 }

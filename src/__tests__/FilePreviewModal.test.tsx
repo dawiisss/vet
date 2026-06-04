@@ -6,13 +6,11 @@ import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { setupMockedApis, workspaceApi, resetMockedApis, configApi } from '../__tests__/rendererHelpers'
-import { ConfigProvider } from '../renderer/src/ConfigContext'
-import FilePreviewModal from '../renderer/src/components/FilePreviewModal'
+import FilePreviewModal from '../renderer/src/features/workspace/components/FilePreviewModal'
 
 setupMockedApis()
 
-jest.mock('../renderer/src/ConfigContext', () => ({
-  ...jest.requireActual('../renderer/src/ConfigContext'),
+jest.mock('../renderer/src/features/settings/useConfigStore', () => ({
   useConfig: () => ({
     config: {
       shell: '/bin/bash',

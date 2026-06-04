@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useConfig } from '../ConfigContext'
+import { useConfig } from '@/features/settings/useConfigStore'
 
 interface WorkspaceItem {
   name: string
@@ -251,7 +251,7 @@ export default function WorkspacePanel({
       style={{
         outline: 'none',
         padding: 12,
-        color: '#cdd6f4',
+        color: 'var(--app-fg)',
         fontSize: 13,
         display: 'flex',
         flexDirection: 'column',
@@ -272,14 +272,14 @@ export default function WorkspacePanel({
               }
             }
           }}
-          style={{ background: 'none', border: 'none', color: '#89b4fa', cursor: 'pointer', fontSize: 12 }}
+          style={{ background: 'none', border: 'none', color: 'var(--app-blue)', cursor: 'pointer', fontSize: 12 }}
         >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       {!activeTerminalId ? (
-        <div style={{ color: '#6c7086', fontStyle: 'italic' }}>Open a terminal tab to view files</div>
+        <div style={{ color: 'var(--app-fg-muted)', fontStyle: 'italic' }}>Open a terminal tab to view files</div>
       ) : (
         <>
           {/* CWD Path display */}
@@ -296,7 +296,7 @@ export default function WorkspacePanel({
             border: '1px solid rgba(255, 255, 255, 0.05)',
             overflow: 'hidden'
           }}>
-            <span style={{ color: '#89b4fa', flexShrink: 0 }}>cwd:</span>
+            <span style={{ color: 'var(--app-blue)', flexShrink: 0 }}>cwd:</span>
             <span
               style={{
                 textOverflow: 'ellipsis',
@@ -315,7 +315,7 @@ export default function WorkspacePanel({
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {authRequired ? (
               <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(243, 139, 168, 0.1)', borderRadius: 6, margin: '12px 0' }}>
-                <div style={{ color: '#f38ba8', fontWeight: 'bold' }}>Authentication Required</div>
+                <div style={{ color: 'var(--app-red)', fontWeight: 'bold' }}>Authentication Required</div>
                 <div style={{ color: '#bac2de', fontSize: 12, marginBottom: 8 }}>Please enter the SSH password for this session:</div>
                 <input
                   type="password"
@@ -331,7 +331,7 @@ export default function WorkspacePanel({
                     }
                   }}
                   placeholder="Password..."
-                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 4, color: '#cdd6f4', fontSize: 13, outline: 'none' }}
+                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 4, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
                 />
                 <button
                   onClick={async () => {
@@ -343,14 +343,14 @@ export default function WorkspacePanel({
                     }
                   }}
                   style={{
-                    background: 'rgba(137, 180, 250, 0.15)', border: '1px solid #89b4fa', padding: '6px', borderRadius: 4, color: '#89b4fa', cursor: 'pointer', fontSize: 12, fontWeight: 600
+                    background: 'color-mix(in srgb, var(--app-blue) 15%, transparent)', border: '1px solid var(--app-blue)', padding: '6px', borderRadius: 4, color: 'var(--app-blue)', cursor: 'pointer', fontSize: 12, fontWeight: 600
                   }}
                 >
                   Unlock Remote Workspace
                 </button>
               </div>
             ) : loading ? (
-              <div style={{ textAlign: 'center', padding: 20, color: '#6c7086' }}>Loading...</div>
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--app-fg-muted)' }}>Loading...</div>
             ) : (
               <>
                 {cwd && cwd !== '/' && (
@@ -365,10 +365,10 @@ export default function WorkspacePanel({
                   cursor: 'pointer',
                   borderRadius: 4,
                   transition: 'background 0.2s',
-                  color: '#f9e2af',
+                  color: 'var(--app-yellow)',
                   fontWeight: 600,
-                  background: keyboardIndex === 0 ? 'rgba(137, 180, 250, 0.2)' : 'transparent',
-                  borderLeft: keyboardIndex === 0 ? '2px solid #89b4fa' : '2px solid transparent'
+                  background: keyboardIndex === 0 ? 'color-mix(in srgb, var(--app-blue) 20%, transparent)' : 'transparent',
+                  borderLeft: keyboardIndex === 0 ? '2px solid var(--app-blue)' : '2px solid transparent'
                 }}
               >
                 <span style={{ marginRight: 8 }}>📁</span>
@@ -377,7 +377,7 @@ export default function WorkspacePanel({
             )}
 
             {items.length === 0 && !loading && (
-              <div style={{ color: '#6c7086', padding: '10px 8px', fontStyle: 'italic' }}>
+              <div style={{ color: 'var(--app-fg-muted)', padding: '10px 8px', fontStyle: 'italic' }}>
                 Empty directory
               </div>
             )}
@@ -404,8 +404,8 @@ export default function WorkspacePanel({
                     borderRadius: 4,
                     transition: 'background 0.2s',
                     userSelect: 'none',
-                    background: isSel ? 'rgba(137, 180, 250, 0.2)' : 'transparent',
-                    borderLeft: isSel ? '2px solid #89b4fa' : '2px solid transparent'
+                    background: isSel ? 'color-mix(in srgb, var(--app-blue) 20%, transparent)' : 'transparent',
+                    borderLeft: isSel ? '2px solid var(--app-blue)' : '2px solid transparent'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
@@ -414,13 +414,13 @@ export default function WorkspacePanel({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      color: item.isDirectory ? '#89b4fa' : '#cdd6f4'
+                      color: item.isDirectory ? 'var(--app-blue)' : 'var(--app-fg)'
                     }}>
                       {item.name}
                     </span>
                   </div>
                   {!item.isDirectory && (
-                    <span style={{ fontSize: 10, color: '#6c7086', flexShrink: 0, marginLeft: 8 }}>
+                    <span style={{ fontSize: 10, color: 'var(--app-fg-muted)', flexShrink: 0, marginLeft: 8 }}>
                       {formatSize(item.size)}
                     </span>
                   )}
@@ -444,7 +444,7 @@ export default function WorkspacePanel({
             position: 'fixed',
             left: contextMenu.x,
             top: contextMenu.y,
-            background: 'rgba(30, 30, 46, 0.95)',
+            background: 'color-mix(in srgb, var(--app-bg) 95%, transparent)',
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             borderRadius: 6,
@@ -452,7 +452,7 @@ export default function WorkspacePanel({
             minWidth: 150,
             zIndex: 10000,
             boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
-            color: '#cdd6f4'
+            color: 'var(--app-fg)'
           }}>
             {!sshHostId && (
               <div

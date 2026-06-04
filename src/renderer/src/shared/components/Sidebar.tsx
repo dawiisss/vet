@@ -3,9 +3,9 @@ import SystemMonitorPanel from './SystemMonitorPanel'
 import PortMonitorPanel from './PortMonitorPanel'
 import ScriptRunnerPanel from './ScriptRunnerPanel'
 import SnippetLibraryPanel from './SnippetLibraryPanel'
-import ConnectionsPanel from './ConnectionsPanel'
+import ConnectionsPanel from '@/features/connections/components/ConnectionsPanel'
+import WorkspacePanel from '@/features/workspace/components/WorkspacePanel'
 import HistoryPanel from './HistoryPanel'
-import WorkspacePanel from './WorkspacePanel'
 
 export default function Sidebar({ 
   onRunScript, 
@@ -39,15 +39,15 @@ export default function Sidebar({
       width: 250, 
       height: '100%', 
       display: 'flex', 
-      background: 'rgba(30, 30, 46, 0.6)', 
+      background: 'color-mix(in srgb, var(--app-bg) 60%, transparent)', 
       backdropFilter: 'blur(10px)',
-      borderLeft: '1px solid rgba(49, 50, 68, 0.5)',
-      borderRight: '1px solid rgba(49, 50, 68, 0.5)'
+      borderLeft: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)',
+      borderRight: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)'
     }}>
       <div style={{ 
         width: 48, 
-        background: 'rgba(24, 24, 37, 0.8)', 
-        borderRight: '1px solid rgba(49, 50, 68, 0.5)',
+        background: 'color-mix(in srgb, var(--app-bg) 80%, transparent)', 
+        borderRight: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -63,7 +63,7 @@ export default function Sidebar({
               height: 36,
               marginBottom: 8,
               borderRadius: 8,
-              background: activeTab === i ? '#313244' : 'transparent',
+              background: activeTab === i ? 'var(--app-border)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
               display: 'flex',

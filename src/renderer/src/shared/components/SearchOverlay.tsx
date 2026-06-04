@@ -33,8 +33,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
   }
 
   const btnStyle = (active: boolean) => ({
-    background: active ? 'rgba(203, 166, 247, 0.2)' : 'transparent',
-    color: active ? '#cba6f7' : '#a6adc8',
+    background: active ? 'color-mix(in srgb, var(--app-accent) 20%, transparent)' : 'transparent',
+    color: active ? 'var(--app-accent)' : 'var(--app-fg-subtle)',
     border: 'none',
     padding: '4px',
     borderRadius: '4px',
@@ -51,8 +51,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
         position: 'absolute',
         top: 8,
         right: 8,
-        background: 'rgba(30, 30, 46, 0.95)',
-        border: '1px solid #313244',
+        background: 'color-mix(in srgb, var(--app-bg) 95%, transparent)',
+        border: '1px solid var(--app-border)',
         borderRadius: 8,
         boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
         display: 'flex',
@@ -61,7 +61,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
         gap: 8,
         zIndex: 100,
         backdropFilter: 'blur(8px)',
-        color: '#cdd6f4',
+        color: 'var(--app-fg)',
         fontFamily: 'system-ui, sans-serif'
       }}
       onClick={(e) => e.stopPropagation()}
@@ -78,8 +78,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
         onKeyDown={handleKeyDown}
         style={{
           background: 'rgba(0,0,0,0.2)',
-          border: '1px solid #313244',
-          color: '#cdd6f4',
+          border: '1px solid var(--app-border)',
+          color: 'var(--app-fg)',
           padding: '4px 8px',
           borderRadius: 4,
           outline: 'none',
@@ -121,7 +121,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
         </button>
       </div>
 
-      <div style={{ width: 1, height: 16, background: '#313244', margin: '0 4px' }} />
+      <div style={{ width: 1, height: 16, background: 'var(--app-border)', margin: '0 4px' }} />
 
       <div style={{ display: 'flex', gap: 2 }}>
         <button title="Previous Match (Shift+Enter)" style={btnStyle(false)} onClick={() => triggerSearch(true)}>

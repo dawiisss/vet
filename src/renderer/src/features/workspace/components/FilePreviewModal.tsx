@@ -93,14 +93,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
           width: '70%',
           maxWidth: 800,
           height: '75%',
-          backgroundColor: 'rgba(30, 30, 46, 0.85)',
+          backgroundColor: 'color-mix(in srgb, var(--app-bg) 85%, transparent)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: 12,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          color: '#cdd6f4'
+          color: 'var(--app-fg)'
         }}
       >
         {/* Header */}
@@ -112,7 +112,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
           alignItems: 'center'
         }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: '#89b4fa', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 }}>File Preview</div>
+            <div style={{ fontSize: 11, color: 'var(--app-blue)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 }}>File Preview</div>
             <h2 style={{
               margin: 0,
               fontSize: 14,
@@ -121,7 +121,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-              color: '#a6adc8'
+              color: 'var(--app-fg-subtle)'
             }}>
               {filePath}
             </h2>
@@ -131,7 +131,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#a6adc8',
+              color: 'var(--app-fg-subtle)',
               cursor: 'pointer',
               fontSize: 22,
               padding: 0,
@@ -156,7 +156,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
               justifyContent: 'center',
               width: '100%',
               height: '100%',
-              color: '#a6adc8'
+              color: 'var(--app-fg-subtle)'
             }}>
               Loading preview content...
             </div>
@@ -196,7 +196,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
               <pre style={{
                 margin: 0,
                 padding: '16px 16px',
-                color: '#cdd6f4',
+                color: 'var(--app-fg)',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-all',
                 flex: 1

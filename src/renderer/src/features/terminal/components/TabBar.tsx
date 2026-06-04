@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useConfig } from '../ConfigContext'
+import { useConfig } from '@/features/settings/useConfigStore'
 
 interface TabBarTab {
   id: string
@@ -129,7 +129,7 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
       style={{
         display: 'flex',
         alignItems: 'center',
-        background: '#181825',
+        background: 'color-mix(in srgb, var(--app-bg) 75%, transparent)',
         userSelect: 'none',
         height: 36,
         overflow: 'visible'
@@ -163,10 +163,10 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
               padding: '0 12px',
               height: '100%',
               cursor: 'grab',
-              background: tab.id === activeTabId ? '#1e1e2e' : 'rgba(0,0,0,0.15)',
-              borderRight: '1px solid #313244',
-              borderTop: tab.id === activeTabId ? '2px solid #cba6f7' : '2px solid transparent',
-              color: tab.id === activeTabId ? '#cdd6f4' : '#6c7086',
+              background: tab.id === activeTabId ? 'var(--app-bg)' : 'transparent',
+              borderRight: '1px solid var(--app-border)',
+              borderTop: tab.id === activeTabId ? '2px solid var(--app-accent)' : '2px solid transparent',
+              color: tab.id === activeTabId ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               fontSize: 13,
               fontFamily: 'system-ui, sans-serif',
               whiteSpace: 'nowrap',
@@ -201,8 +201,8 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                   autoFocus
                   style={{
                     background: 'rgba(0,0,0,0.5)',
-                    border: '1px solid #cba6f7',
-                    color: '#cdd6f4',
+                    border: '1px solid var(--app-accent)',
+                    color: 'var(--app-fg)',
                     outline: 'none',
                     borderRadius: 4,
                     padding: '2px 4px',

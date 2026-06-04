@@ -11,7 +11,7 @@ import {
   insertLeaves,
   removeLeaf,
   SplitNode,
-} from '../renderer/src/splitTree'
+} from '../renderer/src/features/terminal/splitTree'
 
 describe('splitTree', () => {
   describe('leafNode', () => {

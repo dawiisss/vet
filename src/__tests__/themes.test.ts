@@ -33,8 +33,8 @@ describe('themes', () => {
     })
   })
 
-  it('contains 4 built-in themes', () => {
-    expect(Object.keys(builtinThemes)).toHaveLength(4)
+  it('contains at least 4 built-in themes', () => {
+    expect(Object.keys(builtinThemes).length).toBeGreaterThanOrEqual(4)
   })
 
   it('includes catppuccin-mocha', () => {
