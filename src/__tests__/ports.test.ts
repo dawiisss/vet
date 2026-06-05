@@ -73,24 +73,29 @@ describe('ports', () => {
   })
 
   describe('ports:kill handler', () => {
-    it('kills process by pid on Linux', async () => {
-      const child = require('child_process')
-      child.exec.mockImplementation((_cmd: string, cb: any) => {
-        expect(_cmd).toContain('kill')
-        expect(_cmd).toContain('1234')
-        cb(null)
-        return {}
-      })
-      
+    beforeEach(() => {
+      jest.spyOn(process, 'kill').mockImplementation(() => true)
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('kills process by pid using process.kill', async () => {
       const result = await killHandler({}, 1234)
       expect(result).toBe(true)
+      expect(process.kill).toHaveBeenCalledWith(1234, 'SIGKILL')
+    })
+
+    it('returns false on invalid pid', async () => {
+      const result = await killHandler({}, 'invalid; kill')
+      expect(result).toBe(false)
+      expect(process.kill).not.toHaveBeenCalled()
     })
 
     it('returns false on kill failure', async () => {
-      const child = require('child_process')
-      child.exec.mockImplementation((_cmd: string, cb: any) => {
-        cb(new Error('permission denied'))
-        return {}
+      jest.spyOn(process, 'kill').mockImplementation(() => {
+        throw new Error('permission denied')
       })
       
       const result = await killHandler({}, 1234)

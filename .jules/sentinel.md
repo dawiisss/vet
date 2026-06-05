@@ -1,0 +1,4 @@
+## 2024-05-24 - Command Injection in Ports Manager IPC
+**Vulnerability:** A critical command injection vulnerability existed in `src/main/ports.ts` where the `ports:kill` IPC handler accepted a `pid` argument and directly concatenated it into an OS shell command (`execAsync("kill -9 " + pid)` or `taskkill /F /PID`). An attacker with access to the renderer could execute arbitrary code by passing a payload like `"1234; rm -rf /"` instead of a number.
+**Learning:** Using `child_process.exec` to kill processes is generally unsafe because it runs commands via a system shell that evaluates command separators (`;`, `&&`, `|`).
+**Prevention:** Avoid shelling out for OS-level process management. Use the robust built-in API `process.kill(pid, 'SIGKILL')`. Ensure input is always validated and coerced to correct types (e.g., verifying `pid` is a positive integer) before using it.

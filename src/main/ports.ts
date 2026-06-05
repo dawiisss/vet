@@ -64,12 +64,14 @@ export function initPortsManager() {
 
   ipcMain.handle('ports:kill', async (_, pid: number) => {
     try {
-      const isWin = os.platform() === 'win32'
-      if (isWin) {
-        await execAsync(`taskkill /F /PID ${pid}`)
-      } else {
-        await execAsync(`kill -9 ${pid}`)
+      const numericPid = Number(pid)
+      if (!Number.isInteger(numericPid) || numericPid <= 0) {
+        console.error(`Invalid PID provided: ${pid}`)
+        return false
       }
+
+      // Use secure process.kill instead of vulnerable shell execution
+      process.kill(numericPid, 'SIGKILL')
       return true
     } catch (err) {
       console.error(`Failed to kill pid ${pid}`, err)
