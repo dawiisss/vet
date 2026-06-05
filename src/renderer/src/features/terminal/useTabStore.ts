@@ -628,6 +628,11 @@ export const useTabStore = create<TabStore>((set, get) => {
         } else {
           zone = 'outside'
         }
+
+        // Performance optimization: skip state update (and re-renders) on mouse move
+        // if x, y, and zone haven't changed. We still need x,y updates for UI to track dragging.
+        if (prev.x === x && prev.y === y && prev.zone === zone) return state
+
         return { dragState: { ...prev, x, y, zone } }
       })
     },
