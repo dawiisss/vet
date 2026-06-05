@@ -2,8 +2,8 @@ import { ipcMain, shell } from 'electron'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-export function initWorkspaceManager() {
-  ipcMain.handle('workspace:getScripts', async (_, cwd?: string) => {
+class WorkspaceService {
+  async getScripts(cwd?: string) {
     try {
       // Find package.json in cwd or its parents up to 3 levels
       let currentDir = cwd || process.cwd()
@@ -27,9 +27,9 @@ export function initWorkspaceManager() {
       console.error('Failed to get workspace scripts', err)
       return null
     }
-  })
+  }
 
-  ipcMain.handle('workspace:list-dir', async (_, dirPath: string) => {
+  async listDir(dirPath: string) {
     try {
       let targetPath = dirPath
       if (targetPath.startsWith('~') && process.env.HOME) {
@@ -78,9 +78,9 @@ export function initWorkspaceManager() {
       console.error(`Failed to list directory: ${dirPath}`, err)
       return []
     }
-  })
+  }
 
-  ipcMain.handle('workspace:reveal-path', async (_, itemPath: string) => {
+  revealPath(itemPath: string) {
     try {
       let targetPath = itemPath
       if (targetPath.startsWith('~') && process.env.HOME) {
@@ -90,9 +90,9 @@ export function initWorkspaceManager() {
     } catch (err) {
       console.error(`Failed to reveal path: ${itemPath}`, err)
     }
-  })
+  }
 
-  ipcMain.handle('workspace:read-file-head', async (_, filePath: string) => {
+  async readFileHead(filePath: string) {
     try {
       let targetPath = filePath
       if (targetPath.startsWith('~') && process.env.HOME) {
@@ -112,5 +112,25 @@ export function initWorkspaceManager() {
       console.error(`Failed to read file head: ${filePath}`, err)
       return `Error: Failed to read file. ${err.message}`
     }
+  }
+}
+
+export function initWorkspaceManager() {
+  const workspaceService = new WorkspaceService()
+
+  ipcMain.handle('workspace:getScripts', async (_, cwd?: string) => {
+    return workspaceService.getScripts(cwd)
+  })
+
+  ipcMain.handle('workspace:list-dir', async (_, dirPath: string) => {
+    return workspaceService.listDir(dirPath)
+  })
+
+  ipcMain.handle('workspace:reveal-path', async (_, itemPath: string) => {
+    return workspaceService.revealPath(itemPath)
+  })
+
+  ipcMain.handle('workspace:read-file-head', async (_, filePath: string) => {
+    return workspaceService.readFileHead(filePath)
   })
 }
