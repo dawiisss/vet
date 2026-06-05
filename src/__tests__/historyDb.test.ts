@@ -24,7 +24,7 @@ import {
   clearHistory,
   deleteSession,
   getHistorySessions,
-} from '../main/historyDb'
+, cleanupHistoryDb} from '../main/historyDb'
 
 describe('historyDb', () => {
   beforeAll(() => {
@@ -33,6 +33,7 @@ describe('historyDb', () => {
 
   afterAll(() => {
     clearHistory()
+    cleanupHistoryDb()
   })
 
   describe('startSession', () => {
