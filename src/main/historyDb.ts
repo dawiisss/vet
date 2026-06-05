@@ -324,3 +324,10 @@ export function getHistorySessions(): any[] {
     return []
   }
 }
+
+export function cleanupHistoryDb() {
+  if (flushInterval) {
+    clearInterval(flushInterval)
+    flushInterval = null
+  }
+}

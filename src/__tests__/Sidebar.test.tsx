@@ -5,6 +5,13 @@
 import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
+
+// Mock the WorkspacePanel to avoid state updates causing act() warnings in Sidebar test
+jest.mock('../renderer/src/features/workspace/components/WorkspacePanel', () => {
+  return function MockWorkspacePanel() {
+    return <div data-testid="workspace-panel">Workspace</div>
+  }
+})
 import { setupMockedApis, configApi, resetMockedApis } from '../__tests__/rendererHelpers'
 import Sidebar from '../renderer/src/shared/components/Sidebar'
 

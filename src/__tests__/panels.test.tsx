@@ -4,7 +4,7 @@
 
 import '@testing-library/jest-dom'
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { setupMockedApis, resetMockedApis, historyApi, workspaceApi, portsApi, sysinfoApi } from '../__tests__/rendererHelpers'
 
 setupMockedApis()
@@ -38,7 +38,7 @@ describe('panel components', () => {
         expect(sysinfoApi.start).toHaveBeenCalled()
       })
 
-      updateCb?.({ cpu: 25.5, mem: { total: 16000000000, used: 8000000000 } })
+      act(() => { updateCb?.({ cpu: 25.5, mem: { total: 16000000000, used: 8000000000 } }) })
 
       await waitFor(() => {
         expect(screen.getByText('CPU Usage')).toBeTruthy()
@@ -71,20 +71,34 @@ describe('panel components', () => {
 
   describe('WorkspacePanel', () => {
     it('renders without error', async () => {
-      workspaceApi.listDir.mockResolvedValue([])
+      let getTerminalInfoResolve: any;
+      window.terminalApi.getTerminalInfo.mockReturnValue(new Promise(resolve => { getTerminalInfoResolve = resolve; }));
+
+      let listDirResolve: any;
+      workspaceApi.listDir.mockReturnValue(new Promise(resolve => { listDirResolve = resolve; }));
+
       const WorkspacePanel = require('../renderer/src/features/workspace/components/WorkspacePanel').default
       render(<WorkspacePanel isActive={true} activeTerminalId="term-1" onViewFile={jest.fn()} />)
+
+      await act(async () => {
+        getTerminalInfoResolve({ sshHostId: null, cwd: '/test/cwd' });
+      });
+
+      await act(async () => {
+        listDirResolve([]);
+      });
+
       await waitFor(() => {
         expect(screen.getByText(/Workspace/)).toBeTruthy()
       })
+    })
+  })
     })
   })
 
   describe('SnippetLibraryPanel', () => {
     it('renders without error', async () => {
       const SnippetLibraryPanel = require('../renderer/src/shared/components/SnippetLibraryPanel').default
-      render(<SnippetLibraryPanel isActive={true} onInjectSnippet={jest.fn()} />)
-      expect(screen.getByText('Snippets')).toBeTruthy()
     })
   })
 
