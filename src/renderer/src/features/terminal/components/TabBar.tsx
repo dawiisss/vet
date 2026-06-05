@@ -218,9 +218,19 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
             <span
               className="tab-close-btn"
               data-close
+              role="button"
+              tabIndex={0}
+              aria-label="Close tab"
+              title="Close tab"
               onClick={(e) => {
                 e.stopPropagation()
                 onClose(tab.id)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation()
+                  onClose(tab.id)
+                }
               }}
               style={{
                 marginLeft: 8,
@@ -255,7 +265,15 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
         <div
           className="tab-new-btn"
           onClick={() => onNew()}
+          role="button"
+          tabIndex={0}
+          aria-label="New Tab (Default Shell)"
           title="New Tab (Default Shell)"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              onNew()
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -274,7 +292,15 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
         </div>
         <div
           onClick={() => setIsDropdownOpen(prev => !prev)}
+          role="button"
+          tabIndex={0}
+          aria-label="Choose Profile"
           title="Choose Profile"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setIsDropdownOpen(prev => !prev)
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',
