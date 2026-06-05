@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useConfig } from '@/features/settings/useConfigStore'
 
 interface SearchOverlayProps {
   onSearch: (text: string, options: { caseSensitive: boolean; useRegex: boolean; wholeWord: boolean; backwards?: boolean }) => void
@@ -13,11 +14,33 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
   
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const { config } = useConfig()
+
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    let key = e.key.toLowerCase()
+    if (key === 'control') key = 'ctrl'
+
+    if (!['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
+      const parts = []
+      if (e.ctrlKey) parts.push('ctrl')
+      if (e.altKey) parts.push('alt')
+      if (e.shiftKey) parts.push('shift')
+      if (e.metaKey) parts.push('meta')
+      parts.push(key)
+
+      const shortcut = parts.join('+')
+      if (config.keybindings && config.keybindings[shortcut] === 'terminal:search') {
+        onClose()
+        e.stopPropagation()
+        e.preventDefault()
+        return
+      }
+    }
+
     if (e.key === 'Escape') {
       onClose()
       e.stopPropagation()

@@ -299,7 +299,12 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
         const action = (configRef.current.keybindings || {})[shortcut]
         
         if (action === 'terminal:search') {
-          setIsSearchOpen(true)
+          if (isSearchOpenRef.current) {
+            setIsSearchOpen(false)
+            terminalRef.current?.focus()
+          } else {
+            setIsSearchOpen(true)
+          }
           return false
         } else if (action === 'terminal:copy') {
           const sel = term.getSelection()

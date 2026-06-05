@@ -16,6 +16,7 @@ const DEFAULT_CONFIG: any = {
   webglEnabled: true,
   sidebarPlacement: 'right',
   sidebarOpen: true,
+  tabBarPosition: 'top',
   sshParseGlobal: true,
   sshHosts: [],
   dockerDefaultShell: '/bin/bash',
@@ -37,6 +38,7 @@ const DEFAULT_CONFIG: any = {
     'ctrl+shift+e': 'split:extract',
     'ctrl+shift+\\': 'split:horizontal',
     'ctrl+shift+d': 'split:vertical',
+    'ctrl+alt+u': 'split:unsplit',
     'alt+arrowright': 'pane:focus-next',
     'alt+arrowleft': 'pane:focus-prev',
     'ctrl+shift+c': 'terminal:copy',
@@ -44,6 +46,8 @@ const DEFAULT_CONFIG: any = {
     'ctrl+f': 'terminal:search',
     'ctrl+,': 'settings:toggle',
     'ctrl+shift+p': 'command-palette:toggle',
+    'ctrl+shift+f': 'app:toggle-fullscreen',
+    'ctrl+q': 'app:quit'
   },
   profiles: [
     {
@@ -126,6 +130,11 @@ export function sanitizeConfig(conf: any): any {
       sanitized.profiles = [ ...DEFAULT_CONFIG.profiles ]
     }
   }
+
+  if (sanitized.tabBarPosition !== 'top' && sanitized.tabBarPosition !== 'left' && sanitized.tabBarPosition !== 'right') {
+    sanitized.tabBarPosition = 'top'
+  }
+
   return sanitized
 }
 

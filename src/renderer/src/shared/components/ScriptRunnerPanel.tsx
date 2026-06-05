@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export default function ScriptRunnerPanel({ 
   isActive, 
@@ -9,9 +9,12 @@ export default function ScriptRunnerPanel({
 }) {
   const [scripts, setScripts] = useState<Record<string, string> | null>(null)
   const [workspaceDir, setWorkspaceDir] = useState<string>('')
+  const [keyboardIndex, setKeyboardIndex] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!isActive) return
+    if (containerRef.current) containerRef.current.focus()
     const api = (window as any).workspaceApi
     if (!api) return
 
@@ -25,8 +28,43 @@ export default function ScriptRunnerPanel({
     })
   }, [isActive])
 
+  const scriptEntries = scripts ? Object.entries(scripts) : []
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (scriptEntries.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setKeyboardIndex((prev) => Math.min(prev + 1, scriptEntries.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setKeyboardIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const selected = scriptEntries[keyboardIndex]
+      if (selected) {
+        onRunScript(`npm run ${selected[0]}`, workspaceDir)
+      }
+    }
+  }
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (keyboardIndex >= 0 && containerRef.current) {
+      const activeEl = containerRef.current.querySelector('[data-active="true"]')
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [keyboardIndex])
+
   return (
-    <div style={{ padding: 12, color: 'var(--app-fg)', fontSize: 13, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div 
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      style={{ padding: 12, color: 'var(--app-fg)', fontSize: 13, display: 'flex', flexDirection: 'column', height: '100%', outline: 'none' }}
+    >
       <h3 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#bac2de' }}>Project Scripts</h3>
       
       {!scripts && (
@@ -38,29 +76,36 @@ export default function ScriptRunnerPanel({
           <div style={{ fontSize: 11, color: 'var(--app-fg-muted)', marginBottom: 8, wordBreak: 'break-all' }}>
             Workspace: {workspaceDir}
           </div>
-          {Object.entries(scripts).map(([name, cmd]) => (
-            <div key={name} style={{ marginBottom: 8 }}>
-              <button
-                onClick={() => onRunScript(`npm run ${name}`, workspaceDir)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'var(--app-border)',
-                  border: '1px solid #45475a',
-                  color: 'var(--app-fg)',
-                  padding: '6px 10px',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <span style={{ fontWeight: 'bold', color: 'var(--app-blue)' }}>{name}</span>
-                <span style={{ fontSize: 16 }}>▶</span>
-              </button>
-            </div>
-          ))}
+          {scriptEntries.map(([name, cmd], index) => {
+            const isSel = keyboardIndex === index
+            return (
+              <div key={name} style={{ marginBottom: 8 }}>
+                <button
+                  data-active={isSel}
+                  onMouseEnter={() => setKeyboardIndex(index)}
+                  onClick={() => onRunScript(`npm run ${name}`, workspaceDir)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: isSel ? 'color-mix(in srgb, var(--app-blue) 20%, transparent)' : 'var(--app-border)',
+                    border: '1px solid',
+                    borderColor: isSel ? 'var(--app-blue)' : '#45475a',
+                    color: 'var(--app-fg)',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'background 0.2s, border-color 0.2s'
+                  }}
+                >
+                  <span style={{ fontWeight: 'bold', color: 'var(--app-blue)' }}>{name}</span>
+                  <span style={{ fontSize: 16 }}>▶</span>
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

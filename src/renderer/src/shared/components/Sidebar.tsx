@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import SystemMonitorPanel from './SystemMonitorPanel'
 import PortMonitorPanel from './PortMonitorPanel'
 import ScriptRunnerPanel from './ScriptRunnerPanel'
@@ -23,6 +23,16 @@ export default function Sidebar({
   onLaunchConnection?: (id: string) => void
 }) {
   const [activeTab, setActiveTab] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
+        document.getElementById(`sidebar-panel-${activeTab}`)?.focus()
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [activeTab])
 
   const tabs = [
     { icon: '📁', name: 'Workspace' },
@@ -35,7 +45,47 @@ export default function Sidebar({
   ]
 
   return (
-    <div style={{ 
+    <div 
+      ref={containerRef}
+      tabIndex={-1}
+      onKeyDownCapture={(e) => {
+        if (e.key === 'Tab' && containerRef.current) {
+          const focusableElements = Array.from(
+            containerRef.current.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+          ).filter(el => el.offsetParent !== null)
+
+          if (focusableElements.length > 0) {
+            const firstElement = focusableElements[0]
+            const lastElement = focusableElements[focusableElements.length - 1]
+
+            if (e.shiftKey) {
+              if (document.activeElement === firstElement || document.activeElement === containerRef.current) {
+                e.preventDefault()
+                lastElement.focus()
+              }
+            } else {
+              if (document.activeElement === lastElement) {
+                e.preventDefault()
+                firstElement.focus()
+              }
+            }
+          }
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          setActiveTab((prev) => (prev - 1 + tabs.length) % tabs.length)
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          setActiveTab((prev) => (prev + 1) % tabs.length)
+        }
+      }}
+      style={{ 
       width: 250, 
       height: '100%', 
       display: 'flex', 
@@ -79,25 +129,25 @@ export default function Sidebar({
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <div style={{ display: activeTab === 0 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-0" tabIndex={-1} style={{ display: activeTab === 0 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <WorkspacePanel isActive={activeTab === 0} activeTerminalId={activeTerminalId} onViewFile={onViewFile} />
         </div>
-        <div style={{ display: activeTab === 1 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-1" tabIndex={-1} style={{ display: activeTab === 1 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <SystemMonitorPanel isActive={activeTab === 1} />
         </div>
-        <div style={{ display: activeTab === 2 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-2" tabIndex={-1} style={{ display: activeTab === 2 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <PortMonitorPanel isActive={activeTab === 2} />
         </div>
-        <div style={{ display: activeTab === 3 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-3" tabIndex={-1} style={{ display: activeTab === 3 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <ScriptRunnerPanel isActive={activeTab === 3} onRunScript={onRunScript} />
         </div>
-        <div style={{ display: activeTab === 4 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-4" tabIndex={-1} style={{ display: activeTab === 4 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <SnippetLibraryPanel isActive={activeTab === 4} onInjectSnippet={onInjectSnippet} />
         </div>
-        <div style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-5" tabIndex={-1} style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <ConnectionsPanel isActive={activeTab === 5} onRunScript={onRunScript} onLaunchConnection={onLaunchConnection} />
         </div>
-        <div style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%' }}>
+        <div id="sidebar-panel-6" tabIndex={-1} style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <HistoryPanel isActive={activeTab === 6} onViewSession={onViewSession} />
         </div>
       </div>

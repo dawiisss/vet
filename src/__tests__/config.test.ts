@@ -109,4 +109,20 @@ describe('sanitizeConfig', () => {
     expect(result.profiles.length).toBe(1)
     expect(result.profiles[0].id).toBe('dup')
   })
+
+  it('populates missing tabBarPosition with top', () => {
+    const result = sanitizeConfig({})
+    expect(result.tabBarPosition).toBe('top')
+  })
+
+  it('preserves valid tabBarPosition', () => {
+    expect(sanitizeConfig({ tabBarPosition: 'left' }).tabBarPosition).toBe('left')
+    expect(sanitizeConfig({ tabBarPosition: 'right' }).tabBarPosition).toBe('right')
+    expect(sanitizeConfig({ tabBarPosition: 'top' }).tabBarPosition).toBe('top')
+  })
+
+  it('replaces invalid tabBarPosition with top', () => {
+    const result = sanitizeConfig({ tabBarPosition: 'bottom' })
+    expect(result.tabBarPosition).toBe('top')
+  })
 })

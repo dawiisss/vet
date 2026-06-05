@@ -36,6 +36,7 @@ function App() {
     closeTab,
     selectTab,
     splitTab,
+    unsplitTab,
     closeSplit,
     extractToTab,
     detachTab,
@@ -139,6 +140,21 @@ function App() {
             break
           case 'command-palette:toggle':
             store.setIsCommandPaletteOpen((prev) => !prev)
+            break
+          case 'tabbar:toggle-position': {
+            const currentPos = currentConfig.tabBarPosition || 'top'
+            const nextPos = currentPos === 'top' ? 'left' : currentPos === 'left' ? 'right' : 'top'
+            useConfigStore.getState().updateConfig({ tabBarPosition: nextPos })
+            break
+          }
+          case 'split:unsplit':
+            store.unsplitTab()
+            break
+          case 'app:toggle-fullscreen':
+            window.windowApi?.toggleFullscreen()
+            break
+          case 'app:quit':
+            window.windowApi?.quit()
             break
         }
         return
@@ -332,18 +348,33 @@ function App() {
       }}
     >
       <TitleBar onOpenSettings={() => setIsSettingsOpen(true)} />
-      <TabBar
-        tabs={tabBarTabs}
-        activeTabId={activeTabId}
-        onSelect={selectTab}
-        onClose={closeTab}
-        onNew={newTab}
-        onDragStart={handleDragStart}
-        onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
-        onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
-        onRenameTab={renameTab}
-      />
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {(!config.tabBarPosition || config.tabBarPosition === 'top') && (
+        <TabBar
+          tabs={tabBarTabs}
+          activeTabId={activeTabId}
+          onSelect={selectTab}
+          onClose={closeTab}
+          onNew={newTab}
+          onDragStart={handleDragStart}
+          onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
+          onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+          onRenameTab={renameTab}
+        />
+      )}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', borderTop: (config.tabBarPosition === 'left' || config.tabBarPosition === 'right') ? '1px solid var(--app-border)' : 'none' }}>
+        {config.tabBarPosition === 'left' && (
+          <TabBar
+            tabs={tabBarTabs}
+            activeTabId={activeTabId}
+            onSelect={selectTab}
+            onClose={closeTab}
+            onNew={newTab}
+            onDragStart={handleDragStart}
+            onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
+            onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+            onRenameTab={renameTab}
+          />
+        )}
         {config.sidebarOpen && config.sidebarPlacement === 'left' && (
           <Sidebar
             onRunScript={handleRunScript}
@@ -360,7 +391,7 @@ function App() {
             flex: 1,
             overflow: 'hidden',
             position: 'relative',
-            borderTop: '1px solid var(--app-border)'
+            borderTop: (!config.tabBarPosition || config.tabBarPosition === 'top') ? '1px solid var(--app-border)' : 'none'
           }}
         >
           {tabs.map((tab) => (
@@ -455,6 +486,19 @@ function App() {
             onLaunchConnection={(id) => newTab(undefined, id)}
           />
         )}
+        {config.tabBarPosition === 'right' && (
+          <TabBar
+            tabs={tabBarTabs}
+            activeTabId={activeTabId}
+            onSelect={selectTab}
+            onClose={closeTab}
+            onNew={newTab}
+            onDragStart={handleDragStart}
+            onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
+            onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+            onRenameTab={renameTab}
+          />
+        )}
       </div>
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
       {viewingHistorySessionId && (
@@ -484,6 +528,9 @@ function App() {
           { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
           { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
           { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
+          { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
+          { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
+          { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
           {
             id: 'extract',
             label: 'View: Extract Pane to New Tab',
@@ -498,6 +545,9 @@ function App() {
               if (activeTabId) detachTab(activeTabId)
             }
           },
+          { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
+          { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
+          { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
           ...Object.keys(builtinThemes).map((themeName) => ({
             id: `theme-${themeName}`,
             label: `Theme: Set to ${themeName.replace('-', ' ')}`,

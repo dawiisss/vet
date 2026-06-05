@@ -16,7 +16,11 @@ const AVAILABLE_ACTIONS = [
   { id: 'terminal:search', label: 'Find / Search' },
   { id: 'sidebar:toggle', label: 'Toggle Sidebar' },
   { id: 'settings:toggle', label: 'Open Settings' },
-  { id: 'command-palette:toggle', label: 'Open Command Palette' }
+  { id: 'command-palette:toggle', label: 'Open Command Palette' },
+  { id: 'tabbar:toggle-position', label: 'Toggle Tab Bar Position (Top/Left/Right)' },
+  { id: 'split:unsplit', label: 'Unsplit Tabs' },
+  { id: 'app:toggle-fullscreen', label: 'Toggle Fullscreen' },
+  { id: 'app:quit', label: 'App: Exit' }
 ]
 
 export const KeybindingsManager: React.FC = () => {

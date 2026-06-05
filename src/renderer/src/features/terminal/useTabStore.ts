@@ -68,6 +68,7 @@ interface TabStore {
   reattachMe: () => Promise<void>
   mergeTabAsSplit: (fromTabId: string, direction: 'horizontal' | 'vertical') => void
   splitTab: (direction: 'horizontal' | 'vertical', targetTabId?: string, targetPath?: number[]) => Promise<void>
+  unsplitTab: () => void
   closeSplit: (tabId: string, terminalId: string) => void
   extractToTab: (tabId: string, path: number[]) => Promise<void>
   navigateSplit: (delta: number) => void
@@ -401,28 +402,75 @@ export const useTabStore = create<TabStore>((set, get) => {
       const api = window.terminalApi
       if (!api) return
 
-      const prevTabs = get().tabs
-      const activeTab = prevTabs.find((t) => t.id === tabId)
-      if (!activeTab) return
-
-      const path = targetPath || activeTab.focusedPath
-
       try {
         const { id } = await api.create()
-        set({
-          tabs: prevTabs.map((tab) => {
-            if (tab.id !== tabId) return tab
-            const result = insertLeaves(tab.root, path, direction, [id])
-            return {
-              ...tab,
-              root: result.root,
-              focusedPath: result.focusedPath
-            }
-          })
+        set((state) => {
+          const tab = state.tabs.find((t) => t.id === tabId)
+          if (!tab) {
+            api.destroy(id)
+            return state
+          }
+          const path = targetPath || tab.focusedPath
+          const result = insertLeaves(tab.root, path, direction, [id])
+          return {
+            tabs: state.tabs.map((t) => {
+              if (t.id !== tabId) return t
+              return {
+                ...t,
+                root: result.root,
+                focusedPath: result.focusedPath
+              }
+            })
+          }
         })
       } catch (err) {
         set({ error: `Failed to split: ${err}` })
       }
+    },
+
+    unsplitTab: async () => {
+      const activeTabId = get().activeTabId
+      if (!activeTabId) return
+      const prevTabs = get().tabs
+      const activeTab = prevTabs.find((t) => t.id === activeTabId)
+      if (!activeTab) return
+
+      const focusedNode = getNode(activeTab.root, activeTab.focusedPath)
+      if (!focusedNode || !focusedNode.terminalId) return
+
+      const allTerminalIds = collectTerminalIds(activeTab.root)
+      const toExtract = allTerminalIds.filter(id => id !== focusedNode.terminalId)
+      
+      if (toExtract.length === 0) return
+      
+      const api = window.terminalApi
+      const newTabs: TabState[] = []
+      
+      for (const id of toExtract) {
+        let label = activeTab.label.replace(/ \+ \d+$/, '')
+        if (api) {
+          try {
+            const info = await api.getTerminalInfo(id)
+            if (info?.title) label = info.title
+          } catch {}
+        }
+        newTabs.push(newTabState(generateTabId(), id, label))
+      }
+
+      set((state) => {
+        const next = [...state.tabs]
+        const tabIdx = next.findIndex((t) => t.id === activeTabId)
+        if (tabIdx === -1) return state
+        
+        next[tabIdx] = {
+          ...next[tabIdx],
+          root: leafNode(focusedNode.terminalId!),
+          focusedPath: []
+        }
+        
+        next.splice(tabIdx + 1, 0, ...newTabs)
+        return { tabs: next }
+      })
     },
 
     closeSplit: (tabId, terminalId) => {

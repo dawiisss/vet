@@ -59,6 +59,7 @@ interface Config {
   keybindings: Record<string, string>
   sidebarPlacement?: 'left' | 'right'
   sidebarOpen?: boolean
+  tabBarPosition?: 'top' | 'left' | 'right'
   webglEnabled?: boolean
   sshParseGlobal?: boolean
   sshHosts?: SshHost[] | Array<{ name: string; command: string }>
@@ -86,7 +87,9 @@ interface TerminalApi {
 interface WindowApi {
   minimize: () => Promise<void>
   maximize: () => Promise<void>
+  toggleFullscreen: () => Promise<void>
   close: () => Promise<void>
+  quit: () => Promise<void>
   isMaximized: () => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void

@@ -11,6 +11,8 @@ import {
   getHistory
 } from './pty'
 
+import icon from '../../resources/icon.png?asset'
+
 let mainWindow: BrowserWindow | null = null
 const windowTerminals = new Map<number, Set<string>>()
 
@@ -29,6 +31,7 @@ function createWindow(): BrowserWindow {
     minWidth: 400,
     minHeight: 300,
     title: 'Vet',
+    ...(process.platform === 'linux' ? { icon } : { icon }),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -96,9 +99,20 @@ function registerIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('win:toggle-fullscreen', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      win.setFullScreen(!win.isFullScreen())
+    }
+  })
+
   ipcMain.handle('win:close', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     win?.close()
+  })
+
+  ipcMain.handle('app:quit', () => {
+    app.quit()
   })
 
   ipcMain.handle('win:is-maximized', async (event) => {

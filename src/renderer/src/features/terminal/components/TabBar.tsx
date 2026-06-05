@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
+import ContextMenu, { ContextMenuAction } from '@/shared/components/ContextMenu'
 
 interface TabBarTab {
   id: string
@@ -20,7 +21,7 @@ interface TabBarProps {
 }
 
 function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDragMove, onDragEnd, onRenameTab, onDoubleClickTab }: TabBarProps) {
-  const { config } = useConfig()
+  const { config, updateConfig } = useConfig()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingLabel, setEditingLabel] = useState<string>('')
@@ -32,6 +33,10 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
     dragging: boolean
     ghost: HTMLDivElement
   } | null>(null)
+
+  const [contextMenuState, setContextMenuState] = useState<{ isOpen: boolean; x: number; y: number }>({ isOpen: false, x: 0, y: 0 })
+
+  const isVertical = config.tabBarPosition === 'left' || config.tabBarPosition === 'right'
 
   // Stable refs for callbacks so useEffect never re-runs during drag
   const onDragStartRef = useRef(onDragStart)
@@ -124,18 +129,34 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
   }, [])
 
   return (
+    <>
     <div
       ref={barRef}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        setContextMenuState({ isOpen: true, x: e.clientX, y: e.clientY })
+      }}
       style={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: isVertical ? 'column' : 'row',
+        alignItems: isVertical ? 'stretch' : 'center',
         background: 'color-mix(in srgb, var(--app-bg) 75%, transparent)',
         userSelect: 'none',
-        height: 36,
-        overflow: 'visible'
+        height: isVertical ? '100%' : 36,
+        width: isVertical ? 200 : '100%',
+        borderRight: config.tabBarPosition === 'left' ? '1px solid var(--app-border)' : 'none',
+        borderLeft: config.tabBarPosition === 'right' ? '1px solid var(--app-border)' : 'none',
+        overflow: 'visible',
+        flexShrink: 0
       }}
     >
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: isVertical ? 'column' : 'row',
+        flex: 1, 
+        overflowX: 'hidden',
+        overflowY: isVertical ? 'auto' : 'hidden'
+      }}>
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -161,16 +182,21 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
               display: 'flex',
               alignItems: 'center',
               padding: '0 12px',
-              height: '100%',
+              height: isVertical ? 36 : '100%',
+              width: isVertical ? '100%' : 'auto',
+              boxSizing: 'border-box',
               cursor: 'grab',
               background: tab.id === activeTabId ? 'var(--app-bg)' : 'transparent',
-              borderRight: '1px solid var(--app-border)',
-              borderTop: tab.id === activeTabId ? '2px solid var(--app-accent)' : '2px solid transparent',
+              borderRight: !isVertical ? '1px solid var(--app-border)' : 'none',
+              borderBottom: isVertical ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+              borderTop: !isVertical && tab.id === activeTabId ? '2px solid var(--app-accent)' : '2px solid transparent',
+              borderLeft: isVertical && tab.id === activeTabId ? '2px solid var(--app-accent)' : '2px solid transparent',
               color: tab.id === activeTabId ? 'var(--app-fg)' : 'var(--app-fg-muted)',
               fontSize: 13,
               fontFamily: 'system-ui, sans-serif',
               whiteSpace: 'nowrap',
               minWidth: 0,
+              flexShrink: 0,
               transition: 'background 0.1s'
             }}
           >
@@ -178,7 +204,8 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
               style={{
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                maxWidth: 180
+                maxWidth: isVertical ? 140 : 180,
+                flex: 1
               }}
             >
               {editingTabId === tab.id ? (
@@ -256,8 +283,10 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
         style={{
           display: 'flex',
           alignItems: 'center',
-          height: '100%',
-          borderLeft: '1px solid #313244',
+          height: isVertical ? 36 : '100%',
+          width: isVertical ? '100%' : 'auto',
+          borderLeft: !isVertical ? '1px solid #313244' : 'none',
+          borderTop: isVertical ? '1px solid #313244' : 'none',
           position: 'relative',
           flexShrink: 0
         }}
@@ -278,12 +307,13 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 30,
+            width: isVertical ? '50%' : 30,
             height: '100%',
             cursor: 'pointer',
             color: '#6c7086',
             fontSize: 18,
-            transition: 'color 0.2s'
+            transition: 'color 0.2s',
+            borderRight: isVertical ? '1px solid rgba(49, 50, 68, 0.3)' : 'none'
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#cdd6f4' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6c7086' }}
@@ -305,13 +335,13 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 18,
+            width: isVertical ? '50%' : 18,
             height: '100%',
             cursor: 'pointer',
             color: '#6c7086',
             fontSize: 9,
             transition: 'color 0.2s',
-            borderLeft: '1px solid rgba(49, 50, 68, 0.3)'
+            borderLeft: !isVertical ? '1px solid rgba(49, 50, 68, 0.3)' : 'none'
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#cdd6f4' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6c7086' }}
@@ -335,12 +365,13 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
             <div
               style={{
                 position: 'absolute',
-                top: 36,
+                bottom: isVertical ? 36 : 'auto',
+                top: !isVertical ? 36 : 'auto',
                 right: 0,
-                background: 'rgba(30, 30, 46, 0.95)',
+                background: 'color-mix(in srgb, var(--app-bg) 95%, transparent)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid var(--app-border)',
                 borderRadius: 8,
                 boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
                 padding: '6px 0',
@@ -350,7 +381,7 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                 flexDirection: 'column'
               }}
             >
-              <div style={{ padding: '6px 12px', fontSize: 10, color: '#6c7086', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              <div style={{ padding: '6px 12px', fontSize: 10, color: 'var(--app-fg-muted)', borderBottom: '1px solid var(--app-border)', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 Launch Profile
               </div>
               {config.profiles?.map((profile) => (
@@ -363,7 +394,7 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#cdd6f4',
+                    color: 'var(--app-fg)',
                     padding: '8px 12px',
                     textAlign: 'left',
                     cursor: 'pointer',
@@ -375,14 +406,14 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                     gap: 2
                   }}
                   onMouseEnter={(e) => {
-                    ;(e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.08)'
+                    ;(e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--app-accent) 15%, transparent)'
                   }}
                   onMouseLeave={(e) => {
                     ;(e.currentTarget as HTMLElement).style.background = 'transparent'
                   }}
                 >
                   <span style={{ fontWeight: 500 }}>{profile.name}</span>
-                  <span style={{ fontSize: 9, color: '#6c7086', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 9, color: 'var(--app-fg-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {profile.shell} {profile.args?.join(' ')}
                   </span>
                 </button>
@@ -392,6 +423,30 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
         )}
       </div>
     </div>
+    <ContextMenu
+      isOpen={contextMenuState.isOpen}
+      x={contextMenuState.x}
+      y={contextMenuState.y}
+      onClose={() => setContextMenuState(prev => ({ ...prev, isOpen: false }))}
+      actions={[
+        {
+          id: 'layout-top',
+          label: `${config.tabBarPosition === 'top' || !config.tabBarPosition ? '✓ ' : '    '}Position: Top`,
+          onExecute: () => updateConfig({ tabBarPosition: 'top' })
+        },
+        {
+          id: 'layout-left',
+          label: `${config.tabBarPosition === 'left' ? '✓ ' : '    '}Position: Left`,
+          onExecute: () => updateConfig({ tabBarPosition: 'left' })
+        },
+        {
+          id: 'layout-right',
+          label: `${config.tabBarPosition === 'right' ? '✓ ' : '    '}Position: Right`,
+          onExecute: () => updateConfig({ tabBarPosition: 'right' })
+        }
+      ]}
+    />
+    </>
   )
 }
 

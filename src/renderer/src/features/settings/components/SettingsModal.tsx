@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
 import { builtinThemes } from '@/themes'
 import { ThemeEditor } from './ThemeEditor'
@@ -12,6 +12,52 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { config, updateConfig, openConfig } = useConfig()
   const [activeTab, setActiveTab] = useState<'general' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history'>('general')
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        
+        if (focusableElements.length > 0) {
+          const firstElement = focusableElements[0] as HTMLElement
+          const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+          if (e.shiftKey) {
+            // Shift + Tab: if on the first element (or modal container), jump to last
+            if (document.activeElement === firstElement || document.activeElement === modalRef.current) {
+              e.preventDefault()
+              lastElement.focus()
+            }
+          } else {
+            // Tab: if on the last element, jump back to first
+            if (document.activeElement === lastElement) {
+              e.preventDefault()
+              firstElement.focus()
+            }
+          }
+        }
+      }
+    }
+    
+    // We use capture phase so we catch the Tab before it reaches the background
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [onClose])
+
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (modalRef.current) {
+      modalRef.current.focus()
+    }
+  }, [])
 
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -130,6 +176,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
   return (
     <div
+      ref={modalRef}
+      tabIndex={-1}
       onClick={handleOverlayClick}
       style={{
         position: 'absolute',
@@ -143,7 +191,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999
+        zIndex: 9999,
+        outline: 'none'
       }}
     >
       <div
@@ -312,8 +361,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   />
                 </div>
@@ -327,8 +375,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   >
                     <option value="block" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Block</option>
@@ -349,8 +396,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   >
                     <option value="open" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Open</option>
@@ -367,14 +413,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   >
                     <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
                     <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
                   </select>
                 </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label style={{ fontSize: 13, color: '#bac2de' }}>Tab Bar Position</label>
+                  <select
+                    value={config.tabBarPosition || 'top'}
+                    onChange={(e) => updateConfig({ tabBarPosition: e.target.value as any })}
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      color: 'var(--app-fg)'
+                    }}
+                  >
+                    <option value="top" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Top</option>
+                    <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
+                    <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }} />
               </div>
 
               <div style={{ display: 'flex', gap: 16 }}>
@@ -388,8 +455,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   >
                     <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
@@ -407,8 +473,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      color: 'var(--app-fg)',
-                      outline: 'none'
+                      color: 'var(--app-fg)'
                     }}
                   />
                 </div>
@@ -432,7 +497,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.webglEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ webglEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                   >
                     <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
                     <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled (Canvas)</option>
@@ -479,7 +544,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.historyLoggingEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ historyLoggingEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                   >
                     <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
                     <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
@@ -491,7 +556,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="number"
                     value={config.historyDatabaseLimitMb || 500}
                     onChange={(e) => updateConfig({ historyDatabaseLimitMb: parseInt(e.target.value) || 500 })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                   />
                 </div>
               </div>
@@ -503,7 +568,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="number"
                     value={config.historyKeepDays || 30}
                     onChange={(e) => updateConfig({ historyKeepDays: parseInt(e.target.value) || 30 })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -511,7 +576,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <select
                     value={config.virtualScrollbackEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ virtualScrollbackEnabled: e.target.value === 'true' })}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                   >
                     <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
                     <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
@@ -525,7 +590,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   type="number"
                   value={config.virtualScrollbackBufferSize || 1000}
                   onChange={(e) => updateConfig({ virtualScrollbackBufferSize: parseInt(e.target.value) || 1000 })}
-                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)', outline: 'none' }}
+                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
                 />
               </div>
 
@@ -638,7 +703,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13 }}
                   />
                 </div>
 
@@ -648,7 +713,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     type="text"
                     value={editShell}
                     onChange={(e) => setEditShell(e.target.value)}
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, fontFamily: 'monospace' }}
                   />
                 </div>
 
@@ -660,7 +725,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={editArgs}
                       onChange={(e) => setEditArgs(e.target.value)}
                       placeholder="e.g. -l -v"
-                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
+                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13 }}
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -670,7 +735,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={editCwd}
                       onChange={(e) => setEditCwd(e.target.value)}
                       placeholder="e.g. ~/Downloads"
-                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
+                      style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13 }}
                     />
                   </div>
                 </div>
@@ -681,7 +746,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     value={editEnv}
                     onChange={(e) => setEditEnv(e.target.value)}
                     placeholder="e.g.&#10;NODE_ENV=production&#10;MY_VAR=hello"
-                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none', height: 80, resize: 'none', fontFamily: 'monospace' }}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, height: 80, resize: 'none', fontFamily: 'monospace' }}
                   />
                 </div>
 

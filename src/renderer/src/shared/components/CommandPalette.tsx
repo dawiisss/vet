@@ -17,6 +17,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const filteredActions = actions.filter(action => 
     action.label.toLowerCase().includes(query.toLowerCase())
@@ -85,7 +86,34 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
 
   return (
     <div
+      ref={containerRef}
       onClick={handleOverlayClick}
+      onKeyDownCapture={(e) => {
+        if (e.key === 'Tab' && containerRef.current) {
+          const focusableElements = Array.from(
+            containerRef.current.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+          ).filter((el) => el.offsetParent !== null)
+
+          if (focusableElements.length > 0) {
+            const firstElement = focusableElements[0]
+            const lastElement = focusableElements[focusableElements.length - 1]
+
+            if (e.shiftKey) {
+              if (document.activeElement === firstElement || document.activeElement === containerRef.current) {
+                e.preventDefault()
+                lastElement.focus()
+              }
+            } else {
+              if (document.activeElement === lastElement) {
+                e.preventDefault()
+                firstElement.focus()
+              }
+            }
+          }
+        }
+      }}
       style={{
         position: 'absolute',
         top: 0,

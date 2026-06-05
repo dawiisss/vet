@@ -145,4 +145,25 @@ describe('TabBar', () => {
     expect(screen.getByText('Default Shell')).toBeInTheDocument()
     expect(screen.getByText('Node.js REPL')).toBeInTheDocument()
   })
+
+  it('shows context menu on right click and supports layout changes', () => {
+    const { container } = render(
+      <TabBar
+        tabs={tabs}
+        activeTabId="tab-1"
+        onSelect={onSelect}
+        onClose={onClose}
+        onNew={onNew}
+      />
+    )
+    
+    // The main container is the first child div of the fragment/container
+    const mainContainer = container.firstChild as HTMLElement
+    fireEvent.contextMenu(mainContainer, { clientX: 100, clientY: 100 })
+    
+    // ContextMenu should now be open
+    expect(screen.getByText('✓ Position: Top')).toBeInTheDocument()
+    expect(screen.getByText('Position: Left')).toBeInTheDocument()
+    expect(screen.getByText('Position: Right')).toBeInTheDocument()
+  })
 })

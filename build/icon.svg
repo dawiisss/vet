@@ -1,0 +1,7 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded square background -->
+  <rect x="64" y="64" width="896" height="896" rx="220" ry="220" fill="#1e1e2e" stroke="#313244" stroke-width="8" />
+  
+  <!-- Terminal Prompt ">_" -->
+  <text x="240" y="620" font-family="monospace, Courier New, sans-serif" font-size="440" font-weight="900" fill="#cdd6f4" letter-spacing="-20">&gt;_</text>
+</svg>
