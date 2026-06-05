@@ -1,3 +1,13 @@
+/**
+ * Represents a node in the terminal split-pane tree.
+ * The tree structure allows nested splitting of terminals into rows and columns.
+ *
+ * @remarks
+ * A leaf node represents an actual terminal instance and has a `terminalId`.
+ * A split node represents a container and has a `direction`, `children`, and `sizes`.
+ * The `sizes` array tracks the proportional visual space (0.0 to 1.0) each child
+ * occupies, ensuring UI layouts remain consistent when resized.
+ */
 export interface SplitNode {
   terminalId?: string
   direction?: 'horizontal' | 'vertical'
@@ -5,10 +15,26 @@ export interface SplitNode {
   sizes?: number[]
 }
 
+/**
+ * Creates a leaf node representing a single, unsplit terminal.
+ *
+ * @param terminalId - The unique identifier of the terminal process.
+ * @returns A terminal leaf node.
+ */
 export function leafNode(terminalId: string): SplitNode {
   return { terminalId }
 }
 
+/**
+ * Creates a container node that splits its children uniformly in the given direction.
+ *
+ * @remarks
+ * Initial sizes are distributed equally (e.g., two children get 0.5 each).
+ *
+ * @param direction - The layout axis ('horizontal' splits columns, 'vertical' splits rows).
+ * @param children - The nodes contained within this split.
+ * @returns A split container node.
+ */
 export function splitNode(direction: 'horizontal' | 'vertical', children: SplitNode[]): SplitNode {
   return {
     direction,
@@ -17,6 +43,17 @@ export function splitNode(direction: 'horizontal' | 'vertical', children: SplitN
   }
 }
 
+/**
+ * Traverses the split tree to retrieve a node at a specific path.
+ *
+ * @remarks
+ * Paths are represented as an array of indices. E.g., `[0, 1]` means
+ * "take the 0th child of the root, then the 1st child of that node".
+ *
+ * @param root - The starting node of the tree.
+ * @param path - The sequence of child indices to reach the target node.
+ * @returns The node at the specified path.
+ */
 export function getNode(root: SplitNode, path: number[]): SplitNode {
   let node = root
   for (const i of path) {
@@ -25,6 +62,18 @@ export function getNode(root: SplitNode, path: number[]): SplitNode {
   return node
 }
 
+/**
+ * Creates a new tree with a node replaced at the specified path.
+ *
+ * @remarks
+ * This function does not mutate the original tree (immutable structure),
+ * making it safe to use with React state managers like Zustand.
+ *
+ * @param root - The starting node of the tree.
+ * @param path - The sequence of child indices pointing to the node to replace.
+ * @param replacement - The new node to insert at the path.
+ * @returns A new root node with the nested replacement applied.
+ */
 export function setNode(root: SplitNode, path: number[], replacement: SplitNode): SplitNode {
   if (path.length === 0) return replacement
   const [i, ...rest] = path
