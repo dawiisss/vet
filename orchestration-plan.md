@@ -1,28 +1,18 @@
-# 🎼 Maestro: Phase 4 Implementation Breakdown
+# 🎼 Maestro: Phase 5 - Terminal Clipboard History Breakdown
 
-💡 What: The codebase is ready to begin Phase 4 - Core Advanced & Terminal Features. Looking at `ImplementationPlan.md` and the existing files, `TerminalView.tsx` already has partial implementation of WebGL and Image addons, but lacks proper testing and documentation.
+💡 What: Phase 4 is completed. Moving on to Phase 5 ("Sidebar Developer Toolbelt"), the implementation plan lists "Terminal Clipboard & Snippet Library". While the snippet library is currently implemented (`src/renderer/src/shared/components/SnippetLibraryPanel.tsx`), the "Terminal Clipboard" (persisting terminal copy actions to a styled Clipboard panel) is entirely missing. This proposal scopes the implementation of the missing Clipboard History feature.
 
 🎯 Delegation:
-### Task: Implement Rich URL & Path Detection PoC
-- [x] **@Pioneer** 🔭: Create a proof of concept in `_experiments/url-detection/` for using `@xterm/addon-web-links` with custom regexp matchers to detect URLs, local paths, and lines (e.g., `src/main/index.ts:45`).
+### Task: Research Intercepting Terminal Copies
+- [ ] **@Pioneer** 🔭: Create a proof of concept in `_experiments/clipboard-history/` that demonstrates intercepting standard copy operations (both keyboard shortcuts and right-click) from an xterm.js instance in Electron, and saving the text to a temporary store.
 
-### Task: Implement Rich URL & Path Detection Production
-- [ ] **@Forge** 🔨: Integrate the custom URL and path detection using `@xterm/addon-web-links` into `src/renderer/src/features/terminal/components/TerminalView.tsx`. Use the regex matchers and setup logic demonstrated in `_experiments/url-detection/poc.ts`.
+### Task: Implement Clipboard History Panel UI
+- [ ] **@Forge** 🔨: Once Pioneer has proven the interception method, update `src/renderer/src/shared/components/SnippetLibraryPanel.tsx` (or create a new `ClipboardHistoryPanel.tsx`) to display a chronological list of recent terminal copies, with a 1-click button to paste them back into the active terminal. Use the logic established in Pioneer's PoC.
 
-### Task: Cleanup URL Detection PoC
-- [ ] **@Broom** 🧹: Once Forge has completed the production implementation, delete the `_experiments/url-detection/` folder.
-
-### Task: Implement Sixel & Inline Images
-- [ ] **@Forge** 🔨: Integrate `@xterm/addon-image` into `src/renderer/src/features/terminal/components/TerminalView.tsx` to fully support the Sixel graphics protocol inline within the scrollback buffer.
-- [x] **@Scribe** 🪶: Update `README.md` to document the new Sixel/inline image capability and how to use it with CLI apps like `neofetch`.
-
-### Task: Terminal Component Test Coverage
-- [ ] **@Beaker** 🧪: Add comprehensive test coverage for `TerminalView.tsx` by creating `src/__tests__/TerminalView.test.tsx`. Ensure you cover WebGL context loss, fallback to 2D canvas, and search functionality.
-
-### Task: Aesthetic Window Vibrancy Controls
-- [ ] **@Forge** 🔨: Add dynamic opacity controls and macOS Vibrancy (`NSVisualEffectView`) / Windows Acrylic/Mica effects in `src/renderer/src/features/settings/components/SettingsModal.tsx` and ensure the Electron main process IPC correctly handles them. (Reassigned from Palette due to main process IPC constraints).
+### Task: Test Clipboard Persistence
+- [ ] **@Beaker** 🧪: Write an isolated component test for the new clipboard history UI to ensure copied items are rendered correctly and limit bounds (e.g., max 50 items) are respected.
 
 🚦 Sequence:
-- `@Forge` must complete the Sixel implementation and the URL & Path Detection in `TerminalView.tsx` sequentially BEFORE `@Beaker` starts adding tests or `@Scribe` adds documentation. Serial delegation is required here to avoid merge conflicts on `TerminalView.tsx`.
-- `@Forge`'s "Aesthetic Window Vibrancy Controls" task touches settings files, so it can be done in parallel with `TerminalView.tsx` work.
-- `@Broom`'s cleanup task should only happen AFTER `@Forge` completes the URL & Path Detection implementation.
+- `@Pioneer` must complete the research PoC in `_experiments/` first.
+- `@Forge` then implements the feature using the PoC as a reference.
+- `@Beaker` can write the tests in parallel or sequentially after `@Forge` completes the UI logic.
