@@ -31,6 +31,7 @@ interface TerminalCacheEntry {
   unsubExit: () => void
   onExit?: (terminalId: string) => void
   webglAddon?: WebglAddon | null
+  imageAddon?: ImageAddon | null
 }
 
 const terminalCache = new Map<string, TerminalCacheEntry>()
@@ -42,6 +43,7 @@ export function destroyTerminalCache(terminalId: string) {
     entry.unsubExit()
     window.serializeAddons?.delete(terminalId)
     if (entry.webglAddon) entry.webglAddon.dispose()
+    if (entry.imageAddon) entry.imageAddon.dispose()
     entry.term.dispose()
     terminalCache.delete(terminalId)
   }
@@ -59,6 +61,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
   configRef.current = config
 
   const webglAddonRef = useRef<WebglAddon | null>(null)
+  const imageAddonRef = useRef<ImageAddon | null>(null)
 
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const isSearchOpenRef = useRef(isSearchOpen)
@@ -114,7 +117,13 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       }))
       
       try {
-        term.loadAddon(new ImageAddon())
+        const imageAddon = new ImageAddon({
+          sixelSupport: true,
+          sixelScrolling: true,
+          enableSizeReports: true
+        })
+        term.loadAddon(imageAddon)
+        imageAddonRef.current = imageAddon
       } catch (e) {
         console.warn('Failed to load ImageAddon', e)
       }
@@ -236,7 +245,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
         unsubData,
         unsubExit,
         onExit,
-        webglAddon: webglAddonRef.current
+        webglAddon: webglAddonRef.current,
+        imageAddon: imageAddonRef.current
       }
       terminalCache.set(terminalId, entry)
     } else {
@@ -245,6 +255,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       fitAddon = entry.fitAddon
       searchAddon = entry.searchAddon
       webglAddonRef.current = entry.webglAddon || null
+      imageAddonRef.current = entry.imageAddon || null
       
       if (term.element) {
         container.appendChild(term.element)

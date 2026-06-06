@@ -213,6 +213,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Settings</h2>
           <button
             onClick={onClose}
+            aria-label="Close settings"
+            className="focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:outline-none"
             style={{
               background: 'transparent',
               border: 'none',
@@ -316,8 +318,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           {activeTab === 'general' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 13, color: '#bac2de' }}>Shell</label>
+                <label htmlFor="shell-input" style={{ fontSize: 13, color: '#bac2de' }}>Shell</label>
                 <input
+                  id="shell-input"
                   type="text"
                   value={config.shell}
                   onChange={(e) => updateConfig({ shell: e.target.value })}
@@ -333,8 +336,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 13, color: '#bac2de' }}>Font Family</label>
+                <label htmlFor="font-family-input" style={{ fontSize: 13, color: '#bac2de' }}>Font Family</label>
                 <input
+                  id="font-family-input"
                   type="text"
                   value={config.fontFamily}
                   onChange={(e) => updateConfig({ fontFamily: e.target.value })}
@@ -351,8 +355,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Font Size</label>
+                  <label htmlFor="font-size-input" style={{ fontSize: 13, color: '#bac2de' }}>Font Size</label>
                   <input
+                    id="font-size-input"
                     type="number"
                     value={config.fontSize}
                     onChange={(e) => updateConfig({ fontSize: parseInt(e.target.value) || 12 })}
@@ -366,8 +371,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Cursor Style</label>
+                  <label htmlFor="cursor-style-select" style={{ fontSize: 13, color: '#bac2de' }}>Cursor Style</label>
                   <select
+                    id="cursor-style-select"
                     value={config.cursorStyle}
                     onChange={(e) => updateConfig({ cursorStyle: e.target.value as any })}
                     style={{
@@ -387,8 +393,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Status</label>
+                  <label htmlFor="sidebar-status-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Status</label>
                   <select
+                    id="sidebar-status-select"
                     value={config.sidebarOpen ? 'open' : 'closed'}
                     onChange={(e) => updateConfig({ sidebarOpen: e.target.value === 'open' })}
                     style={{
@@ -404,8 +411,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Placement</label>
+                  <label htmlFor="sidebar-placement-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Placement</label>
                   <select
+                    id="sidebar-placement-select"
                     value={config.sidebarPlacement || 'right'}
                     onChange={(e) => updateConfig({ sidebarPlacement: e.target.value as any })}
                     style={{
@@ -424,8 +432,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Tab Bar Position</label>
+                  <label htmlFor="tab-bar-position-select" style={{ fontSize: 13, color: '#bac2de' }}>Tab Bar Position</label>
                   <select
+                    id="tab-bar-position-select"
                     value={config.tabBarPosition || 'top'}
                     onChange={(e) => updateConfig({ tabBarPosition: e.target.value as any })}
                     style={{
@@ -446,8 +455,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Parse ~/.ssh/config</label>
+                  <label htmlFor="ssh-parse-select" style={{ fontSize: 13, color: '#bac2de' }}>Parse ~/.ssh/config</label>
                   <select
+                    id="ssh-parse-select"
                     value={config.sshParseGlobal !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ sshParseGlobal: e.target.value === 'true' })}
                     style={{
@@ -463,8 +473,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Docker Default Shell</label>
+                  <label htmlFor="docker-shell-input" style={{ fontSize: 13, color: '#bac2de' }}>Docker Default Shell</label>
                   <input
+                    id="docker-shell-input"
                     type="text"
                     value={config.dockerDefaultShell || '/bin/bash'}
                     onChange={(e) => updateConfig({ dockerDefaultShell: e.target.value })}
@@ -481,8 +492,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Terminal Opacity ({config.opacity ?? 1})</label>
+                  <label htmlFor="terminal-opacity-input" style={{ fontSize: 13, color: '#bac2de' }}>Terminal Opacity ({config.opacity ?? 1})</label>
                   <input
+                    id="terminal-opacity-input"
                     type="range"
                     min="0.1"
                     max="1.0"
@@ -493,8 +505,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Hardware Acceleration (WebGL)</label>
+                  <label htmlFor="webgl-select" style={{ fontSize: 13, color: '#bac2de' }}>Hardware Acceleration (WebGL)</label>
                   <select
+                    id="webgl-select"
                     value={config.webglEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ webglEnabled: e.target.value === 'true' })}
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
@@ -540,8 +553,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Enable History Logging</label>
+                  <label htmlFor="history-logging-select" style={{ fontSize: 13, color: '#bac2de' }}>Enable History Logging</label>
                   <select
+                    id="history-logging-select"
                     value={config.historyLoggingEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ historyLoggingEnabled: e.target.value === 'true' })}
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
@@ -551,8 +565,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>DB Size Limit (MB)</label>
+                  <label htmlFor="db-size-limit-input" style={{ fontSize: 13, color: '#bac2de' }}>DB Size Limit (MB)</label>
                   <input
+                    id="db-size-limit-input"
                     type="number"
                     value={config.historyDatabaseLimitMb || 500}
                     onChange={(e) => updateConfig({ historyDatabaseLimitMb: parseInt(e.target.value) || 500 })}
@@ -563,8 +578,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Keep History (Days)</label>
+                  <label htmlFor="keep-history-input" style={{ fontSize: 13, color: '#bac2de' }}>Keep History (Days)</label>
                   <input
+                    id="keep-history-input"
                     type="number"
                     value={config.historyKeepDays || 30}
                     onChange={(e) => updateConfig({ historyKeepDays: parseInt(e.target.value) || 30 })}
@@ -572,8 +588,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label style={{ fontSize: 13, color: '#bac2de' }}>Virtual Scrollback</label>
+                  <label htmlFor="virtual-scrollback-select" style={{ fontSize: 13, color: '#bac2de' }}>Virtual Scrollback</label>
                   <select
+                    id="virtual-scrollback-select"
                     value={config.virtualScrollbackEnabled !== false ? 'true' : 'false'}
                     onChange={(e) => updateConfig({ virtualScrollbackEnabled: e.target.value === 'true' })}
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: 6, color: 'var(--app-fg)' }}
@@ -585,8 +602,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 13, color: '#bac2de' }}>Virtual Scrollback Buffer Limit (Lines)</label>
+                <label htmlFor="virtual-scrollback-buffer-input" style={{ fontSize: 13, color: '#bac2de' }}>Virtual Scrollback Buffer Limit (Lines)</label>
                 <input
+                  id="virtual-scrollback-buffer-input"
                   type="number"
                   value={config.virtualScrollbackBufferSize || 1000}
                   onChange={(e) => updateConfig({ virtualScrollbackBufferSize: parseInt(e.target.value) || 1000 })}
@@ -676,17 +694,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         {config.profiles && config.profiles.length > 1 && (
                           <button
                             onClick={(e) => deleteProfile(p.id, e)}
+                            aria-label="Delete Profile"
+                            className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
                             style={{
                               background: 'transparent',
                               border: 'none',
                               color: 'var(--app-red)',
                               cursor: 'pointer',
                               padding: 4,
-                              fontSize: 12
+                              fontSize: 12,
+                              borderRadius: 4
                             }}
                             title="Delete Profile"
                           >
-                            🗑
+                            <span aria-hidden="true">🗑</span>
                           </button>
                         )}
                       </div>
