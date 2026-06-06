@@ -29,8 +29,6 @@ type DropZone = 'none' | 'right' | 'bottom' | 'outside'
 
 interface DragState {
   tabId: string
-  x: number
-  y: number
   zone: DropZone
 }
 
@@ -654,14 +652,17 @@ export const useTabStore = create<TabStore>((set, get) => {
     },
 
     handleDragStart: (tabId) => {
-      set({ dragState: { tabId, x: 0, y: 0, zone: 'none' } })
+      set({ dragState: { tabId, zone: 'none' } })
     },
 
     handleDragMove: (x, y, terminalArea) => {
       set((state) => {
         const prev = state.dragState
         if (!prev) return {}
-        if (!terminalArea) return { dragState: { ...prev, x, y, zone: 'none' } }
+        if (!terminalArea) {
+          if (prev.zone === 'none') return state
+          return { dragState: { ...prev, zone: 'none' } }
+        }
 
         const r = terminalArea.getBoundingClientRect()
         const relX = x - r.left
@@ -678,10 +679,10 @@ export const useTabStore = create<TabStore>((set, get) => {
         }
 
         // Performance optimization: skip state update (and re-renders) on mouse move
-        // if x, y, and zone haven't changed. We still need x,y updates for UI to track dragging.
-        if (prev.x === x && prev.y === y && prev.zone === zone) return state
+        // if zone hasn't changed. x and y are tracked via DOM directly in TabBar.
+        if (prev.zone === zone) return state
 
-        return { dragState: { ...prev, x, y, zone } }
+        return { dragState: { ...prev, zone } }
       })
     },
 
