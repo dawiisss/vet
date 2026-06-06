@@ -18,9 +18,9 @@ global.ResizeObserver = class {
 const mockContextLossHandlers: (() => void)[] = []
 const mockDispose = jest.fn()
 
-const mockFindNext = jest.fn()
-const mockFindPrevious = jest.fn()
-const mockLoadAddon = jest.fn()
+let mockFindNext = jest.fn()
+let mockFindPrevious = jest.fn()
+let mockLoadAddon = jest.fn()
 
 class MockTerminal {
   options: any = {}
