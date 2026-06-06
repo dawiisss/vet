@@ -113,8 +113,20 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       term.loadAddon(fitAddon)
       term.loadAddon(serializeAddon)
       term.loadAddon(searchAddon)
+      const urlPathRegex = /(?:https?:\/\/[^\s]+)|(?:(?:[a-zA-Z]:[\\/]+|\/)?(?:[\w.-]+[\\/]+)+[\w.-]+(?::\d+)?)/
       term.loadAddon(new WebLinksAddon((_event, uri) => {
-        window.windowApi?.openExternal?.(uri)
+        if (uri.startsWith('http://') || uri.startsWith('https://')) {
+          window.windowApi?.openExternal?.(uri)
+        } else {
+          const match = uri.match(/^(.+?)(?::(\d+))?$/)
+          if (match) {
+            window.workspaceApi?.revealPath?.(match[1])
+          }
+        }
+      }, {
+        urlRegex: urlPathRegex,
+        hover: () => { document.body.style.cursor = 'pointer' },
+        leave: () => { document.body.style.cursor = '' }
       }))
       
       try {

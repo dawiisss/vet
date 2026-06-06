@@ -93,8 +93,6 @@ describe('panel components', () => {
       })
     })
   })
-    })
-  })
 
   describe('SnippetLibraryPanel', () => {
     it('renders without error', async () => {

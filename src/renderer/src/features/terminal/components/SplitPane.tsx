@@ -45,7 +45,6 @@ function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResiz
   return (
     <SplitContainer
       direction={direction}
-      children={children}
       sizes={sizes}
       parentPath={path}
       focusedPath={focusedPath}
@@ -54,7 +53,9 @@ function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResiz
       onExit={onExit}
       onResize={onResize}
       onExtract={onExtract}
-    />
+    >
+      {children}
+    </SplitContainer>
   )
 }
 

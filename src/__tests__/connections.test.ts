@@ -32,7 +32,7 @@ import { initConnectionsManager } from '../main/connections'
 import { ipcMain } from 'electron'
 
 function mockExecCallback(stdout: string, error: Error | null = null) {
-  execMock.mockImplementation((_cmd: string, cb: Function) => {
+  execMock.mockImplementation(    (_cmd: string, cb: (...args: unknown[]) => void) => {
     if (cb && typeof cb === 'function') {
       cb(error, { stdout }, '')
       return undefined as any

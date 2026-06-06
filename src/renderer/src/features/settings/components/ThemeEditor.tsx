@@ -125,7 +125,7 @@ export const ThemeEditor: React.FC = () => {
             <div style={{ color: draftTheme.blue, fontWeight: 'bold' }}>Desktop/</div>
             <div style={{ color: draftTheme.blue, fontWeight: 'bold' }}>Downloads/</div>
             <div style={{ color: draftTheme.foreground }}>file.txt</div>
-            <div style={{ color: draftTheme.green }}>➜ <span style={{ color: draftTheme.cyan }}>~</span> <span style={{ color: draftTheme.foreground }}>echo "Hello"</span></div>
+            <div style={{ color: draftTheme.green }}>➜ <span style={{ color: draftTheme.cyan }}>~</span> <span style={{ color: draftTheme.foreground }}>echo &apos;Hello&apos;</span></div>
             <div style={{ color: draftTheme.foreground, display: 'inline-block' }}>
               Hello
               <span style={{ display: 'inline-block', width: 8, height: 14, background: draftTheme.cursor, verticalAlign: 'middle', marginLeft: 2 }} />
