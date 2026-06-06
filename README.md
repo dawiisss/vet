@@ -81,6 +81,23 @@ Main Process                        Renderer Process
 - Fuzzy Command Search UI
 - Spill-to-Disk Virtual Scrollback Archive
 
+
+### Sixel & Inline Images
+
+Vet supports the [Sixel](https://en.wikipedia.org/wiki/Sixel) graphics protocol, enabling the terminal to render high-resolution images directly in the console output. This is possible through `@xterm/addon-image`.
+
+**Why Sixel?**
+Instead of forcing you to leave the terminal to view graphical files, Sixel encodes image data into standard text output sequences. This creates a richer command-line experience where visual context (e.g., charts, photos, or diagrams) lives immediately next to your commands.
+
+**How to use it:**
+You can use tools that support Sixel output to display images in the terminal. For example:
+- **ImageMagick**: View images via `img2txt` or `magick display`
+- **Neofetch / Fastfetch**: Display high-quality logos next to your system info by configuring them to use Sixel backend:
+  ```bash
+  neofetch --sixel /path/to/image.png
+  ```
+- **lsix**: An `ls` clone that shows image thumbnails directly in your terminal.
+
 ## Getting Started
 
 ### Prerequisites
