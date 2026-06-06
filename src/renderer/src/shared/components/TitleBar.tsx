@@ -67,6 +67,7 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
             onClick={onOpenSettings}
             style={{ ...btnStyle, color: 'var(--app-fg-subtle)' }}
             title="Settings (Ctrl+,)"
+            aria-label="Settings"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
@@ -78,6 +79,8 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
           className="titlebar-btn"
           onClick={handleMinimize}
           style={btnStyle}
+          title="Minimize"
+          aria-label="Minimize"
         >
           <svg width="14" height="14" viewBox="0 0 14 14">
             <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1.5" />
@@ -87,6 +90,8 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
           className="titlebar-btn"
           onClick={handleMaximize}
           style={btnStyle}
+          title={maximized ? "Restore down" : "Maximize"}
+          aria-label={maximized ? "Restore down" : "Maximize"}
         >
           {maximized ? (
             <svg width="14" height="14" viewBox="0 0 14 14">
@@ -103,6 +108,8 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
           className="titlebar-close-btn"
           onClick={handleClose}
           style={btnStyle}
+          title="Close"
+          aria-label="Close"
         >
           <svg width="14" height="14" viewBox="0 0 14 14">
             <line x1="3" y1="3" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" />

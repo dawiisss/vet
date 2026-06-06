@@ -5,3 +5,7 @@
 ## 2024-05-18 - [Persona Constraint Enforcement]
 Learning: When assigned a task by Maestro that requires backend (main process) modifications (such as configuring OS-level window vibrancy), it is a strict violation of the Palette persona's boundary (UX/a11y only).
 Action: Immediately reject such tasks by modifying the orchestration plan with a rejection notice and falling back to a <50 line UI/a11y enhancement in an appropriate file.
+
+## 2026-06-06 - Window Controls Accessibility
+**Learning:** Window controls like minimize, maximize, and close are fundamental app controls that must be accessible. Using only SVG icons without ARIA labels makes them completely invisible to screen readers, and lacking tooltips (`title`) degrades the desktop UX.
+**Action:** Always provide `aria-label` and `title` attributes on custom window controls in desktop applications.

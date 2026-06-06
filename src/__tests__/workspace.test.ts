@@ -18,6 +18,7 @@ import { initWorkspaceManager } from '../main/workspace'
 import { ipcMain } from 'electron'
 
 describe('workspace', () => {
+
   let getScriptsHandler: (...args: any[]) => any
   let listDirHandler: (...args: any[]) => any
   let revealPathHandler: (...args: any[]) => any
@@ -112,11 +113,13 @@ describe('workspace', () => {
     })
 
     it('returns empty array on readdir error', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const fs = require('fs/promises')
       fs.readdir.mockRejectedValue(new Error('permission denied'))
 
       const result = await listDirHandler({}, '/test')
       expect(result).toEqual([])
+      errorSpy.mockRestore()
     })
   })
 
@@ -147,11 +150,13 @@ describe('workspace', () => {
     })
 
     it('returns error message on failure', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const fs = require('fs/promises')
       fs.open.mockRejectedValue(new Error('access denied'))
 
       const result = await readFileHeadHandler({}, '/file.txt')
       expect(result).toContain('Error: Failed to read file')
+      errorSpy.mockRestore()
     })
   })
 })
