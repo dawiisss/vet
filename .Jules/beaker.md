@@ -5,3 +5,6 @@
 ## 2024-06-06 - Testing TerminalView with JSDOM
 Learning: Testing xterm addons like `WebglAddon` and `SearchAddon` along with React state bounds requires using static, synchronous config mocks to ensure hooks correctly trigger. Direct calls into mocked dependencies artificially inflate confidence. Use real DOM assertions and events like `@testing-library/user-event` to trigger interactions correctly.
 Action: Use mocked components properly but interact via synthetic DOM events (`userEvent.type`, `userEvent.click`) rather than manually invoking callbacks out-of-context.
+## 2025-06-06 - Fixing Console Warnings in Tests
+Learning: When asserting expected error states or component fallbacks that intentionally trigger console logs (like WebGL context loss calling `console.warn`), those logs can spam the test output and reduce its clarity.
+Action: Apply `jest.spyOn(console, 'warn').mockImplementation(() => {})` inside the specific test block triggering the log, and restore it with `.mockRestore()` at the end of the test.

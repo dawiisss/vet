@@ -164,6 +164,8 @@ describe('TerminalView', () => {
   })
 
   it('renders and handles context loss for webgl addon', async () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
     const { unmount } = render(
       <TerminalView terminalId="test-term-1" isActive={true} isFocused={true} />
     )
@@ -182,6 +184,7 @@ describe('TerminalView', () => {
     expect(mockDispose).toHaveBeenCalled()
 
     unmount()
+    consoleSpy.mockRestore()
   })
 
   it('toggles search overlay and handles findNext/findPrevious via search functionality', async () => {
