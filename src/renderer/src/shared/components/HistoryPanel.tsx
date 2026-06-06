@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 
 interface HistorySession {
   id: string
@@ -166,7 +167,7 @@ export default function HistoryPanel({
                     wordBreak: 'break-all',
                     maxHeight: 60
                   }}
-                  dangerouslySetInnerHTML={{ __html: session.snippet }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(session.snippet) }}
                 />
               )}
             </div>
