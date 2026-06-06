@@ -1,1 +1,5 @@
 ## 2024-06-06 - [Electron WebPreferences Sandbox & Context Isolation] \n **Vulnerability:** Unsandboxed Electron BrowserWindow with potential implicit Node integration.\n **Learning:** Electron windows should always explicitly disable nodeIntegration and enable contextIsolation and sandbox, even if defaults have changed over time, to ensure robust defense-in-depth against remote code execution and XSS escalations.\n **Prevention:** Review BrowserWindow configurations to ensure sandbox: true, contextIsolation: true, and nodeIntegration: false are explicitly set.
+## 2023-10-24 - Do Not Install @types/dompurify
+**Vulnerability:** N/A (Typing issue)
+**Learning:** The `dompurify` package (starting from v3) includes its own type definitions. Installing the deprecated `@types/dompurify` stub package is unnecessary and causes package manager warnings.
+**Prevention:** When installing `dompurify` to patch XSS vectors via `dangerouslySetInnerHTML`, only `pnpm add dompurify` is required. Do not add `@types/dompurify` to devDependencies.
