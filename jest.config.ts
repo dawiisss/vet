@@ -7,6 +7,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/renderer/src/$1',
     '\\.css$': '<rootDir>/src/__mocks__/styleMock.ts',
+    '\\?asset$': '<rootDir>/src/__mocks__/fileMock.ts'
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
