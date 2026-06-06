@@ -5,3 +5,7 @@
 ## 2024-06-06 - Testing TerminalView with JSDOM
 Learning: Testing xterm addons like `WebglAddon` and `SearchAddon` along with React state bounds requires using static, synchronous config mocks to ensure hooks correctly trigger. Direct calls into mocked dependencies artificially inflate confidence. Use real DOM assertions and events like `@testing-library/user-event` to trigger interactions correctly.
 Action: Use mocked components properly but interact via synthetic DOM events (`userEvent.type`, `userEvent.click`) rather than manually invoking callbacks out-of-context.
+
+## 2024-06-06 - Mocking Date.now() for unique IDs in synchronous tests
+Learning: When testing logic that relies on `Date.now()` to generate unique IDs (like Zustand store actions), the fast, synchronous execution of tests can result in identical timestamps and duplicate IDs.
+Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent ID collisions and ensure predictable state updates during testing. Remember to call `.mockRestore()` afterwards.
