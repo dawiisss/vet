@@ -1,22 +1,18 @@
-# 🎼 Maestro: Phase 4 Implementation Breakdown
+# 🎼 Maestro: Phase 5 - Terminal Clipboard History Breakdown
 
-💡 What: The codebase is ready to begin Phase 4 - Core Advanced & Terminal Features. Looking at `ImplementationPlan.md` and the existing files, `TerminalView.tsx` already has partial implementation of WebGL and Image addons, but lacks proper testing and documentation.
+💡 What: Phase 4 is completed. Moving on to Phase 5 ("Sidebar Developer Toolbelt"), the implementation plan lists "Terminal Clipboard & Snippet Library". While the snippet library is currently implemented (`src/renderer/src/shared/components/SnippetLibraryPanel.tsx`), the "Terminal Clipboard" (persisting terminal copy actions to a styled Clipboard panel) is entirely missing. This proposal scopes the implementation of the missing Clipboard History feature.
 
 🎯 Delegation:
-### Task: Implement Rich URL & Path Detection PoC
-- [ ] **@Pioneer** 🔭: Create a proof of concept in `_experiments/url-detection/` for using `@xterm/addon-web-links` with custom regexp matchers to detect URLs, local paths, and lines (e.g., `src/main/index.ts:45`).
+### Task: Research Intercepting Terminal Copies
+- [ ] **@Pioneer** 🔭: Create a proof of concept in `_experiments/clipboard-history/` that demonstrates intercepting standard copy operations (both keyboard shortcuts and right-click) from an xterm.js instance in Electron, and saving the text to a temporary store.
 
-### Task: Implement Sixel & Inline Images
-- [ ] **@Forge** 🔨: Integrate `@xterm/addon-image` into `src/renderer/src/features/terminal/components/TerminalView.tsx` to fully support the Sixel graphics protocol inline within the scrollback buffer.
-- [x] **@Scribe** 🪶: Update `README.md` to document the new Sixel/inline image capability and how to use it with CLI apps like `neofetch`.
+### Task: Implement Clipboard History Panel UI
+- [ ] **@Forge** 🔨: Once Pioneer has proven the interception method, update `src/renderer/src/shared/components/SnippetLibraryPanel.tsx` (or create a new `ClipboardHistoryPanel.tsx`) to display a chronological list of recent terminal copies, with a 1-click button to paste them back into the active terminal. Use the logic established in Pioneer's PoC.
 
-### Task: Terminal Component Test Coverage
-- [ ] **@Beaker** 🧪: Add comprehensive test coverage for `TerminalView.tsx` by creating `src/__tests__/TerminalView.test.tsx`. Ensure you cover WebGL context loss, fallback to 2D canvas, and search functionality.
-
-### Task: Aesthetic Window Vibrancy Controls
-- [ ] **@Palette** 🎨: Add dynamic opacity controls and macOS Vibrancy (`NSVisualEffectView`) / Windows Acrylic/Mica effects in `src/renderer/src/features/settings/components/SettingsModal.tsx`. Ensure it correctly updates `useConfigStore`.
-  - ❌ Task Rejected by Palette: This assignment violates my strict persona constraints. I am strictly forbidden from altering backend logic like the Electron main process, which is required to dynamically apply the OS-level window visual effects. Please reassign this task to the appropriate agent (e.g., Forge or Blueprint).
+### Task: Test Clipboard Persistence
+- [ ] **@Beaker** 🧪: Write an isolated component test for the new clipboard history UI to ensure copied items are rendered correctly and limit bounds (e.g., max 50 items) are respected.
 
 🚦 Sequence:
-- The `@Pioneer` and `@Palette` tasks can be done in parallel as they touch different areas of the codebase.
-- `@Forge` must complete the Sixel implementation in `TerminalView.tsx` BEFORE `@Beaker` starts adding tests or `@Scribe` adds documentation. Serial delegation is required here to avoid merge conflicts on `TerminalView.tsx`.
+- `@Pioneer` must complete the research PoC in `_experiments/` first.
+- `@Forge` then implements the feature using the PoC as a reference.
+- `@Beaker` can write the tests in parallel or sequentially after `@Forge` completes the UI logic.
