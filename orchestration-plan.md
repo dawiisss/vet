@@ -8,7 +8,7 @@
 
 ### Task: Implement Sixel & Inline Images
 - [ ] **@Forge** 🔨: Integrate `@xterm/addon-image` into `src/renderer/src/features/terminal/components/TerminalView.tsx` to fully support the Sixel graphics protocol inline within the scrollback buffer.
-- [ ] **@Scribe** 🪶: Update `README.md` to document the new Sixel/inline image capability and how to use it with CLI apps like `neofetch`.
+- [x] **@Scribe** 🪶: Update `README.md` to document the new Sixel/inline image capability and how to use it with CLI apps like `neofetch`.
 
 ### Task: Terminal Component Test Coverage
 - [ ] **@Beaker** 🧪: Add comprehensive test coverage for `TerminalView.tsx` by creating `src/__tests__/TerminalView.test.tsx`. Ensure you cover WebGL context loss, fallback to 2D canvas, and search functionality.
