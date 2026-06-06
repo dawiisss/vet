@@ -11,6 +11,7 @@ import { useConfig } from '@/features/settings/useConfigStore'
 import { builtinThemes } from '@/themes'
 import SearchOverlay from '@/shared/components/SearchOverlay'
 import ContextMenu, { ContextMenuAction } from '@/shared/components/ContextMenu'
+import { useClipboardStore } from '../../clipboard/useClipboardStore'
 import { registerDestroyTerminalCache } from '../useTabStore'
 
 interface TerminalViewProps {
@@ -319,7 +320,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
           return false
         } else if (action === 'terminal:copy') {
           const sel = term.getSelection()
-          if (sel) navigator.clipboard.writeText(sel).catch(() => {})
+          if (sel) {
+            navigator.clipboard.writeText(sel).catch(() => {})
+            useClipboardStore.getState().add(sel)
+          }
           return false
         } else if (action === 'terminal:paste') {
           navigator.clipboard.readText().then(text => window.terminalApi?.write(terminalId, text)).catch(() => {})
@@ -451,7 +455,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       shortcut: 'Ctrl+Shift+C',
       onExecute: () => {
         const sel = terminalRef.current?.getSelection()
-        if (sel) navigator.clipboard.writeText(sel).catch(() => {})
+        if (sel) {
+          navigator.clipboard.writeText(sel).catch(() => {})
+          useClipboardStore.getState().add(sel)
+        }
       }
     },
     {

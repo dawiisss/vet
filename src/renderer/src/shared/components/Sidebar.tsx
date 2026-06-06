@@ -3,6 +3,7 @@ import SystemMonitorPanel from './SystemMonitorPanel'
 import PortMonitorPanel from './PortMonitorPanel'
 import ScriptRunnerPanel from './ScriptRunnerPanel'
 import SnippetLibraryPanel from './SnippetLibraryPanel'
+import ClipboardHistoryPanel from './ClipboardHistoryPanel'
 import ConnectionsPanel from '@/features/connections/components/ConnectionsPanel'
 import WorkspacePanel from '@/features/workspace/components/WorkspacePanel'
 import HistoryPanel from './HistoryPanel'
@@ -40,6 +41,7 @@ export default function Sidebar({
     { icon: '🔌', name: 'Ports' },
     { icon: '⚡', name: 'Scripts' },
     { icon: '📋', name: 'Snippets' },
+    { icon: '📝', name: 'Clipboard' },
     { icon: '🌐', name: 'Connections' },
     { icon: '📜', name: 'History' }
   ]
@@ -145,10 +147,13 @@ export default function Sidebar({
           <SnippetLibraryPanel isActive={activeTab === 4} onInjectSnippet={onInjectSnippet} />
         </div>
         <div id="sidebar-panel-5" tabIndex={-1} style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%', outline: 'none' }}>
-          <ConnectionsPanel isActive={activeTab === 5} onRunScript={onRunScript} onLaunchConnection={onLaunchConnection} />
+          <ClipboardHistoryPanel isActive={activeTab === 5} onInjectSnippet={onInjectSnippet} />
         </div>
         <div id="sidebar-panel-6" tabIndex={-1} style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%', outline: 'none' }}>
-          <HistoryPanel isActive={activeTab === 6} onViewSession={onViewSession} />
+          <ConnectionsPanel isActive={activeTab === 6} onRunScript={onRunScript} onLaunchConnection={onLaunchConnection} />
+        </div>
+        <div id="sidebar-panel-7" tabIndex={-1} style={{ display: activeTab === 7 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+          <HistoryPanel isActive={activeTab === 7} onViewSession={onViewSession} />
         </div>
       </div>
     </div>
