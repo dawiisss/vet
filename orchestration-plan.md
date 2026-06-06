@@ -15,6 +15,7 @@
 
 ### Task: Aesthetic Window Vibrancy Controls
 - [ ] **@Palette** 🎨: Add dynamic opacity controls and macOS Vibrancy (`NSVisualEffectView`) / Windows Acrylic/Mica effects in `src/renderer/src/features/settings/components/SettingsModal.tsx`. Ensure it correctly updates `useConfigStore`.
+  - ❌ Task Rejected by Palette: This assignment violates my strict persona constraints. I am strictly forbidden from altering backend logic like the Electron main process, which is required to dynamically apply the OS-level window visual effects. Please reassign this task to the appropriate agent (e.g., Forge or Blueprint).
 
 🚦 Sequence:
 - The `@Pioneer` and `@Palette` tasks can be done in parallel as they touch different areas of the codebase.

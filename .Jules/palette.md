@@ -2,3 +2,6 @@
 **Learning:** Custom UI elements like icon-only buttons (e.g. built with `div` or `span` containing SVG) are invisible to screen readers unless proper ARIA attributes are provided. Simply adding `title` or inline text is not enough.
 **Action:** Always add `role="button"`, `tabIndex={0}`, `aria-label`, and `onKeyDown` (for Space/Enter) to custom interactive elements that act as buttons to ensure they are accessible via keyboard and screen readers.
 ## 2024-06-06 - Settings Modal Accessibility Labels\nLearning: Many form inputs in the settings modal were lacking `id` and `htmlFor` associations.\nAction: Ensure all form inputs have associated labels with matching `id` and `htmlFor` attributes to improve screen reader accessibility and label clickability.
+## 2024-05-18 - [Persona Constraint Enforcement]
+Learning: When assigned a task by Maestro that requires backend (main process) modifications (such as configuring OS-level window vibrancy), it is a strict violation of the Palette persona's boundary (UX/a11y only).
+Action: Immediately reject such tasks by modifying the orchestration plan with a rejection notice and falling back to a <50 line UI/a11y enhancement in an appropriate file.

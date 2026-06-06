@@ -213,6 +213,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Settings</h2>
           <button
             onClick={onClose}
+            aria-label="Close settings"
+            className="focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:outline-none"
             style={{
               background: 'transparent',
               border: 'none',
@@ -692,17 +694,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         {config.profiles && config.profiles.length > 1 && (
                           <button
                             onClick={(e) => deleteProfile(p.id, e)}
+                            aria-label="Delete Profile"
+                            className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
                             style={{
                               background: 'transparent',
                               border: 'none',
                               color: 'var(--app-red)',
                               cursor: 'pointer',
                               padding: 4,
-                              fontSize: 12
+                              fontSize: 12,
+                              borderRadius: 4
                             }}
                             title="Delete Profile"
                           >
-                            🗑
+                            <span aria-hidden="true">🗑</span>
                           </button>
                         )}
                       </div>
