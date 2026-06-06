@@ -18,6 +18,7 @@ import { initPortsManager } from '../main/ports'
 import { ipcMain } from 'electron'
 
 describe('ports', () => {
+
   let listHandler: (...args: any[]) => any
   let killHandler: (...args: any[]) => any
 
@@ -61,6 +62,7 @@ describe('ports', () => {
     })
 
     it('returns empty array on exec error', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const child = require('child_process')
       child.exec.mockImplementation((_cmd: string, cb: any) => {
         cb(new Error('lsof not found'))
@@ -69,6 +71,7 @@ describe('ports', () => {
       
       const result = await listHandler()
       expect(result).toEqual([])
+      errorSpy.mockRestore()
     })
   })
 
@@ -88,18 +91,22 @@ describe('ports', () => {
     })
 
     it('returns false on invalid pid', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const result = await killHandler({}, 'invalid; kill')
       expect(result).toBe(false)
       expect(process.kill).not.toHaveBeenCalled()
+      errorSpy.mockRestore()
     })
 
     it('returns false on kill failure', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       jest.spyOn(process, 'kill').mockImplementation(() => {
         throw new Error('permission denied')
       })
       
       const result = await killHandler({}, 1234)
       expect(result).toBe(false)
+      errorSpy.mockRestore()
     })
   })
 })
