@@ -4,7 +4,13 @@
 
 🎯 Delegation:
 ### Task: Implement Rich URL & Path Detection PoC
-- [ ] **@Pioneer** 🔭: Create a proof of concept in `_experiments/url-detection/` for using `@xterm/addon-web-links` with custom regexp matchers to detect URLs, local paths, and lines (e.g., `src/main/index.ts:45`).
+- [x] **@Pioneer** 🔭: Create a proof of concept in `_experiments/url-detection/` for using `@xterm/addon-web-links` with custom regexp matchers to detect URLs, local paths, and lines (e.g., `src/main/index.ts:45`).
+
+### Task: Implement Rich URL & Path Detection Production
+- [ ] **@Forge** 🔨: Integrate the custom URL and path detection using `@xterm/addon-web-links` into `src/renderer/src/features/terminal/components/TerminalView.tsx`. Use the regex matchers and setup logic demonstrated in `_experiments/url-detection/poc.ts`.
+
+### Task: Cleanup URL Detection PoC
+- [ ] **@Broom** 🧹: Once Forge has completed the production implementation, delete the `_experiments/url-detection/` folder.
 
 ### Task: Implement Sixel & Inline Images
 - [ ] **@Forge** 🔨: Integrate `@xterm/addon-image` into `src/renderer/src/features/terminal/components/TerminalView.tsx` to fully support the Sixel graphics protocol inline within the scrollback buffer.
@@ -14,9 +20,9 @@
 - [ ] **@Beaker** 🧪: Add comprehensive test coverage for `TerminalView.tsx` by creating `src/__tests__/TerminalView.test.tsx`. Ensure you cover WebGL context loss, fallback to 2D canvas, and search functionality.
 
 ### Task: Aesthetic Window Vibrancy Controls
-- [ ] **@Palette** 🎨: Add dynamic opacity controls and macOS Vibrancy (`NSVisualEffectView`) / Windows Acrylic/Mica effects in `src/renderer/src/features/settings/components/SettingsModal.tsx`. Ensure it correctly updates `useConfigStore`.
-  - ❌ Task Rejected by Palette: This assignment violates my strict persona constraints. I am strictly forbidden from altering backend logic like the Electron main process, which is required to dynamically apply the OS-level window visual effects. Please reassign this task to the appropriate agent (e.g., Forge or Blueprint).
+- [ ] **@Forge** 🔨: Add dynamic opacity controls and macOS Vibrancy (`NSVisualEffectView`) / Windows Acrylic/Mica effects in `src/renderer/src/features/settings/components/SettingsModal.tsx` and ensure the Electron main process IPC correctly handles them. (Reassigned from Palette due to main process IPC constraints).
 
 🚦 Sequence:
-- The `@Pioneer` and `@Palette` tasks can be done in parallel as they touch different areas of the codebase.
-- `@Forge` must complete the Sixel implementation in `TerminalView.tsx` BEFORE `@Beaker` starts adding tests or `@Scribe` adds documentation. Serial delegation is required here to avoid merge conflicts on `TerminalView.tsx`.
+- `@Forge` must complete the Sixel implementation and the URL & Path Detection in `TerminalView.tsx` sequentially BEFORE `@Beaker` starts adding tests or `@Scribe` adds documentation. Serial delegation is required here to avoid merge conflicts on `TerminalView.tsx`.
+- `@Forge`'s "Aesthetic Window Vibrancy Controls" task touches settings files, so it can be done in parallel with `TerminalView.tsx` work.
+- `@Broom`'s cleanup task should only happen AFTER `@Forge` completes the URL & Path Detection implementation.
