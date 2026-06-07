@@ -72,7 +72,6 @@ export default function SnippetLibraryPanel({
               marginBottom: 8, 
               borderRadius: 4,
               padding: '6px 8px',
-              outline: 'none', 
               fontWeight: 'bold',
               boxSizing: 'border-box',
               outlineColor: 'var(--app-blue)'
@@ -91,7 +90,6 @@ export default function SnippetLibraryPanel({
               borderRadius: 4, 
               padding: 6, 
               minHeight: 60, 
-              outline: 'none', 
               resize: 'vertical', 
               fontFamily: 'monospace',
               boxSizing: 'border-box',
