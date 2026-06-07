@@ -545,6 +545,11 @@ function App() {
             label: `Theme: Set to ${themeName.replace('-', ' ')}`,
             onExecute: () => updateConfig({ theme: themeName })
           })),
+          ...Object.keys(config.customThemes || {}).map((themeName) => ({
+            id: `theme-custom-${themeName}`,
+            label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
+            onExecute: () => updateConfig({ theme: themeName })
+          })),
           ...(config.profiles || []).map((profile) => ({
             id: `launch-profile-${profile.id}`,
             label: `Profiles: Launch ${profile.name}`,

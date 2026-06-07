@@ -8,7 +8,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ImageAddon } from '@xterm/addon-image'
 import '@xterm/xterm/css/xterm.css'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { resolveTheme } from '@/themes'
+import { resolveTheme, toXtermTheme } from '@/themes'
 import { useClipboardStore } from '@/features/clipboard/useClipboardStore'
 import SearchOverlay from '@/shared/components/SearchOverlay'
 import ContextMenu, { ContextMenuAction } from '@/shared/components/ContextMenu'
@@ -82,16 +82,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
     let entry = terminalCache.get(terminalId)
 
     if (!entry) {
-      const baseThemeObj = resolveTheme(config.theme, config.customThemes)
-
-      const themeObj = { ...baseThemeObj }
-      if (themeObj.background && typeof config.opacity === 'number') {
-        const hex = themeObj.background.replace('#', '')
-        if (hex.length === 6) {
-          const alphaHex = Math.round(config.opacity * 255).toString(16).padStart(2, '0')
-          themeObj.background = `#${hex}${alphaHex}`
-        }
-      }
+      const themeObj = toXtermTheme(
+        resolveTheme(config.theme, config.customThemes),
+        typeof config.opacity === 'number' ? config.opacity : undefined
+      )
 
       term = new Terminal({
         fontFamily: config.fontFamily,
@@ -395,16 +389,10 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
   useEffect(() => {
     const term = terminalRef.current
     if (term) {
-      const baseThemeObj = resolveTheme(config.theme, config.customThemes)
-
-      const themeObj = { ...baseThemeObj }
-      if (themeObj.background && typeof config.opacity === 'number') {
-        const hex = themeObj.background.replace('#', '')
-        if (hex.length === 6) {
-          const alphaHex = Math.round(config.opacity * 255).toString(16).padStart(2, '0')
-          themeObj.background = `#${hex}${alphaHex}`
-        }
-      }
+      const themeObj = toXtermTheme(
+        resolveTheme(config.theme, config.customThemes),
+        typeof config.opacity === 'number' ? config.opacity : undefined
+      )
 
       term.options.fontFamily = config.fontFamily
       term.options.fontSize = config.fontSize

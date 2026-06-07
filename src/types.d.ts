@@ -2,6 +2,7 @@ interface ThemeConfig {
   background: string
   foreground: string
   cursor: string
+  cursorAccent?: string
   selection: string
   black: string
   red: string

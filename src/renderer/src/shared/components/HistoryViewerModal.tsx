@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { resolveTheme } from '@/themes'
+import { resolveTheme, toXtermTheme } from '@/themes'
 import '@xterm/xterm/css/xterm.css'
 
 interface HistoryViewerModalProps {
@@ -23,8 +23,8 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
     if (!container) return
 
     const baseThemeObj = resolveTheme(config.theme, config.customThemes)
+    const themeObj = toXtermTheme(baseThemeObj)
 
-    const themeObj = { ...baseThemeObj }
     if (themeObj.background && typeof config.opacity === 'number') {
       themeObj.background = `color-mix(in srgb, var(--app-bg) 95%, transparent)` // Enforce solid/opaque for modal
     }
