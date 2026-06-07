@@ -1,7 +1,7 @@
 import { builtinThemes, resolveTheme } from '../renderer/src/themes'
 
 const REQUIRED_COLORS = [
-  'background', 'foreground', 'cursor', 'selection',
+  'background', 'foreground', 'cursor', 'cursorAccent', 'selection',
   'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
   'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
   'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
