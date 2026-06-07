@@ -22,6 +22,7 @@ function mockBrowserWindow() {
       send: jest.fn(),
       on: jest.fn(),
       once: jest.fn(),
+      setWindowOpenHandler: jest.fn(),
     },
     close: jest.fn(),
     minimize: jest.fn(),

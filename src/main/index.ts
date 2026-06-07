@@ -70,6 +70,39 @@ function createWindow(): BrowserWindow {
     console.log(`[renderer ${prefix}] ${message}`)
   })
 
+  // Security: Block unauthorized new window creation
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsedUrl = new URL(url)
+      const safeProtocols = ['http:', 'https:', 'mailto:']
+      if (safeProtocols.includes(parsedUrl.protocol)) {
+        shell.openExternal(url)
+      } else {
+        console.warn(`[security] Blocked attempt to open new window with unsafe URL: ${url}`)
+      }
+    } catch (e) {
+      console.warn(`[security] Blocked attempt to open new window with invalid URL: ${url}`)
+    }
+    return { action: 'deny' }
+  })
+
+  // Security: Block unauthorized navigation
+  win.webContents.on('will-navigate', (event, url) => {
+    try {
+      const parsedUrl = new URL(url)
+      // Allow local file navigation in dev or to our specific index.html
+      if (parsedUrl.protocol === 'file:' || (is.dev && parsedUrl.hostname === 'localhost')) {
+         return
+      }
+
+      console.warn(`[security] Blocked unauthorized navigation to: ${url}`)
+      event.preventDefault()
+    } catch (e) {
+      console.warn(`[security] Blocked unauthorized navigation to invalid URL: ${url}`)
+      event.preventDefault()
+    }
+  })
+
   return win
 }
 
@@ -123,7 +156,17 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('win:open-external', async (_event, url: string) => {
-    await shell.openExternal(url)
+    try {
+      const parsedUrl = new URL(url)
+      const safeProtocols = ['http:', 'https:', 'mailto:']
+      if (safeProtocols.includes(parsedUrl.protocol)) {
+        await shell.openExternal(url)
+      } else {
+        console.warn(`[security] Blocked attempt to open external URL with unsafe protocol: ${url}`)
+      }
+    } catch (e) {
+      console.warn(`[security] Blocked attempt to open invalid external URL: ${url}`)
+    }
   })
 
   // Terminal
