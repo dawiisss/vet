@@ -24,7 +24,6 @@ function App() {
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
-    dragState,
     initializeTabs,
     onReattachTab,
     pollTabLabels,
