@@ -9,3 +9,4 @@ Action: Immediately reject such tasks by modifying the orchestration plan with a
 ## 2026-06-06 - Window Controls Accessibility
 **Learning:** Window controls like minimize, maximize, and close are fundamental app controls that must be accessible. Using only SVG icons without ARIA labels makes them completely invisible to screen readers, and lacking tooltips (`title`) degrades the desktop UX.
 **Action:** Always provide `aria-label` and `title` attributes on custom window controls in desktop applications.
+## 2026-06-07 - [Tailwind Focus Utilities] Learning: [The project leverages Tailwind CSS utility classes (e.g., `focus-visible:ring-2`) for handling focus and hover states, which should be used over inline CSS even when inline styling is predominantly used elsewhere in the component.] Action: [Always apply existing Tailwind classes for state-based styling instead of custom CSS outlines to maintain visual consistency.]

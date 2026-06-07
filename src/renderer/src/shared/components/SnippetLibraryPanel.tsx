@@ -50,6 +50,8 @@ export default function SnippetLibraryPanel({
         <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Snippets</h3>
         <button 
           onClick={() => setIsAdding(!isAdding)}
+          aria-label={isAdding ? 'Cancel adding snippet' : 'Add new snippet'}
+          className="focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none"
           style={{ background: 'none', border: 'none', color: 'var(--app-green)', cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}
         >
           {isAdding ? '×' : '+'}
@@ -60,8 +62,10 @@ export default function SnippetLibraryPanel({
         <div style={{ background: 'var(--app-panel-bg)', padding: 8, borderRadius: 6, marginBottom: 12, border: '1px solid var(--app-border)' }}>
           <input 
             placeholder="Snippet Name" 
+            aria-label="Snippet Name"
             value={newName} 
             onChange={e => { setNewName(e.target.value); setErrorMsg('') }}
+            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             style={{ 
               width: '100%', 
               background: 'var(--app-modal-bg)', 
@@ -77,8 +81,10 @@ export default function SnippetLibraryPanel({
           />
           <textarea 
             placeholder="Command..." 
+            aria-label="Snippet Command"
             value={newCode}
             onChange={e => { setNewCode(e.target.value); setErrorMsg('') }}
+            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             style={{ 
               width: '100%', 
               background: 'var(--app-modal-bg)', 
@@ -96,6 +102,7 @@ export default function SnippetLibraryPanel({
           {errorMsg && <div style={{ color: 'var(--app-red)', fontSize: 11, marginTop: 4 }}>{errorMsg}</div>}
           <button 
             onClick={handleAdd}
+            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
             style={{ 
               width: '100%', 
               background: 'var(--app-blue)', 
@@ -126,12 +133,16 @@ export default function SnippetLibraryPanel({
               <div>
                 <button 
                   onClick={() => onInjectSnippet(s.code)}
+                  aria-label={`Inject snippet ${s.name}`}
+                  className="focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
                   style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
                 >
                   Inject
                 </button>
                 <button 
                   onClick={() => handleDelete(s.id)}
+                  aria-label={`Delete snippet ${s.name}`}
+                  className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
                   style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
                 >
                   ×
