@@ -22,7 +22,8 @@ export default function ClipboardHistoryPanel({
         {history.length > 0 && (
           <button
             onClick={clear}
-            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}
+            aria-label="Clear all clipboard history"
+            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold', outlineColor: 'var(--app-red)' }}
             title="Clear All"
           >
             Clear All
@@ -43,13 +44,15 @@ export default function ClipboardHistoryPanel({
               <div>
                 <button
                   onClick={() => onInjectSnippet(item.text)}
-                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
+                  aria-label="Paste clipboard entry"
+                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
                 >
                   Paste
                 </button>
                 <button
                   onClick={() => remove(item.id)}
-                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                  aria-label="Delete clipboard entry"
+                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
                 >
                   ×
                 </button>

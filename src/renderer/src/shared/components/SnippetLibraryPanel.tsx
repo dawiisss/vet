@@ -50,7 +50,8 @@ export default function SnippetLibraryPanel({
         <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Snippets</h3>
         <button 
           onClick={() => setIsAdding(!isAdding)}
-          style={{ background: 'none', border: 'none', color: 'var(--app-green)', cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}
+          aria-label={isAdding ? 'Cancel adding snippet' : 'Add new snippet'}
+          style={{ background: 'none', border: 'none', color: 'var(--app-green)', cursor: 'pointer', fontSize: 16, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
         >
           {isAdding ? '×' : '+'}
         </button>
@@ -60,6 +61,7 @@ export default function SnippetLibraryPanel({
         <div style={{ background: 'var(--app-panel-bg)', padding: 8, borderRadius: 6, marginBottom: 12, border: '1px solid var(--app-border)' }}>
           <input 
             placeholder="Snippet Name" 
+            aria-label="Snippet Name"
             value={newName} 
             onChange={e => { setNewName(e.target.value); setErrorMsg('') }}
             style={{ 
@@ -70,13 +72,14 @@ export default function SnippetLibraryPanel({
               marginBottom: 8, 
               borderRadius: 4,
               padding: '6px 8px',
-              outline: 'none', 
               fontWeight: 'bold',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              outlineColor: 'var(--app-blue)'
             }}
           />
           <textarea 
             placeholder="Command..." 
+            aria-label="Snippet Command"
             value={newCode}
             onChange={e => { setNewCode(e.target.value); setErrorMsg('') }}
             style={{ 
@@ -87,10 +90,10 @@ export default function SnippetLibraryPanel({
               borderRadius: 4, 
               padding: 6, 
               minHeight: 60, 
-              outline: 'none', 
               resize: 'vertical', 
               fontFamily: 'monospace',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              outlineColor: 'var(--app-blue)'
             }}
           />
           {errorMsg && <div style={{ color: 'var(--app-red)', fontSize: 11, marginTop: 4 }}>{errorMsg}</div>}
@@ -105,7 +108,8 @@ export default function SnippetLibraryPanel({
               padding: '4px 0', 
               marginTop: 8, 
               cursor: 'pointer', 
-              fontWeight: 'bold' 
+              fontWeight: 'bold',
+              outlineColor: 'var(--app-blue)'
             }}
           >
             Save Snippet
@@ -126,13 +130,15 @@ export default function SnippetLibraryPanel({
               <div>
                 <button 
                   onClick={() => onInjectSnippet(s.code)}
-                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
+                  aria-label={`Inject snippet ${s.name}`}
+                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
                 >
                   Inject
                 </button>
                 <button 
                   onClick={() => handleDelete(s.id)}
-                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                  aria-label={`Delete snippet ${s.name}`}
+                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
                 >
                   ×
                 </button>
