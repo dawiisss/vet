@@ -9,7 +9,7 @@ import HistoryViewerModal from '@/shared/components/HistoryViewerModal'
 import CommandPalette from '@/shared/components/CommandPalette'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
-import { builtinThemes } from '@/themes'
+import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
 import FilePreviewModal from '@/features/workspace/components/FilePreviewModal'
 
@@ -301,12 +301,7 @@ function App() {
     }
   }
 
-  const themeObj =
-    typeof config.theme === 'string' && builtinThemes[config.theme]
-      ? builtinThemes[config.theme]
-      : typeof config.theme === 'object'
-        ? config.theme
-        : builtinThemes['catppuccin-mocha']
+  const themeObj = resolveTheme(config.theme, config.customThemes)
 
   let appBg = 'transparent'
   if (themeObj.background && typeof config.opacity === 'number') {

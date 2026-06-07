@@ -154,3 +154,15 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightWhite: '#fdf6e3'
   }
 }
+
+export function resolveTheme(
+  theme: string | ThemeConfig,
+  customThemes?: Record<string, ThemeConfig>
+): ThemeConfig {
+  if (typeof theme === 'string') {
+    if (builtinThemes[theme]) return builtinThemes[theme]
+    if (customThemes?.[theme]) return customThemes[theme]
+    return builtinThemes['catppuccin-mocha']
+  }
+  return theme || builtinThemes['catppuccin-mocha']
+}
