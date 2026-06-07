@@ -51,8 +51,7 @@ export default function SnippetLibraryPanel({
         <button 
           onClick={() => setIsAdding(!isAdding)}
           aria-label={isAdding ? 'Cancel adding snippet' : 'Add new snippet'}
-          className="focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none"
-          style={{ background: 'none', border: 'none', color: 'var(--app-green)', cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}
+          style={{ background: 'none', border: 'none', color: 'var(--app-green)', cursor: 'pointer', fontSize: 16, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
         >
           {isAdding ? '×' : '+'}
         </button>
@@ -65,7 +64,6 @@ export default function SnippetLibraryPanel({
             aria-label="Snippet Name"
             value={newName} 
             onChange={e => { setNewName(e.target.value); setErrorMsg('') }}
-            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             style={{ 
               width: '100%', 
               background: 'var(--app-modal-bg)', 
@@ -76,7 +74,8 @@ export default function SnippetLibraryPanel({
               padding: '6px 8px',
               outline: 'none', 
               fontWeight: 'bold',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              outlineColor: 'var(--app-blue)'
             }}
           />
           <textarea 
@@ -84,7 +83,6 @@ export default function SnippetLibraryPanel({
             aria-label="Snippet Command"
             value={newCode}
             onChange={e => { setNewCode(e.target.value); setErrorMsg('') }}
-            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             style={{ 
               width: '100%', 
               background: 'var(--app-modal-bg)', 
@@ -96,13 +94,13 @@ export default function SnippetLibraryPanel({
               outline: 'none', 
               resize: 'vertical', 
               fontFamily: 'monospace',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              outlineColor: 'var(--app-blue)'
             }}
           />
           {errorMsg && <div style={{ color: 'var(--app-red)', fontSize: 11, marginTop: 4 }}>{errorMsg}</div>}
           <button 
             onClick={handleAdd}
-            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
             style={{ 
               width: '100%', 
               background: 'var(--app-blue)', 
@@ -112,7 +110,8 @@ export default function SnippetLibraryPanel({
               padding: '4px 0', 
               marginTop: 8, 
               cursor: 'pointer', 
-              fontWeight: 'bold' 
+              fontWeight: 'bold',
+              outlineColor: 'var(--app-blue)'
             }}
           >
             Save Snippet
@@ -134,16 +133,14 @@ export default function SnippetLibraryPanel({
                 <button 
                   onClick={() => onInjectSnippet(s.code)}
                   aria-label={`Inject snippet ${s.name}`}
-                  className="focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
-                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
+                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
                 >
                   Inject
                 </button>
                 <button 
                   onClick={() => handleDelete(s.id)}
                   aria-label={`Delete snippet ${s.name}`}
-                  className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
-                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
                 >
                   ×
                 </button>

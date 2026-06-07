@@ -23,8 +23,7 @@ export default function ClipboardHistoryPanel({
           <button
             onClick={clear}
             aria-label="Clear all clipboard history"
-            className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
-            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}
+            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold', outlineColor: 'var(--app-red)' }}
             title="Clear All"
           >
             Clear All
@@ -46,16 +45,14 @@ export default function ClipboardHistoryPanel({
                 <button
                   onClick={() => onInjectSnippet(item.text)}
                   aria-label="Paste clipboard entry"
-                  className="focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-panel-bg)]"
-                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
+                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
                 >
                   Paste
                 </button>
                 <button
                   onClick={() => remove(item.id)}
                   aria-label="Delete clipboard entry"
-                  className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
-                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
                 >
                   ×
                 </button>
