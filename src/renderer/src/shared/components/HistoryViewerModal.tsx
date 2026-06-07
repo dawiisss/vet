@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { builtinThemes } from '@/themes'
+import { resolveTheme } from '@/themes'
 import '@xterm/xterm/css/xterm.css'
 
 interface HistoryViewerModalProps {
@@ -22,9 +22,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
     const container = containerRef.current
     if (!container) return
 
-    const baseThemeObj = typeof config.theme === 'string' && builtinThemes[config.theme]
-      ? builtinThemes[config.theme]
-      : (typeof config.theme === 'object' ? config.theme : builtinThemes['catppuccin-mocha'])
+    const baseThemeObj = resolveTheme(config.theme, config.customThemes)
 
     const themeObj = { ...baseThemeObj }
     if (themeObj.background && typeof config.opacity === 'number') {

@@ -8,7 +8,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ImageAddon } from '@xterm/addon-image'
 import '@xterm/xterm/css/xterm.css'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { builtinThemes } from '@/themes'
+import { resolveTheme } from '@/themes'
 import { useClipboardStore } from '@/features/clipboard/useClipboardStore'
 import SearchOverlay from '@/shared/components/SearchOverlay'
 import ContextMenu, { ContextMenuAction } from '@/shared/components/ContextMenu'
@@ -82,9 +82,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
     let entry = terminalCache.get(terminalId)
 
     if (!entry) {
-      const baseThemeObj = typeof config.theme === 'string' && builtinThemes[config.theme]
-        ? builtinThemes[config.theme]
-        : (typeof config.theme === 'object' ? config.theme : builtinThemes['catppuccin-mocha'])
+      const baseThemeObj = resolveTheme(config.theme, config.customThemes)
 
       const themeObj = { ...baseThemeObj }
       if (themeObj.background && typeof config.opacity === 'number') {
@@ -397,9 +395,7 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
   useEffect(() => {
     const term = terminalRef.current
     if (term) {
-      const baseThemeObj = typeof config.theme === 'string' && builtinThemes[config.theme]
-        ? builtinThemes[config.theme]
-        : (typeof config.theme === 'object' ? config.theme : builtinThemes['catppuccin-mocha'])
+      const baseThemeObj = resolveTheme(config.theme, config.customThemes)
 
       const themeObj = { ...baseThemeObj }
       if (themeObj.background && typeof config.opacity === 'number') {
