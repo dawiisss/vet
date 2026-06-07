@@ -9,3 +9,6 @@ Action: Use mocked components properly but interact via synthetic DOM events (`u
 ## 2024-06-06 - Mocking Date.now() for unique IDs in synchronous tests
 Learning: When testing logic that relies on `Date.now()` to generate unique IDs (like Zustand store actions), the fast, synchronous execution of tests can result in identical timestamps and duplicate IDs.
 Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent ID collisions and ensure predictable state updates during testing. Remember to call `.mockRestore()` afterwards.
+## 2024-06-07 - Fixing Console Spam in Tests
+Learning: Expected console warnings during tests (e.g. simulating WebGL context loss) can clutter test output.
+Action: Temporarily spy on `console.warn` (`jest.spyOn(console, 'warn').mockImplementation(() => {})`) inside the specific test block, and restore it (`consoleWarnSpy.mockRestore()`) at the end to keep output clean without masking legitimate warnings elsewhere.
