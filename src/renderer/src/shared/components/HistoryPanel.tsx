@@ -167,7 +167,7 @@ export default function HistoryPanel({
                     wordBreak: 'break-all',
                     maxHeight: 60
                   }}
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(session.snippet) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(session.snippet, { ALLOWED_TAGS: ['b'], ALLOWED_ATTR: [] }) }}
                 />
               )}
             </div>
