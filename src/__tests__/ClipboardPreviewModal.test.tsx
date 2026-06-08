@@ -17,9 +17,16 @@ describe('ClipboardPreviewModal', () => {
   }
 
   const mockOnClose = jest.fn()
+  let originalToLocaleTimeString: typeof Date.prototype.toLocaleTimeString
 
   beforeEach(() => {
     jest.clearAllMocks()
+    originalToLocaleTimeString = Date.prototype.toLocaleTimeString
+    Date.prototype.toLocaleTimeString = jest.fn(() => '11:40:00')
+  })
+
+  afterEach(() => {
+    Date.prototype.toLocaleTimeString = originalToLocaleTimeString
   })
 
   it('renders with item text and timestamp', () => {
