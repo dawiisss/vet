@@ -1,7 +1,24 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { useClipboardStore } from '../renderer/src/features/clipboard/useClipboardStore'
+
+const mockSetHistory = jest.fn(() => Promise.resolve())
+const mockGetHistory = jest.fn(() => Promise.resolve([]))
+
+Object.defineProperty(window, 'clipboardApi', {
+  value: {
+    getHistory: mockGetHistory,
+    setHistory: mockSetHistory
+  },
+  configurable: true
+})
 
 describe('useClipboardStore', () => {
   beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetHistory.mockResolvedValue([])
     // Clear the store before each test
     useClipboardStore.getState().clear()
   })
@@ -15,18 +32,26 @@ describe('useClipboardStore', () => {
     expect(newStore.history[0].text).toBe('test snippet')
     expect(newStore.history[0].id).toBeDefined()
     expect(newStore.history[0].timestamp).toBeDefined()
+    expect(mockSetHistory).toHaveBeenCalled()
   })
 
   it('does not add empty or whitespace-only strings', () => {
+    // beforeEach called clear() once, so reset the call count
+    mockSetHistory.mockClear()
+
     const store = useClipboardStore.getState()
     store.add('')
     store.add('   ')
 
     const newStore = useClipboardStore.getState()
     expect(newStore.history.length).toBe(0)
+    expect(mockSetHistory).not.toHaveBeenCalled()
   })
 
   it('does not add consecutive duplicate items', () => {
+    // beforeEach called clear() once, so reset the call count
+    mockSetHistory.mockClear()
+
     const store = useClipboardStore.getState()
     store.add('duplicate')
     store.add('duplicate')
@@ -34,6 +59,7 @@ describe('useClipboardStore', () => {
     const newStore = useClipboardStore.getState()
     expect(newStore.history.length).toBe(1)
     expect(newStore.history[0].text).toBe('duplicate')
+    expect(mockSetHistory).toHaveBeenCalledTimes(1)
   })
 
   it('adds non-consecutive duplicates correctly', () => {
@@ -73,7 +99,6 @@ describe('useClipboardStore', () => {
 
     // Add items with a mock timestamp or ensure they have different IDs
     // Date.now() can be identical if executed very fast
-    const originalDateNow = Date.now;
     let mockTime = 1000;
     jest.spyOn(Date, 'now').mockImplementation(() => {
       mockTime += 1000;
@@ -93,6 +118,7 @@ describe('useClipboardStore', () => {
     currentStore = useClipboardStore.getState()
     expect(currentStore.history.length).toBe(1)
     expect(currentStore.history[0].text).toBe('to keep')
+    expect(mockSetHistory).toHaveBeenCalled()
 
     jest.spyOn(Date, 'now').mockRestore();
   })
@@ -120,5 +146,20 @@ describe('useClipboardStore', () => {
 
     currentStore = useClipboardStore.getState()
     expect(currentStore.history.length).toBe(0)
+    expect(mockSetHistory).toHaveBeenLastCalledWith([])
+  })
+
+  it('initializes from disk on load', async () => {
+    mockGetHistory.mockResolvedValueOnce([
+      { id: '1', text: 'persisted item', timestamp: 1680000000000 }
+    ])
+
+    const store = useClipboardStore.getState()
+    await store.initialize()
+
+    const currentStore = useClipboardStore.getState()
+    expect(currentStore.history.length).toBe(1)
+    expect(currentStore.history[0].text).toBe('persisted item')
+    expect(mockGetHistory).toHaveBeenCalledTimes(1)
   })
 })

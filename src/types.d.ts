@@ -60,6 +60,8 @@ interface Config {
   keybindings: Record<string, string>
   sidebarPlacement?: 'left' | 'right'
   sidebarOpen?: boolean
+  sidebarWidth?: number
+  clipboardHistoryKeepDays?: number
   tabBarPosition?: 'top' | 'left' | 'right'
   webglEnabled?: boolean
   sshParseGlobal?: boolean
@@ -112,6 +114,11 @@ interface HistoryApi {
   deleteSession: (id: string) => Promise<void>
 }
 
+interface ClipboardApi {
+  getHistory: () => Promise<{ id: string; text: string; timestamp: number }[]>
+  setHistory: (items: { id: string; text: string; timestamp: number }[]) => Promise<void>
+}
+
 interface WorkspaceItem {
   name: string
   isDirectory: boolean
@@ -140,5 +147,6 @@ interface Window {
   historyApi: HistoryApi
   workspaceApi: WorkspaceApi
   sftpApi: SftpApi
+  clipboardApi: ClipboardApi
   serializeAddons: Map<string, any>
 }

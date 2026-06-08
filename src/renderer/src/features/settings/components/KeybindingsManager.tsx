@@ -20,6 +20,7 @@ const AVAILABLE_ACTIONS = [
   { id: 'tabbar:toggle-position', label: 'Toggle Tab Bar Position (Top/Left/Right)' },
   { id: 'split:unsplit', label: 'Unsplit Tabs' },
   { id: 'app:toggle-fullscreen', label: 'Toggle Fullscreen' },
+  { id: 'app:maximize', label: 'Maximize Window' },
   { id: 'app:quit', label: 'App: Exit' }
 ]
 

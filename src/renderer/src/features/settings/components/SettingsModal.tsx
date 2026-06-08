@@ -11,7 +11,7 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { config, updateConfig, openConfig } = useConfig()
-  const [activeTab, setActiveTab] = useState<'general' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'sidebar' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history'>('general')
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -243,6 +243,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             General
           </button>
           <button
+            onClick={() => setActiveTab('sidebar')}
+            style={{
+              flex: 1,
+              padding: '12px 0',
+              background: activeTab === 'sidebar' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none',
+              color: activeTab === 'sidebar' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'sidebar' ? 600 : 400
+            }}
+          >
+            Sidebar
+          </button>
+          <button
             onClick={() => setActiveTab('themes')}
             style={{
               flex: 1,
@@ -393,45 +407,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label htmlFor="sidebar-status-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Status</label>
-                  <select
-                    id="sidebar-status-select"
-                    value={config.sidebarOpen ? 'open' : 'closed'}
-                    onChange={(e) => updateConfig({ sidebarOpen: e.target.value === 'open' })}
-                    style={{
-                      background: 'rgba(0,0,0,0.2)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      padding: '8px 12px',
-                      borderRadius: 6,
-                      color: 'var(--app-fg)'
-                    }}
-                  >
-                    <option value="open" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Open</option>
-                    <option value="closed" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Closed</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                  <label htmlFor="sidebar-placement-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Placement</label>
-                  <select
-                    id="sidebar-placement-select"
-                    value={config.sidebarPlacement || 'right'}
-                    onChange={(e) => updateConfig({ sidebarPlacement: e.target.value as any })}
-                    style={{
-                      background: 'rgba(0,0,0,0.2)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      padding: '8px 12px',
-                      borderRadius: 6,
-                      color: 'var(--app-fg)'
-                    }}
-                  >
-                    <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
-                    <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                   <label htmlFor="tab-bar-position-select" style={{ fontSize: 13, color: '#bac2de' }}>Tab Bar Position</label>
                   <select
                     id="tab-bar-position-select"
@@ -533,6 +508,84 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 >
                   Open config.json5 in Editor
                 </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'sidebar' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label htmlFor="sidebar-status-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Status</label>
+                  <select
+                    id="sidebar-status-select"
+                    value={config.sidebarOpen ? 'open' : 'closed'}
+                    onChange={(e) => updateConfig({ sidebarOpen: e.target.value === 'open' })}
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      color: 'var(--app-fg)'
+                    }}
+                  >
+                    <option value="open" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Open</option>
+                    <option value="closed" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Closed</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label htmlFor="sidebar-placement-select" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Placement</label>
+                  <select
+                    id="sidebar-placement-select"
+                    value={config.sidebarPlacement || 'right'}
+                    onChange={(e) => updateConfig({ sidebarPlacement: e.target.value as any })}
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      color: 'var(--app-fg)'
+                    }}
+                  >
+                    <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
+                    <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label htmlFor="sidebar-width-input" style={{ fontSize: 13, color: '#bac2de' }}>Sidebar Width (px)</label>
+                  <input
+                    id="sidebar-width-input"
+                    type="number"
+                    value={config.sidebarWidth || 250}
+                    onChange={(e) => updateConfig({ sidebarWidth: Math.max(150, Math.min(600, parseInt(e.target.value) || 250)) })}
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      color: 'var(--app-fg)'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                  <label htmlFor="clipboard-retention-input" style={{ fontSize: 13, color: '#bac2de' }}>Clipboard Retention (Days)</label>
+                  <input
+                    id="clipboard-retention-input"
+                    type="number"
+                    value={config.clipboardHistoryKeepDays || 7}
+                    onChange={(e) => updateConfig({ clipboardHistoryKeepDays: Math.max(1, Math.min(365, parseInt(e.target.value) || 7)) })}
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      color: 'var(--app-fg)'
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
