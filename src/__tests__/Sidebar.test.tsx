@@ -41,7 +41,7 @@ describe('Sidebar', () => {
         onViewFile={onViewFile}
       />
     )
-    const buttons = screen.getAllByRole('button')
+    const buttons = screen.getAllByRole('tab')
     expect(buttons.length).toBeGreaterThanOrEqual(7)
   })
 
@@ -55,7 +55,7 @@ describe('Sidebar', () => {
         onViewFile={onViewFile}
       />
     )
-    const buttons = screen.getAllByRole('button')
+    const buttons = screen.getAllByRole('tab')
     expect(buttons.length).toBeGreaterThanOrEqual(7)
   })
 
@@ -69,7 +69,7 @@ describe('Sidebar', () => {
         onViewFile={onViewFile}
       />
     )
-    const buttons = screen.getAllByRole('button')
+    const buttons = screen.getAllByRole('tab')
     const systemBtn = buttons[1]
     fireEvent.click(systemBtn)
   })

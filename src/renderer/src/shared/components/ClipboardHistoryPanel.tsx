@@ -33,7 +33,23 @@ export default function ClipboardHistoryPanel({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {history.length === 0 && (
-          <div style={{ color: 'var(--app-fg-muted)' }}>No clipboard history yet.</div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'var(--app-fg-muted)',
+            textAlign: 'center',
+            padding: 20
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>Clipboard is empty</p>
+            <p style={{ margin: 0, fontSize: 12 }}>Copied text will appear here</p>
+          </div>
         )}
         {history.map(item => (
           <div key={item.id} style={{

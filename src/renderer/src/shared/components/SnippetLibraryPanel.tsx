@@ -119,7 +119,26 @@ export default function SnippetLibraryPanel({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {snippets.length === 0 && !isAdding && (
-          <div style={{ color: 'var(--app-fg-muted)' }}>No snippets saved.</div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'var(--app-fg-muted)',
+            textAlign: 'center',
+            padding: 20
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>No snippets yet</p>
+            <p style={{ margin: 0, fontSize: 12 }}>Click + to save commands you use often</p>
+          </div>
         )}
         {snippets.map(s => (
           <div key={s.id} style={{ 
