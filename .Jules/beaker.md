@@ -9,3 +9,4 @@ Action: Use mocked components properly but interact via synthetic DOM events (`u
 ## 2024-06-06 - Mocking Date.now() for unique IDs in synchronous tests
 Learning: When testing logic that relies on `Date.now()` to generate unique IDs (like Zustand store actions), the fast, synchronous execution of tests can result in identical timestamps and duplicate IDs.
 Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent ID collisions and ensure predictable state updates during testing. Remember to call `.mockRestore()` afterwards.
+## 2024-06-08 - Flushing microtasks with Jest Fake Timers Learning: When testing asynchronous promise rejections while Jest fake timers are active, `await new Promise(process.nextTick)` may cause tests to hang and timeout. Action: Use `await Promise.resolve().then(() => {})` to flush microtasks safely in this scenario.

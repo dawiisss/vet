@@ -91,6 +91,25 @@ describe('sysinfo', () => {
       expect(clearInterval).toHaveBeenCalled()
     })
 
+
+    it('handles errors during polling gracefully', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const testError = new Error('Test error')
+
+      // Override the mock temporarily for this test
+      ;(si.currentLoad as jest.Mock).mockRejectedValueOnce(testError)
+
+      await startHandler()
+      await intervalCallback?.()
+
+      // Need to flush microtasks for the promise rejection to be caught
+      await Promise.resolve().then(() => {})
+
+      expect(errorSpy).toHaveBeenCalledWith('Failed to get sysinfo', testError)
+
+      errorSpy.mockRestore()
+    })
+
     it('does not send data when window is destroyed', async () => {
       mockWindow.isDestroyed.mockReturnValue(true)
 
