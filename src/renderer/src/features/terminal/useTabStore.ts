@@ -442,18 +442,24 @@ export const useTabStore = create<TabStore>((set, get) => {
       if (toExtract.length === 0) return
       
       const api = window.terminalApi
-      const newTabs: TabState[] = []
-      
-      for (const id of toExtract) {
-        let label = activeTab.label.replace(/ \+ \d+$/, '')
-        if (api) {
-          try {
-            const info = await api.getTerminalInfo(id)
-            if (info?.title) label = info.title
-          } catch {}
-        }
-        newTabs.push(newTabState(generateTabId(), id, label))
-      }
+      const baseLabel = activeTab.label.replace(/ \+ \d+$/, '')
+
+      const extractedInfo = await Promise.all(
+        toExtract.map(async (id) => {
+          let label = baseLabel
+          if (api) {
+            try {
+              const info = await api.getTerminalInfo(id)
+              if (info?.title) label = info.title
+            } catch {}
+          }
+          return { id, label }
+        })
+      )
+
+      const newTabs: TabState[] = extractedInfo.map(({ id, label }) =>
+        newTabState(generateTabId(), id, label)
+      )
 
       set((state) => {
         const next = [...state.tabs]
