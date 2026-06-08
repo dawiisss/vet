@@ -9,7 +9,7 @@ import HistoryViewerModal from '@/shared/components/HistoryViewerModal'
 import CommandPalette from '@/shared/components/CommandPalette'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
-import { builtinThemes } from '@/themes'
+import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
 import FilePreviewModal from '@/features/workspace/components/FilePreviewModal'
 
@@ -24,7 +24,6 @@ function App() {
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
-    dragState,
     initializeTabs,
     onReattachTab,
     pollTabLabels,
@@ -302,12 +301,7 @@ function App() {
     }
   }
 
-  const themeObj =
-    typeof config.theme === 'string' && builtinThemes[config.theme]
-      ? builtinThemes[config.theme]
-      : typeof config.theme === 'object'
-        ? config.theme
-        : builtinThemes['catppuccin-mocha']
+  const themeObj = resolveTheme(config.theme, config.customThemes)
 
   let appBg = 'transparent'
   if (themeObj.background && typeof config.opacity === 'number') {
@@ -429,52 +423,50 @@ function App() {
               />
             </div>
           ))}
-          {dragState && dragState.zone === 'right' && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: '20%',
-                height: '100%',
-                background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
-                border: '2px dashed var(--app-accent)',
-                zIndex: 100,
-                pointerEvents: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--app-fg)',
-                fontSize: 13,
-                fontFamily: 'system-ui, sans-serif'
-              }}
-            >
-              split right
-            </div>
-          )}
-          {dragState && dragState.zone === 'bottom' && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                width: '100%',
-                height: '20%',
-                background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
-                border: '2px dashed var(--app-accent)',
-                zIndex: 100,
-                pointerEvents: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--app-fg)',
-                fontSize: 13,
-                fontFamily: 'system-ui, sans-serif'
-              }}
-            >
-              split down
-            </div>
-          )}
+          <div
+            id="drag-zone-right"
+            style={{
+              display: 'none',
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '20%',
+              height: '100%',
+              background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
+              border: '2px dashed var(--app-accent)',
+              zIndex: 100,
+              pointerEvents: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--app-fg)',
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif'
+            }}
+          >
+            split right
+          </div>
+          <div
+            id="drag-zone-bottom"
+            style={{
+              display: 'none',
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              width: '100%',
+              height: '20%',
+              background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
+              border: '2px dashed var(--app-accent)',
+              zIndex: 100,
+              pointerEvents: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--app-fg)',
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif'
+            }}
+          >
+            split down
+          </div>
         </div>
         {config.sidebarOpen && config.sidebarPlacement === 'right' && (
           <Sidebar
@@ -551,6 +543,11 @@ function App() {
           ...Object.keys(builtinThemes).map((themeName) => ({
             id: `theme-${themeName}`,
             label: `Theme: Set to ${themeName.replace('-', ' ')}`,
+            onExecute: () => updateConfig({ theme: themeName })
+          })),
+          ...Object.keys(config.customThemes || {}).map((themeName) => ({
+            id: `theme-custom-${themeName}`,
+            label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
             onExecute: () => updateConfig({ theme: themeName })
           })),
           ...(config.profiles || []).map((profile) => ({

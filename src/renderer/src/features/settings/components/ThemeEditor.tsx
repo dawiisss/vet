@@ -27,7 +27,7 @@ export const ThemeEditor: React.FC = () => {
     if (builtinThemes[id]) return // Can't edit builtins directly, could clone them though
     setDraftTheme({ ...(config.customThemes?.[id] || builtinThemes['catppuccin-mocha']) })
     setEditingThemeId(id)
-    setNewThemeName(id) // use ID as name for custom themes for simplicity, or just allow editing the obj
+    setNewThemeName(id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
   }
 
   const saveTheme = () => {
@@ -35,9 +35,19 @@ export const ThemeEditor: React.FC = () => {
       alert('Theme name is required.')
       return
     }
-    const themeId = editingThemeId === 'new' ? newThemeName.trim().toLowerCase().replace(/\s+/g, '-') : editingThemeId!
+    const themeId = newThemeName.trim().toLowerCase().replace(/\s+/g, '-')
+    
+    if (builtinThemes[themeId]) {
+      alert('A built-in theme already uses this name. Please choose a different name.')
+      return
+    }
     
     const updatedCustom = { ...(config.customThemes || {}) }
+    
+    if (editingThemeId !== 'new' && themeId !== editingThemeId) {
+      delete updatedCustom[editingThemeId]
+    }
+    
     updatedCustom[themeId] = draftTheme
     
     updateConfig({
@@ -82,25 +92,23 @@ export const ThemeEditor: React.FC = () => {
           </div>
         </div>
 
-        {editingThemeId === 'new' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: '#bac2de' }}>Theme Name</label>
-            <input
-              type="text"
-              value={newThemeName}
-              onChange={(e) => setNewThemeName(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
-            />
-          </div>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 12, color: '#bac2de' }}>Theme Name</label>
+          <input
+            type="text"
+            value={newThemeName}
+            onChange={(e) => setNewThemeName(e.target.value)}
+            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: 6, color: 'var(--app-fg)', fontSize: 13, outline: 'none' }}
+          />
+        </div>
 
         <div style={{ display: 'flex', gap: 16 }}>
           {/* Core colors */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <h4 style={{ margin: 0, fontSize: 13, color: 'var(--app-fg-subtle)' }}>Core Colors</h4>
-            {['background', 'foreground', 'cursor', 'selection'].map(key => (
+            {['background', 'foreground', 'cursor', 'cursorAccent', 'selection'].map(key => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: 'var(--app-fg)', textTransform: 'capitalize' }}>{key}</span>
+                <span style={{ fontSize: 13, color: 'var(--app-fg)', textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="color"

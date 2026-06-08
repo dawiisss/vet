@@ -13,8 +13,8 @@ setupMockedApis()
 
 jest.mock('@xterm/xterm/css/xterm.css', () => ({}))
 
-jest.mock('../renderer/src/themes', () => ({
-  builtinThemes: {
+jest.mock('../renderer/src/themes', () => {
+  const mockBuiltinThemes = {
     'catppuccin-mocha': {
       background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#f5e0dc', selection: '#585b70',
       black: '#45475a', red: '#f38ba8', green: '#a6e3a1', yellow: '#f9e2af',
@@ -23,8 +23,16 @@ jest.mock('../renderer/src/themes', () => ({
       brightYellow: '#f9e2af', brightBlue: '#89b4fa', brightMagenta: '#f5c2e7',
       brightCyan: '#94e2d5', brightWhite: '#a6adc8',
     },
-  },
-}))
+  }
+  return {
+    builtinThemes: mockBuiltinThemes,
+    resolveTheme: (theme: any, _customThemes?: any) => {
+      if (typeof theme === 'string' && mockBuiltinThemes[theme]) return mockBuiltinThemes[theme]
+      if (typeof theme === 'object') return theme
+      return mockBuiltinThemes['catppuccin-mocha']
+    },
+  }
+})
 
 describe('SettingsModal', () => {
   const onClose = jest.fn()
