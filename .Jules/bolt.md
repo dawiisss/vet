@@ -1,0 +1,1 @@
+## 2026-06-08 - [Terminal Resizing] Learning: [fitAddon.fit() from xterm.js is extremely expensive and blocking on the main thread during rapid resize observer events] Action: [Always wrap fitAddon calls in a debounce using setTimeout or similar to prevent layout thrashing and high CPU usage]

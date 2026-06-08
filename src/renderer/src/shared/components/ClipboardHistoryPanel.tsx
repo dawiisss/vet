@@ -22,7 +22,8 @@ export default function ClipboardHistoryPanel({
         {history.length > 0 && (
           <button
             onClick={clear}
-            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}
+            aria-label="Clear all clipboard history"
+            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold', outlineColor: 'var(--app-red)' }}
             title="Clear All"
           >
             Clear All
@@ -32,7 +33,23 @@ export default function ClipboardHistoryPanel({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {history.length === 0 && (
-          <div style={{ color: 'var(--app-fg-muted)' }}>No clipboard history yet.</div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'var(--app-fg-muted)',
+            textAlign: 'center',
+            padding: 20
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>Clipboard is empty</p>
+            <p style={{ margin: 0, fontSize: 12 }}>Copied text will appear here</p>
+          </div>
         )}
         {history.map(item => (
           <div key={item.id} style={{
@@ -43,13 +60,15 @@ export default function ClipboardHistoryPanel({
               <div>
                 <button
                   onClick={() => onInjectSnippet(item.text)}
-                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold' }}
+                  aria-label="Paste clipboard entry"
+                  style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
                 >
                   Paste
                 </button>
                 <button
                   onClick={() => remove(item.id)}
-                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                  aria-label="Delete clipboard entry"
+                  style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
                 >
                   ×
                 </button>

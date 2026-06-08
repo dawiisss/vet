@@ -653,41 +653,50 @@ export const useTabStore = create<TabStore>((set, get) => {
 
     handleDragStart: (tabId) => {
       set({ dragState: { tabId, zone: 'none' } })
+      const rightZone = document.getElementById('drag-zone-right')
+      if (rightZone) rightZone.style.display = 'none'
+      const bottomZone = document.getElementById('drag-zone-bottom')
+      if (bottomZone) bottomZone.style.display = 'none'
     },
 
     handleDragMove: (x, y, terminalArea) => {
-      set((state) => {
-        const prev = state.dragState
-        if (!prev) return {}
-        if (!terminalArea) {
-          if (prev.zone === 'none') return state
-          return { dragState: { ...prev, zone: 'none' } }
-        }
+      if (!terminalArea) {
+        const rightZone = document.getElementById('drag-zone-right')
+        if (rightZone) rightZone.style.display = 'none'
+        const bottomZone = document.getElementById('drag-zone-bottom')
+        if (bottomZone) bottomZone.style.display = 'none'
+        return
+      }
 
-        const r = terminalArea.getBoundingClientRect()
-        const relX = x - r.left
-        const relY = y - r.top
-        const rightPct = relX / r.width
-        const bottomPct = relY / r.height
+      const r = terminalArea.getBoundingClientRect()
+      const relX = x - r.left
+      const relY = y - r.top
+      const rightPct = relX / r.width
+      const bottomPct = relY / r.height
 
-        let zone: DropZone = 'none'
-        if (relX >= 0 && relX <= r.width && relY >= 0 && relY <= r.height) {
-          if (rightPct > 0.8) zone = 'right'
-          else if (bottomPct > 0.8) zone = 'bottom'
-        } else {
-          zone = 'outside'
-        }
+      let zone: DropZone = 'none'
+      if (relX >= 0 && relX <= r.width && relY >= 0 && relY <= r.height) {
+        if (rightPct > 0.8) zone = 'right'
+        else if (bottomPct > 0.8) zone = 'bottom'
+      } else {
+        zone = 'outside'
+      }
 
-        // Performance optimization: skip state update (and re-renders) on mouse move
-        // if zone hasn't changed. x and y are tracked via DOM directly in TabBar.
-        if (prev.zone === zone) return state
+      const rightZone = document.getElementById('drag-zone-right')
+      const bottomZone = document.getElementById('drag-zone-bottom')
 
-        return { dragState: { ...prev, zone } }
-      })
+      if (rightZone && bottomZone) {
+        rightZone.style.display = zone === 'right' ? 'flex' : 'none'
+        bottomZone.style.display = zone === 'bottom' ? 'flex' : 'none'
+      }
     },
 
     handleDragEnd: (tabId, x, y, terminalArea) => {
       set({ dragState: null })
+      const rightZone = document.getElementById('drag-zone-right')
+      if (rightZone) rightZone.style.display = 'none'
+      const bottomZone = document.getElementById('drag-zone-bottom')
+      if (bottomZone) bottomZone.style.display = 'none'
 
       // Check if dropped onto another tab for reordering
       const elements = document.elementsFromPoint(x, y)
