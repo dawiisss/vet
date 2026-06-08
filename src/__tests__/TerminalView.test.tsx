@@ -164,6 +164,8 @@ describe('TerminalView', () => {
   })
 
   it('renders and handles context loss for webgl addon', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
     const { unmount } = render(
       <TerminalView terminalId="test-term-1" isActive={true} isFocused={true} />
     )
@@ -181,6 +183,7 @@ describe('TerminalView', () => {
     // Assert that the component called dispose on the webgl addon
     expect(mockDispose).toHaveBeenCalled()
 
+    consoleWarnSpy.mockRestore()
     unmount()
   })
 

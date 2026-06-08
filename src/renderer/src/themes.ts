@@ -3,6 +3,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#1e1e2e',
     foreground: '#cdd6f4',
     cursor: '#f5e0dc',
+    cursorAccent: '#1e1e2e',
     selection: '#585b70',
     black: '#45475a',
     red: '#f38ba8',
@@ -25,6 +26,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#2e3440',
     foreground: '#d8dee9',
     cursor: '#d8dee9',
+    cursorAccent: '#2e3440',
     selection: '#4c566a',
     black: '#3b4252',
     red: '#bf616a',
@@ -47,6 +49,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#282a36',
     foreground: '#f8f8f2',
     cursor: '#f8f8f2',
+    cursorAccent: '#282a36',
     selection: '#44475a',
     black: '#21222c',
     red: '#ff5555',
@@ -69,6 +72,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#282c34',
     foreground: '#abb2bf',
     cursor: '#528bff',
+    cursorAccent: '#282c34',
     selection: '#3e4451',
     black: '#282c34',
     red: '#e06c75',
@@ -91,6 +95,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#272822',
     foreground: '#f8f8f2',
     cursor: '#f8f8f0',
+    cursorAccent: '#272822',
     selection: '#49483e',
     black: '#272822',
     red: '#f92672',
@@ -113,6 +118,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#1a1b26',
     foreground: '#c0caf5',
     cursor: '#c0caf5',
+    cursorAccent: '#1a1b26',
     selection: '#283457',
     black: '#15161e',
     red: '#f7768e',
@@ -135,6 +141,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     background: '#002b36',
     foreground: '#839496',
     cursor: '#839496',
+    cursorAccent: '#002b36',
     selection: '#073642',
     black: '#073642',
     red: '#dc322f',
@@ -153,4 +160,41 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#93a1a1',
     brightWhite: '#fdf6e3'
   }
+}
+
+export function resolveTheme(
+  theme: string | ThemeConfig,
+  customThemes?: Record<string, ThemeConfig>
+): ThemeConfig {
+  if (typeof theme === 'string') {
+    if (builtinThemes[theme]) return builtinThemes[theme]
+    if (customThemes?.[theme]) return customThemes[theme]
+    return builtinThemes['catppuccin-mocha']
+  }
+  return theme || builtinThemes['catppuccin-mocha']
+}
+
+export function toXtermTheme(
+  theme: ThemeConfig,
+  opacity?: number
+): Record<string, string> {
+  const t: Record<string, string> = { ...theme }
+
+  if (t.selection) {
+    t.selectionBackground = t.selection
+  }
+
+  if (t.cursor && !t.cursorAccent) {
+    t.cursorAccent = t.background
+  }
+
+  if (opacity !== undefined && t.background) {
+    const hex = t.background.replace('#', '')
+    if (hex.length === 6) {
+      const alphaHex = Math.round(opacity * 255).toString(16).padStart(2, '0')
+      t.background = `#${hex}${alphaHex}`
+    }
+  }
+
+  return t
 }

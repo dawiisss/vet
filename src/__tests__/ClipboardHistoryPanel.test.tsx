@@ -30,7 +30,7 @@ describe('ClipboardHistoryPanel', () => {
     render(<ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />)
 
     expect(screen.getByText('Clipboard')).toBeInTheDocument()
-    expect(screen.getByText('No clipboard history yet.')).toBeInTheDocument()
+    expect(screen.getByText('Clipboard is empty')).toBeInTheDocument()
     expect(screen.queryByText('Clear All')).not.toBeInTheDocument()
   })
 

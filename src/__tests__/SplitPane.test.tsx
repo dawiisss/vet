@@ -77,18 +77,38 @@ jest.mock('../renderer/src/features/settings/useConfigStore', () => ({
   }),
 }))
 
-jest.mock('../renderer/src/themes', () => ({
-  builtinThemes: {
+jest.mock('../renderer/src/themes', () => {
+  const mockBuiltinThemes = {
     'catppuccin-mocha': {
-      background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#f5e0dc', selection: '#585b70',
+      background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#f5e0dc', cursorAccent: '#1e1e2e', selection: '#585b70',
       black: '#45475a', red: '#f38ba8', green: '#a6e3a1', yellow: '#f9e2af',
       blue: '#89b4fa', magenta: '#f5c2e7', cyan: '#94e2d5', white: '#bac2de',
       brightBlack: '#585b70', brightRed: '#f38ba8', brightGreen: '#a6e3a1',
       brightYellow: '#f9e2af', brightBlue: '#89b4fa', brightMagenta: '#f5c2e7',
       brightCyan: '#94e2d5', brightWhite: '#a6adc8',
     },
-  },
-}))
+  }
+  return {
+    builtinThemes: mockBuiltinThemes,
+    resolveTheme: (theme: any, _customThemes?: any) => {
+      if (typeof theme === 'string' && mockBuiltinThemes[theme]) return mockBuiltinThemes[theme]
+      if (typeof theme === 'object') return theme
+      return mockBuiltinThemes['catppuccin-mocha']
+    },
+    toXtermTheme: (theme: any, opacity?: number) => {
+      const t: Record<string, string> = { ...theme }
+      if (t.selection) t.selectionBackground = t.selection
+      if (t.cursor && !t.cursorAccent) t.cursorAccent = t.background
+      if (opacity !== undefined && t.background) {
+        const hex = t.background.replace('#', '')
+        if (hex.length === 6) {
+          t.background = `#${hex}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`
+        }
+      }
+      return t
+    },
+  }
+})
 
 describe('SplitPane', () => {
   const onFocus = jest.fn()

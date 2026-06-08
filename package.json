@@ -64,6 +64,7 @@
     "@xterm/addon-webgl": "^0.19.0",
     "@xterm/xterm": "^6.0.0",
     "chokidar": "^4.0.3",
+    "dompurify": "^3.4.8",
     "json5": "^2.2.3",
     "node-pty": "^1.0.0",
     "ssh2": "^1.17.0",
@@ -72,6 +73,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@jest/globals": "^30.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -85,18 +87,17 @@
     "electron": "^42.3.2",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^16.0.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-jest": "^29.4.11",
     "typescript": "^5.7.0",
-    "eslint": "^9.0.0",
-    "@eslint/js": "^9.0.0",
-    "typescript-eslint": "^8.0.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react": "^7.37.0",
-    "globals": "^16.0.0"
+    "typescript-eslint": "^8.0.0"
   },
   "allowScripts": {
     "node-pty@1.1.0": true
