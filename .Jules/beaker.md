@@ -13,3 +13,11 @@ Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent I
 ## 2024-05-26 - Beaker Learning: Clean up temporary files before review
 Learning: Including scratchpad files (`test-catch.js`, `test-jest.js`, etc.) and unintended `pnpm-lock.yaml` changes in PRs violates constraints and pollutes the repository.
 Action: Always run `git status` before requesting a code review, explicitly revert unintended modifications to `pnpm-lock.yaml` using `git checkout HEAD pnpm-lock.yaml`, and remove any scratchpad files created during exploration.
+## 2024-06-08 - Flushing microtasks with Jest Fake Timers Learning: When testing asynchronous promise rejections while Jest fake timers are active, `await new Promise(process.nextTick)` may cause tests to hang and timeout. Action: Use `await Promise.resolve().then(() => {})` to flush microtasks safely in this scenario.
+## 2026-06-08 - Testing Edge Cases in useClipboardStore
+**Learning:** Adding test cases for edge cases such as empty or whitespace-only inputs is essential for robust state management.
+**Action:** When adding test cases, ensure they cover common edge conditions like blank strings, whitespace only (tabs, newlines, spaces), and duplicates to verify that state handling rejects or processes them correctly.
+## 2024-06-07 - Fixing Console Spam in Tests
+Learning: Expected console warnings during tests (e.g. simulating WebGL context loss) can clutter test output.
+Action: Temporarily spy on `console.warn` (`jest.spyOn(console, 'warn').mockImplementation(() => {})`) inside the specific test block, and restore it (`consoleWarnSpy.mockRestore()`) at the end to keep output clean without masking legitimate warnings elsewhere.
+## 2025-02-12 - [Zustand Store Unit Tests] Learning: [When writing Jest unit tests for pure Zustand stores (e.g., `useTabStore`), ensure strict test isolation by manually resetting the store's state in a `beforeEach` block. Retrieve the store instance via `store.getState()` and call its corresponding state setter functions.] Action: [Always include state reset logic for global stores within Jest `beforeEach` blocks.]

@@ -96,7 +96,10 @@ export default function Sidebar({
       borderLeft: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)',
       borderRight: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)'
     }}>
-      <div style={{ 
+      <div
+        role="tablist"
+        aria-label="Sidebar panels"
+        style={{
         width: 48, 
         background: 'color-mix(in srgb, var(--app-bg) 80%, transparent)', 
         borderRight: '1px solid color-mix(in srgb, var(--app-border) 50%, transparent)',
@@ -108,6 +111,10 @@ export default function Sidebar({
         {tabs.map((t, i) => (
           <button
             key={i}
+            role="tab"
+            aria-selected={activeTab === i}
+            aria-controls={`sidebar-panel-${i}`}
+            id={`sidebar-tab-${i}`}
             onClick={() => setActiveTab(i)}
             title={t.name}
             style={{
@@ -131,28 +138,28 @@ export default function Sidebar({
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <div id="sidebar-panel-0" tabIndex={-1} style={{ display: activeTab === 0 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-0" id="sidebar-panel-0" tabIndex={-1} style={{ display: activeTab === 0 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <WorkspacePanel isActive={activeTab === 0} activeTerminalId={activeTerminalId} onViewFile={onViewFile} />
         </div>
-        <div id="sidebar-panel-1" tabIndex={-1} style={{ display: activeTab === 1 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-1" id="sidebar-panel-1" tabIndex={-1} style={{ display: activeTab === 1 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <SystemMonitorPanel isActive={activeTab === 1} />
         </div>
-        <div id="sidebar-panel-2" tabIndex={-1} style={{ display: activeTab === 2 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-2" id="sidebar-panel-2" tabIndex={-1} style={{ display: activeTab === 2 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <PortMonitorPanel isActive={activeTab === 2} />
         </div>
-        <div id="sidebar-panel-3" tabIndex={-1} style={{ display: activeTab === 3 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-3" id="sidebar-panel-3" tabIndex={-1} style={{ display: activeTab === 3 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <ScriptRunnerPanel isActive={activeTab === 3} onRunScript={onRunScript} />
         </div>
-        <div id="sidebar-panel-4" tabIndex={-1} style={{ display: activeTab === 4 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-4" id="sidebar-panel-4" tabIndex={-1} style={{ display: activeTab === 4 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <SnippetLibraryPanel isActive={activeTab === 4} onInjectSnippet={onInjectSnippet} />
         </div>
-        <div id="sidebar-panel-5" tabIndex={-1} style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-5" id="sidebar-panel-5" tabIndex={-1} style={{ display: activeTab === 5 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <ClipboardHistoryPanel isActive={activeTab === 5} onInjectSnippet={onInjectSnippet} />
         </div>
-        <div id="sidebar-panel-6" tabIndex={-1} style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-6" id="sidebar-panel-6" tabIndex={-1} style={{ display: activeTab === 6 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <ConnectionsPanel isActive={activeTab === 6} onRunScript={onRunScript} onLaunchConnection={onLaunchConnection} />
         </div>
-        <div id="sidebar-panel-7" tabIndex={-1} style={{ display: activeTab === 7 ? 'block' : 'none', height: '100%', outline: 'none' }}>
+        <div role="tabpanel" aria-labelledby="sidebar-tab-7" id="sidebar-panel-7" tabIndex={-1} style={{ display: activeTab === 7 ? 'block' : 'none', height: '100%', outline: 'none' }}>
           <HistoryPanel isActive={activeTab === 7} onViewSession={onViewSession} />
         </div>
       </div>
