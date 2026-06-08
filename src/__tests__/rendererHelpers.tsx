@@ -87,6 +87,11 @@ const connectionsApi = {
   getDockerContainers: jest.fn(() => Promise.resolve([])),
 }
 
+const clipboardApi = {
+  getHistory: jest.fn(() => Promise.resolve([])),
+  setHistory: jest.fn(() => Promise.resolve()),
+}
+
 export function setupMockedApis() {
   Object.defineProperty(window, 'terminalApi', { value: terminalApi, configurable: true })
   Object.defineProperty(window, 'windowApi', { value: windowApi, configurable: true })
@@ -96,6 +101,7 @@ export function setupMockedApis() {
   Object.defineProperty(window, 'sysinfoApi', { value: sysinfoApi, configurable: true })
   Object.defineProperty(window, 'portsApi', { value: portsApi, configurable: true })
   Object.defineProperty(window, 'connectionsApi', { value: connectionsApi, configurable: true })
+  Object.defineProperty(window, 'clipboardApi', { value: clipboardApi, configurable: true })
   Object.defineProperty(window, 'serializeAddons', { value: new Map(), configurable: true })
 
   if (!(globalThis as any).ResizeObserver) {
@@ -111,6 +117,7 @@ export function resetMockedApis() {
   const apis = [
     terminalApi, windowApi, configApi, historyApi,
     workspaceApi, sysinfoApi, portsApi, connectionsApi,
+    clipboardApi,
   ]
   apis.forEach((api) => {
     Object.values(api).forEach((v) => {
@@ -128,4 +135,5 @@ export {
   sysinfoApi,
   portsApi,
   connectionsApi,
+  clipboardApi,
 }

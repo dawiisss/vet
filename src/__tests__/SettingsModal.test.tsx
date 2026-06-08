@@ -60,6 +60,8 @@ describe('SettingsModal', () => {
       historyKeepDays: 30,
       virtualScrollbackEnabled: true,
       virtualScrollbackBufferSize: 1000,
+      sidebarWidth: 250,
+      clipboardHistoryKeepDays: 7,
     })
 
     await act(async () => {
@@ -80,6 +82,7 @@ describe('SettingsModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText('General')).toBeInTheDocument()
+      expect(screen.getByText('Sidebar')).toBeInTheDocument()
       expect(screen.getByText('Themes')).toBeInTheDocument()
     })
   })

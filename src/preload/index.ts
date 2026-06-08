@@ -135,6 +135,17 @@ const historyApi: HistoryApi = {
   deleteSession: (id: string) => ipcRenderer.invoke('history:delete-session', id)
 }
 
+interface ClipboardItem {
+  id: string
+  text: string
+  timestamp: number
+}
+
+const clipboardApi = {
+  getHistory: () => ipcRenderer.invoke('clipboard:get-history') as Promise<ClipboardItem[]>,
+  setHistory: (items: ClipboardItem[]) => ipcRenderer.invoke('clipboard:set-history', items)
+}
+
 contextBridge.exposeInMainWorld('terminalApi', terminalApi)
 contextBridge.exposeInMainWorld('windowApi', windowApi)
 contextBridge.exposeInMainWorld('configApi', configApi)
@@ -143,4 +154,5 @@ contextBridge.exposeInMainWorld('portsApi', portsApi)
 contextBridge.exposeInMainWorld('workspaceApi', workspaceApi)
 contextBridge.exposeInMainWorld('connectionsApi', connectionsApi)
 contextBridge.exposeInMainWorld('historyApi', historyApi)
+contextBridge.exposeInMainWorld('clipboardApi', clipboardApi)
 contextBridge.exposeInMainWorld('sftpApi', sftpApi)

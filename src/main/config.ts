@@ -16,6 +16,8 @@ const DEFAULT_CONFIG: any = {
   webglEnabled: true,
   sidebarPlacement: 'right',
   sidebarOpen: true,
+  sidebarWidth: 250,
+  clipboardHistoryKeepDays: 7,
   tabBarPosition: 'top',
   sshParseGlobal: true,
   sshHosts: [],
@@ -47,6 +49,7 @@ const DEFAULT_CONFIG: any = {
     'ctrl+,': 'settings:toggle',
     'ctrl+shift+p': 'command-palette:toggle',
     'ctrl+shift+f': 'app:toggle-fullscreen',
+    'ctrl+shift+m': 'app:maximize',
     'ctrl+q': 'app:quit'
   },
   profiles: [
@@ -133,6 +136,18 @@ export function sanitizeConfig(conf: any): any {
 
   if (sanitized.tabBarPosition !== 'top' && sanitized.tabBarPosition !== 'left' && sanitized.tabBarPosition !== 'right') {
     sanitized.tabBarPosition = 'top'
+  }
+
+  if (typeof sanitized.sidebarWidth !== 'number' || isNaN(sanitized.sidebarWidth)) {
+    sanitized.sidebarWidth = 250
+  } else {
+    sanitized.sidebarWidth = Math.max(150, Math.min(600, sanitized.sidebarWidth))
+  }
+
+  if (typeof sanitized.clipboardHistoryKeepDays !== 'number' || isNaN(sanitized.clipboardHistoryKeepDays)) {
+    sanitized.clipboardHistoryKeepDays = 7
+  } else {
+    sanitized.clipboardHistoryKeepDays = Math.max(1, Math.min(365, sanitized.clipboardHistoryKeepDays))
   }
 
   return sanitized
