@@ -12,3 +12,4 @@ Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent I
 ## 2024-06-07 - Fixing Console Spam in Tests
 Learning: Expected console warnings during tests (e.g. simulating WebGL context loss) can clutter test output.
 Action: Temporarily spy on `console.warn` (`jest.spyOn(console, 'warn').mockImplementation(() => {})`) inside the specific test block, and restore it (`consoleWarnSpy.mockRestore()`) at the end to keep output clean without masking legitimate warnings elsewhere.
+## 2025-02-12 - [Zustand Store Unit Tests] Learning: [When writing Jest unit tests for pure Zustand stores (e.g., `useTabStore`), ensure strict test isolation by manually resetting the store's state in a `beforeEach` block. Retrieve the store instance via `store.getState()` and call its corresponding state setter functions.] Action: [Always include state reset logic for global stores within Jest `beforeEach` blocks.]
