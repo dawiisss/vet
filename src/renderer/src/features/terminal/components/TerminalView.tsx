@@ -341,18 +341,24 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
       return true
     })
 
+    let resizeTimeout: ReturnType<typeof setTimeout>
+
     function doFit() {
-      try {
-        fitAddon.fit()
-      } catch {
-        // ignore
-      }
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        try {
+          fitAddon.fit()
+        } catch {
+          // ignore
+        }
+      }, 50) // Debounced to prevent rapid xterm.js re-renders during container resize
     }
 
     const resizeObserver = new ResizeObserver(doFit)
     resizeObserver.observe(container)
 
     return () => {
+      clearTimeout(resizeTimeout)
       resizeObserver.disconnect()
       container.removeEventListener('focusin', handleFocusIn)
     }
