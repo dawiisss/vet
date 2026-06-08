@@ -9,6 +9,10 @@ Action: Use mocked components properly but interact via synthetic DOM events (`u
 ## 2024-06-06 - Mocking Date.now() for unique IDs in synchronous tests
 Learning: When testing logic that relies on `Date.now()` to generate unique IDs (like Zustand store actions), the fast, synchronous execution of tests can result in identical timestamps and duplicate IDs.
 Action: Use `jest.spyOn(Date, 'now')` to return incrementing values to prevent ID collisions and ensure predictable state updates during testing. Remember to call `.mockRestore()` afterwards.
+
+## 2024-05-26 - Beaker Learning: Clean up temporary files before review
+Learning: Including scratchpad files (`test-catch.js`, `test-jest.js`, etc.) and unintended `pnpm-lock.yaml` changes in PRs violates constraints and pollutes the repository.
+Action: Always run `git status` before requesting a code review, explicitly revert unintended modifications to `pnpm-lock.yaml` using `git checkout HEAD pnpm-lock.yaml`, and remove any scratchpad files created during exploration.
 ## 2024-06-08 - Flushing microtasks with Jest Fake Timers Learning: When testing asynchronous promise rejections while Jest fake timers are active, `await new Promise(process.nextTick)` may cause tests to hang and timeout. Action: Use `await Promise.resolve().then(() => {})` to flush microtasks safely in this scenario.
 ## 2026-06-08 - Testing Edge Cases in useClipboardStore
 **Learning:** Adding test cases for edge cases such as empty or whitespace-only inputs is essential for robust state management.

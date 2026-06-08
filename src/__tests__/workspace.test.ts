@@ -84,6 +84,21 @@ describe('workspace', () => {
       expect(result).not.toBeNull()
       expect(result.scripts.start).toBe('node app')
     })
+
+    it('returns null and logs error on unexpected top-level failure', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const cwdSpy = jest.spyOn(process, 'cwd').mockImplementation(() => {
+        throw new Error('Unexpected error')
+      })
+
+      const result = await getScriptsHandler({}, undefined)
+
+      expect(result).toBeNull()
+      expect(errorSpy).toHaveBeenCalledWith('Failed to get workspace scripts', expect.any(Error))
+
+      cwdSpy.mockRestore()
+      errorSpy.mockRestore()
+    })
   })
 
   describe('workspace:list-dir handler', () => {
