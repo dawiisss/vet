@@ -97,6 +97,17 @@ describe('useClipboardStore', () => {
     jest.spyOn(Date, 'now').mockRestore();
   })
 
+
+  it('does not add items that consist only of tabs or newlines', () => {
+    const store = useClipboardStore.getState()
+    store.add('\t\t')
+    store.add('\n\n')
+    store.add('\t\n \r')
+
+    const newStore = useClipboardStore.getState()
+    expect(newStore.history.length).toBe(0)
+  })
+
   it('clears all items', () => {
     const store = useClipboardStore.getState()
     store.add('item 1')
