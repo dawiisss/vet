@@ -4,7 +4,7 @@
 
 import '@testing-library/jest-dom'
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { setupMockedApis, resetMockedApis } from '../__tests__/rendererHelpers'
 import { leafNode, splitNode } from '../renderer/src/features/terminal/splitTree'
 import SplitPane from '../renderer/src/features/terminal/components/SplitPane'

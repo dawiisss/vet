@@ -10,7 +10,6 @@ import {
   navigatePath,
   insertLeaves,
   removeLeaf,
-  SplitNode,
 } from '../renderer/src/features/terminal/splitTree'
 
 describe('splitTree', () => {

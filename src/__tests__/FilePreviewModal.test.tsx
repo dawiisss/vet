@@ -5,7 +5,7 @@
 import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { setupMockedApis, workspaceApi, resetMockedApis, configApi } from '../__tests__/rendererHelpers'
+import { setupMockedApis, workspaceApi, resetMockedApis } from '../__tests__/rendererHelpers'
 import FilePreviewModal from '../renderer/src/features/workspace/components/FilePreviewModal'
 
 setupMockedApis()

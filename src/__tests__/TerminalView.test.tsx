@@ -6,7 +6,6 @@ import React from 'react'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import userEvent from '@testing-library/user-event'
 import { setupMockedApis, resetMockedApis } from './rendererHelpers'
 
 global.ResizeObserver = class {

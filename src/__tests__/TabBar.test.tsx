@@ -5,7 +5,7 @@
 import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { setupMockedApis, configApi, resetMockedApis } from '../__tests__/rendererHelpers'
+import { setupMockedApis, resetMockedApis } from '../__tests__/rendererHelpers'
 import TabBar, { TabBarTab } from '../renderer/src/features/terminal/components/TabBar'
 
 setupMockedApis()

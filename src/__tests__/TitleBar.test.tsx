@@ -4,7 +4,7 @@
 
 import '@testing-library/jest-dom'
 import React from 'react'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { setupMockedApis, windowApi, resetMockedApis } from '../__tests__/rendererHelpers'
 import TitleBar from '../renderer/src/shared/components/TitleBar'
 

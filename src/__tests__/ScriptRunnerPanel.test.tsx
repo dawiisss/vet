@@ -37,7 +37,7 @@ describe('ScriptRunnerPanel', () => {
       resolvePromise(null);
     });
 
-    expect(screen.getByText('No package.json scripts found in project root.')).toBeInTheDocument()
+    expect(screen.getByText('No scripts found')).toBeInTheDocument()
   })
 
   it('renders scripts when api returns data', async () => {

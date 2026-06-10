@@ -14,8 +14,6 @@ jest.mock('os', () => ({
 
 const mockWriteFileSync = jest.fn()
 const mockReadFile = jest.fn()
-const mockExistsSync = jest.fn(() => true)
-const mockMkdirSync = jest.fn()
 
 jest.mock('fs', () => ({
   promises: {
