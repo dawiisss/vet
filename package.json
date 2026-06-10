@@ -3,7 +3,7 @@
   "desktopName": "vet.desktop",
   "version": "1.0.0",
   "description": "A feature-rich terminal emulator",
-  "author": "Vet Team <support@vet-terminal.org>",
+  "author": "Vet Team <vet@route2place.com>",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
