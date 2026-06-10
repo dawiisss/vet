@@ -3,16 +3,18 @@ import TitleBar from '@/shared/components/TitleBar'
 import TabBar from '@/features/terminal/components/TabBar'
 import type { TabBarTab } from '@/features/terminal/components/TabBar'
 import SplitPane from '@/features/terminal/components/SplitPane'
+import React, { lazy, Suspense } from 'react'
 import { getNode, collectTerminalIds } from '@/features/terminal/splitTree'
-import SettingsModal from '@/features/settings/components/SettingsModal'
-import HistoryViewerModal from '@/shared/components/HistoryViewerModal'
-import CommandPalette from '@/shared/components/CommandPalette'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
 import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
-import FilePreviewModal from '@/features/workspace/components/FilePreviewModal'
-import ClipboardPreviewModal from '@/shared/components/ClipboardPreviewModal'
+
+const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
+const HistoryViewerModal = lazy(() => import('@/shared/components/HistoryViewerModal'))
+const CommandPalette = lazy(() => import('@/shared/components/CommandPalette'))
+const FilePreviewModal = lazy(() => import('@/features/workspace/components/FilePreviewModal'))
+const ClipboardPreviewModal = lazy(() => import('@/shared/components/ClipboardPreviewModal'))
 
 function App() {
   const { config, updateConfig, openConfig } = useConfig()
@@ -500,83 +502,87 @@ function App() {
           />
         )}
       </div>
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
-      {viewingHistorySessionId && (
-        <HistoryViewerModal
-          sessionId={viewingHistorySessionId}
-          onClose={() => setViewingHistorySessionId(null)}
-        />
-      )}
-      {previewFilePath && (
-        <FilePreviewModal filePath={previewFilePath} onClose={() => setPreviewFilePath(null)} />
-      )}
-      {previewClipboardItem && (
-        <ClipboardPreviewModal
-          item={previewClipboardItem}
-          onClose={() => setPreviewClipboardItem(null)}
-        />
-      )}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        actions={[
-          { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
-          {
-            id: 'config-file',
-            label: 'Settings: Open config.json5 in Editor',
-            onExecute: openConfig
-          },
-          {
-            id: 'toggle-sidebar',
-            label: 'View: Toggle Sidebar',
-            onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
-          },
-          { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
-          { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
-          { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
-          { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
-          { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
-          { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
-          { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
-          {
-            id: 'extract',
-            label: 'View: Extract Pane to New Tab',
-            onExecute: () => {
-              if (activeTabId) extractToTab(activeTabId, activeTab!.focusedPath)
-            }
-          },
-          {
-            id: 'detach-window',
-            label: 'View: Detach Tab to Window',
-            onExecute: () => {
-              if (activeTabId) detachTab(activeTabId)
-            }
-          },
-          { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
-          { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
-          { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
-          ...Object.keys(builtinThemes).map((themeName) => ({
-            id: `theme-${themeName}`,
-            label: `Theme: Set to ${themeName.replace('-', ' ')}`,
-            onExecute: () => updateConfig({ theme: themeName })
-          })),
-          ...Object.keys(config.customThemes || {}).map((themeName) => ({
-            id: `theme-custom-${themeName}`,
-            label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
-            onExecute: () => updateConfig({ theme: themeName })
-          })),
-          ...(config.profiles || []).map((profile) => ({
-            id: `launch-profile-${profile.id}`,
-            label: `Profiles: Launch ${profile.name}`,
-            onExecute: () => newTab(profile.id)
-          })),
-          ...(config.sshHosts || []).map((host) => ({
-            id: `launch-ssh-${host.id}`,
-            label: `SSH: Connect to ${host.name} (${host.host})`,
-            onExecute: () => newTab(undefined, host.id)
-          }))
-        ]}
-      />
+      <Suspense fallback={null}>
+        {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {viewingHistorySessionId && (
+          <HistoryViewerModal
+            sessionId={viewingHistorySessionId}
+            onClose={() => setViewingHistorySessionId(null)}
+          />
+        )}
+        {previewFilePath && (
+          <FilePreviewModal filePath={previewFilePath} onClose={() => setPreviewFilePath(null)} />
+        )}
+        {previewClipboardItem && (
+          <ClipboardPreviewModal
+            item={previewClipboardItem}
+            onClose={() => setPreviewClipboardItem(null)}
+          />
+        )}
+        {isCommandPaletteOpen && (
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            actions={[
+              { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
+              {
+                id: 'config-file',
+                label: 'Settings: Open config.json5 in Editor',
+                onExecute: openConfig
+              },
+              {
+                id: 'toggle-sidebar',
+                label: 'View: Toggle Sidebar',
+                onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
+              },
+              { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
+              { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
+              { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
+              { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
+              { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
+              { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
+              { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
+              {
+                id: 'extract',
+                label: 'View: Extract Pane to New Tab',
+                onExecute: () => {
+                  if (activeTabId) extractToTab(activeTabId, activeTab!.focusedPath)
+                }
+              },
+              {
+                id: 'detach-window',
+                label: 'View: Detach Tab to Window',
+                onExecute: () => {
+                  if (activeTabId) detachTab(activeTabId)
+                }
+              },
+              { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
+              { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
+              { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
+              ...Object.keys(builtinThemes).map((themeName) => ({
+                id: `theme-${themeName}`,
+                label: `Theme: Set to ${themeName.replace('-', ' ')}`,
+                onExecute: () => updateConfig({ theme: themeName })
+              })),
+              ...Object.keys(config.customThemes || {}).map((themeName) => ({
+                id: `theme-custom-${themeName}`,
+                label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
+                onExecute: () => updateConfig({ theme: themeName })
+              })),
+              ...(config.profiles || []).map((profile) => ({
+                id: `launch-profile-${profile.id}`,
+                label: `Profiles: Launch ${profile.name}`,
+                onExecute: () => newTab(profile.id)
+              })),
+              ...(config.sshHosts || []).map((host) => ({
+                id: `launch-ssh-${host.id}`,
+                label: `SSH: Connect to ${host.name} (${host.host})`,
+                onExecute: () => newTab(undefined, host.id)
+              }))
+            ]}
+          />
+        )}
+      </Suspense>
     </div>
   )
 }
