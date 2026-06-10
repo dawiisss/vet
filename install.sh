@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Vet (Very Easy Terminal) installer script for Linux systems.
-# This script detects your package manager, builds the distribution packages if missing,
-# and installs the optimal package format.
+# Designed to be fetched and executed directly:
+# curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/dev/install.sh | bash
 
 set -e
 
@@ -13,35 +13,39 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}=== Vet (Very Easy Terminal) Linux Installer ===${NC}"
+echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 
-# 1. Determine local path
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$REPO_DIR"
+# Define repository metadata
+REPO_OWNER="dawiisss"
+REPO_NAME="vet"
+FALLBACK_VERSION="1.0.0"
 
-# 2. Check for build artifacts. If missing, offer to build.
-check_and_build() {
-  if [ ! -d "dist" ] || [ -z "$(ls -A dist/*.deb dist/*.rpm dist/*.AppImage dist/*.tar.gz 2>/dev/null)" ]; then
-    echo -e "${YELLOW}No pre-built Vet packages found in dist/.${NC}"
-    echo -e "Would you like to build them now? (Requires Node.js and npm installed) [Y/n]"
-    read -r build_choice
-    if [[ "$build_choice" =~ ^[Nn]$ ]]; then
-      echo -e "${RED}Installation aborted. Please build Vet using 'npm run dist:linux' first.${NC}"
-      exit 1
-    fi
+# 1. Fetch latest release version from GitHub API
+echo -e "Checking latest release version..."
+LATEST_TAG=""
+if command -v curl &> /dev/null; then
+  LATEST_TAG=$(curl -s "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+elif command -v wget &> /dev/null; then
+  LATEST_TAG=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+fi
 
-    echo -e "${BLUE}Installing dependencies and building Vet packages...${NC}"
-    npm install
-    # Remove cpu-features if present, as it can fail compilation on newer Electron/node versions
-    rm -rf node_modules/cpu-features
-    npm run dist:linux
-    echo -e "${GREEN}Build completed successfully!${NC}"
-  fi
-}
+# Clean tag name (e.g. v1.0.0 -> 1.0.0)
+if [ -z "$LATEST_TAG" ]; then
+  echo -e "${YELLOW}Could not fetch latest release tag from GitHub API (rate limit or network issue).${NC}"
+  echo -e "Falling back to version: v${FALLBACK_VERSION}"
+  VERSION="${FALLBACK_VERSION}"
+  TAG_NAME="v${FALLBACK_VERSION}"
+else
+  TAG_NAME="$LATEST_TAG"
+  VERSION="${LATEST_TAG#v}" # removes leading 'v'
+  echo -e "Found latest release: ${TAG_NAME}"
+fi
 
-check_and_build
+# Create a temporary directory for downloads
+TMP_DIR=$(mktemp -d -t vet-install-XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
-# 3. Detect package manager and system capabilities
+# 2. Detect package manager and system capabilities
 IS_DEB=false
 IS_RPM=false
 if command -v apt-get &> /dev/null || command -v dpkg &> /dev/null; then
@@ -50,43 +54,69 @@ elif command -v dnf &> /dev/null || command -v rpm &> /dev/null; then
   IS_RPM=true
 fi
 
-# 4. Install matching format
-DEB_FILE=$(find dist -name "vet_*_amd64.deb" | head -n 1)
-RPM_FILE=$(find dist -name "vet-*.x86_64.rpm" | head -n 1)
-APPIMAGE_FILE=$(find dist -name "Vet-*.AppImage" | head -n 1)
-TARBALL_FILE=$(find dist -name "vet-*.tar.gz" | head -n 1)
+# Define URLs for release assets
+BASE_DOWNLOAD_URL="https://github.com/dawiisss/vet/releases/download/${TAG_NAME}"
+DEB_URL="${BASE_DOWNLOAD_URL}/vet_${VERSION}_amd64.deb"
+RPM_URL="${BASE_DOWNLOAD_URL}/vet-${VERSION}.x86_64.rpm"
+APPIMAGE_URL="${BASE_DOWNLOAD_URL}/Vet-${VERSION}.AppImage"
+
+# Download helper
+download_file() {
+  local url="$1"
+  local dest="$2"
+  echo -e "Downloading $url..."
+  if command -v curl &> /dev/null; then
+    curl -L -o "$dest" "$url"
+  elif command -v wget &> /dev/null; then
+    wget -O "$dest" "$url"
+  else
+    echo -e "${RED}Error: Neither curl nor wget is installed.${NC}"
+    exit 1
+  fi
+}
 
 installed=false
 
-# Try Debian package
-if [ "$IS_DEB" = true ] && [ -n "$DEB_FILE" ]; then
-  echo -e "${BLUE}Detected Debian-based system. Installing Debian package: $DEB_FILE...${NC}"
-  if command -v apt &> /dev/null; then
-    sudo apt install -y "./$DEB_FILE"
+# Try Debian installation
+if [ "$IS_DEB" = true ]; then
+  DEB_FILE="${TMP_DIR}/vet_${VERSION}_amd64.deb"
+  if download_file "$DEB_URL" "$DEB_FILE"; then
+    echo -e "${BLUE}Installing Debian package...${NC}"
+    if command -v apt &> /dev/null; then
+      sudo apt install -y "$DEB_FILE"
+    else
+      sudo dpkg -i "$DEB_FILE" || sudo apt-get install -f -y
+    fi
+    echo -e "${GREEN}Vet has been installed successfully via APT.${NC}"
+    installed=true
   else
-    sudo dpkg -i "$DEB_FILE" || sudo apt-get install -f -y
+    echo -e "${YELLOW}Debian package download failed. Falling back to AppImage...${NC}"
   fi
-  echo -e "${GREEN}Vet has been installed successfully via APT.${NC}"
-  installed=true
-
-# Try RPM package
-elif [ "$IS_RPM" = true ] && [ -n "$RPM_FILE" ]; then
-  echo -e "${BLUE}Detected RedHat/RPM-based system. Installing RPM package: $RPM_FILE...${NC}"
-  if command -v dnf &> /dev/null; then
-    sudo dnf install -y "$RPM_FILE"
-  else
-    sudo rpm -i "$RPM_FILE"
-  fi
-  echo -e "${GREEN}Vet has been installed successfully via RPM.${NC}"
-  installed=true
 fi
 
-# Fallback: Install AppImage locally if package installation was skipped or not supported
+# Try RPM installation if not installed yet
+if [ "$installed" = false ] && [ "$IS_RPM" = true ]; then
+  RPM_FILE="${TMP_DIR}/vet-${VERSION}.x86_64.rpm"
+  if download_file "$RPM_URL" "$RPM_FILE"; then
+    echo -e "${BLUE}Installing RPM package...${NC}"
+    if command -v dnf &> /dev/null; then
+      sudo dnf install -y "$RPM_FILE"
+    else
+      sudo rpm -i "$RPM_FILE"
+    fi
+    echo -e "${GREEN}Vet has been installed successfully via RPM.${NC}"
+    installed=true
+  else
+    echo -e "${YELLOW}RPM package download failed. Falling back to AppImage...${NC}"
+  fi
+fi
+
+# Fallback: Install AppImage locally
 if [ "$installed" = false ]; then
-  if [ -n "$APPIMAGE_FILE" ]; then
-    echo -e "${BLUE}Installing Vet AppImage to user directory...${NC}"
-    
-    # Create local bin if it doesn't exist
+  APPIMAGE_FILE="${TMP_DIR}/Vet-${VERSION}.AppImage"
+  echo -e "${BLUE}Installing Vet AppImage...${NC}"
+  if download_file "$APPIMAGE_URL" "$APPIMAGE_FILE"; then
+    # Create local directories
     mkdir -p "$HOME/.local/bin"
     mkdir -p "$HOME/.local/share/applications"
     mkdir -p "$HOME/.local/share/icons"
@@ -96,9 +126,13 @@ if [ "$installed" = false ]; then
     cp "$APPIMAGE_FILE" "$DEST_APPIMAGE"
     chmod +x "$DEST_APPIMAGE"
 
-    # Extract icon for desktop entry
+    # Set up desktop entry
+    # Download icon from main repo branch
     echo -e "Setting up application shortcut..."
-    cp resources/icon.png "$HOME/.local/share/icons/vet.png" 2>/dev/null || true
+    ICON_URL="https://raw.githubusercontent.com/dawiisss/vet/dev/resources/icon.png"
+    if ! curl -L -o "$HOME/.local/share/icons/vet.png" "$ICON_URL" 2>/dev/null; then
+      wget -O "$HOME/.local/share/icons/vet.png" "$ICON_URL" &>/dev/null || true
+    fi
 
     # Create desktop entry
     cat <<EOF > "$HOME/.local/share/applications/vet.desktop"
@@ -115,13 +149,17 @@ EOF
 
     chmod +x "$HOME/.local/share/applications/vet.desktop"
 
+    # Set up shell wrapper link in user path if possible
+    ln -sf "$DEST_APPIMAGE" "$HOME/.local/bin/vet"
+
     echo -e "${GREEN}Vet AppImage has been installed to $DEST_APPIMAGE${NC}"
     echo -e "${GREEN}A desktop launcher has been created. You can now launch Vet from your application menu.${NC}"
     installed=true
   else
-    echo -e "${RED}Error: Could not find any package or AppImage to install.${NC}"
+    echo -e "${RED}Error: Failed to download the AppImage asset from GitHub Releases.${NC}"
     exit 1
   fi
 fi
 
 echo -e "${GREEN}Installation completed! You can start Vet by typing 'vet' in your terminal or launching it from your desktop menu.${NC}"
+echo -e "Make sure '$HOME/.local/bin' is in your PATH."
