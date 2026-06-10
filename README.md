@@ -1,148 +1,105 @@
-# Vet
+# Vet — Very Easy Terminal
 
-A feature-rich terminal emulator.
+Vet (Very Easy Terminal) is a lightweight, modular terminal emulator designed for Linux, macOS, and Windows. It provides a clean, visual-first terminal experience right out of the box with zero initial configuration required.
 
-## Stack
-- **Runtime**: Electron (Chrome + Node.js)
-- **Terminal Core**: xterm.js + addons
-- **PTY**: node-pty
-- **UI Framework**: React
-- **Build**: Vite + electron-vite
-- **Config**: JSON5 (hot-reload via chokidar)
-- **IPC**: Electron contextBridge
+---
 
-## Architecture
+## Key Features
 
-```
-Main Process                        Renderer Process
-┌──────────────────────┐           ┌────────────────────────┐
-│ ┌──────────────────┐ │  IPC      │ ┌───────────────────┐  │
-│ │ node-pty (shell) │◄├──────────┤ │ xterm.js Terminal │  │
-│ │ per tab/split    │ │           │ │ + addons          │  │
-│ └──────────────────┘ │           │ └───────────────────┘  │
-│ ┌──────────────────┐ │           │ ┌───────────────────┐  │
-│ │ Config loader    │ │           │ │ React UI          │  │
-│ │ (JSON5 + chokidar)│ │           │ │ (tabs, splits,   │  │
-│ └──────────────────┘ │           │ │  settings panel)  │  │
-│ ┌──────────────────┐ │           │ └───────────────────┘  │
-│ │ Window mgr       │ │           └────────────────────────┘
-│ │ (BrowserWindow,  │ │
-│ │  tray, menus)    │ │
-│ └──────────────────┘ │
-└──────────────────────┘
+* **Flexible Pane Layouts**: Organize work using tabs and dynamic split-panes (horizontal and vertical) with smooth dragging. Extract any split pane to its own tab instantly.
+* **Developer Toolbelt**: Access active ports, system diagnostics, a clipboards cache, a snippets manager, and interactive project scripts directly from the sidebar.
+* **Session Persistence**: Automatically persist terminal session transcripts to a local SQLite database, allowing you to search, view, and replay historical sessions.
+* **Connection Manager**: Configure and connect to SSH hosts and launch custom local shell profiles (like Node.js or Python REPLs).
+* **Live Theme Configuration**: Swap built-in themes (such as Catppuccin, Nord, Dracula, and Solarized) or create custom color schemes via a live theme editor.
+* **Modern Terminal Core**: Powered by GPU-accelerated WebGL rendering for fast text output, featuring rich URL/path detection and Sixel inline graphics support.
+
+---
+
+## Installation
+
+### Automatic System Installation (Linux)
+
+You can run the helper installation script to automatically detect your system configuration, build the latest packages, and install Vet:
+
+```bash
+./install.sh
 ```
 
-## Features
+### Manual Installation (Linux)
 
-### Completed Phases
+Alternatively, you can install one of the pre-packaged distribution formats from the `dist/` directory:
 
-#### Phase 1: Skeleton
-- Init Electron + Vite + React project (electron-vite)
-- Main process: node-pty spawns a shell (bash/zsh), pipes stdout/stdin
-- Renderer: xterm.js fills a BrowserWindow
-- IPC bridge: pty data → terminal; keystrokes → pty; resize events
-- Verify: working shell, resize, copy/paste
+#### Debian / Ubuntu (`.deb`)
+```bash
+sudo apt install ./dist/vet_1.0.0_amd64.deb
+```
 
-#### Phase 2: Tabs
-- Tab bar component in React
-- Tab creation, closure, and click/keyboard-driven switching
-- Dynamic tab titles matching folder and running process (`folder : process`) parsed natively on Linux/macOS
-- Instant/fast creation of initial shells
+#### RedHat / Fedora (`.rpm`)
+```bash
+sudo dnf install ./dist/vet-1.0.0.x86_64.rpm
+```
 
-#### Phase 3: Splits & Layout
-- Split panes (horizontal / vertical) within a tab
-- Draggable resize handles between splits
-- Extracting split pane into its own tab via UI button and shortcut (`Ctrl+Shift+E`)
-- Keyboard event propagation fixes preventing terminal autocomplete pollution during tab changes
-- Layout corruption fix on tab switch via `visibility: hidden` and absolute positioning
+#### AppImage (`.AppImage`)
+Make the AppImage executable and run it directly:
+```bash
+chmod +x dist/Vet-1.0.0.AppImage
+./dist/Vet-1.0.0.AppImage
+```
 
-### Planned Phases
+---
 
-#### Phase 4: Core Advanced & Terminal Features
-- WebGL Renderer & GPU Acceleration
-- Rich URL & Path Detection
-- Customizable Shell Profiles
-- Aesthetic Window Vibrancy & Opacity
-- Sixel & Inline Images
+## Configuration & Keybindings
 
-#### Phase 5: Sidebar Developer Toolbelt
-- Active Port Monitor
-- System Diagnostics Dashboard
-- Interactive Project Script Runner
-- Terminal Clipboard & Snippet Library
+Vet uses a hot-reloading JSON5 configuration file located at `~/.config/vet/config.json5`.
 
-#### Phase 6: Remote Connections & Virtualization
-- WSL & Docker Daemon Integration
-- Integrated SSH Client Profiles
-- SFTP File Explorer Sidebar
+### Default Keybindings
 
-#### Phase 7: SQLite Database History & Virtual Scrollback
-- Structured Terminal History Database
-- Fuzzy Command Search UI
-- Spill-to-Disk Virtual Scrollback Archive
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+Shift+P` | Toggle Command Palette |
+| `Ctrl+,` | Toggle Settings Modal |
+| `Ctrl+B` | Toggle Sidebar Panel |
+| `Ctrl+Shift+T` | Open New Tab |
+| `Ctrl+Shift+W` | Close Focused Tab |
+| `Ctrl+Tab` | Next Tab |
+| `Ctrl+Shift+Tab` | Previous Tab |
+| `Ctrl+Shift+\` | Split Pane Horizontally |
+| `Ctrl+Shift+D` | Split Pane Vertically |
+| `Ctrl+Shift+E` | Extract Pane to New Tab |
+| `Ctrl+Alt+U` | Unsplit Panes |
+| `Alt+RightArrow` | Focus Next Split Pane |
+| `Alt+LeftArrow` | Focus Previous Split Pane |
+| `Ctrl+Shift+C` / `V` | Copy / Paste |
+| `Ctrl+F` | Find in Terminal |
+| `Ctrl+Shift+F` | Toggle Fullscreen |
+| `Ctrl+Q` | Quit Application |
 
+---
 
-### Sixel & Inline Images
+## Build from Source (Developers)
 
-Vet supports the [Sixel](https://en.wikipedia.org/wiki/Sixel) graphics protocol, enabling the terminal to render high-resolution images directly in the console output. This is possible through `@xterm/addon-image`.
-
-**Why Sixel?**
-Instead of forcing you to leave the terminal to view graphical files, Sixel encodes image data into standard text output sequences. This creates a richer command-line experience where visual context (e.g., charts, photos, or diagrams) lives immediately next to your commands.
-
-**How to use it:**
-You can use tools that support Sixel output to display images in the terminal. For example:
-- **ImageMagick**: View images via `img2txt` or `magick display`
-- **Neofetch / Fastfetch**: Display high-quality logos next to your system info by configuring them to use Sixel backend:
-  ```bash
-  neofetch --sixel /path/to/image.png
-  ```
-- **lsix**: An `ls` clone that shows image thumbnails directly in your terminal.
-
-## Getting Started
+If you wish to compile or modify Vet locally:
 
 ### Prerequisites
+* Node.js (v18+)
+* npm
 
-Ensure you have Node.js and npm installed.
-
-### Installation
-
-Clone the repository and install dependencies:
-
-```bash
-npm install
-```
-
-### Scripts
-
-Run the project in development mode:
-```bash
-npm run dev
-```
-
-Build the project:
-```bash
-npm run build
-```
-
-Preview the build:
-```bash
-npm run preview
-```
-
-Run tests:
-```bash
-npm run test
-```
-
-Typecheck:
-```bash
-npm run typecheck
-```
-
-Build and package for distribution:
-```bash
-npm run dist        # Current platform
-npm run dist:linux  # Linux
-npm run dist:win    # Windows
-npm run dist:mac    # macOS
-```
+### Setup & Development
+1. Clone the repository and install dependencies:
+   ```bash
+   npm install
+   ```
+2. Run Vet in development mode with live reload:
+   ```bash
+   npm run dev
+   ```
+3. Run test suites:
+   ```bash
+   npm run test
+   ```
+4. Build and package the production binaries:
+   ```bash
+   npm run dist:linux  # Package for Linux (.deb, .rpm, AppImage, tarball)
+   npm run dist:win    # Package for Windows
+   npm run dist:mac    # Package for macOS
+   ```
