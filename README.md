@@ -17,9 +17,15 @@ Vet (Very Easy Terminal) is a lightweight, modular terminal emulator designed fo
 
 ## Installation
 
-### Automatic System Installation (Linux)
+### Automatic Installation (Linux)
 
-You can run the helper installation script to automatically detect your system configuration, build the latest packages, and install Vet:
+You can install Vet instantly from the latest GitHub Release using this one-liner command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/dev/install.sh | bash
+```
+
+Alternatively, if you have cloned the repository locally, you can run the installer script manually:
 
 ```bash
 ./install.sh
