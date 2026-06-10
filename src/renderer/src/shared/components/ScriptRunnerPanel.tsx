@@ -25,6 +25,9 @@ export default function ScriptRunnerPanel({
       } else {
         setScripts(null)
       }
+    }).catch((err: any) => {
+      console.error('Failed to fetch scripts:', err)
+      setScripts(null)
     })
   }, [isActive])
 

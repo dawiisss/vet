@@ -27,6 +27,23 @@ describe('ScriptRunnerPanel', () => {
     expect(workspaceApi.getScripts).not.toHaveBeenCalled()
   })
 
+  it('shows no scripts message when api throws an error', async () => {
+    let rejectPromise: any;
+    workspaceApi.getScripts.mockReturnValue(new Promise((resolve, reject) => { rejectPromise = reject; }));
+
+    // Suppress console.error expected for this test
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+
+    await act(async () => {
+      rejectPromise(new Error('Network error'));
+    });
+
+    expect(screen.getByText('No scripts found')).toBeInTheDocument();
+    consoleSpy.mockRestore();
+  })
+
   it('shows no scripts message when api returns null', async () => {
     let resolvePromise: any;
     workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
