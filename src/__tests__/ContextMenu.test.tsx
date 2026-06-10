@@ -3,7 +3,7 @@
  */
 
 import '@testing-library/jest-dom'
-import React from 'react'
+
 import { render, screen, fireEvent } from '@testing-library/react'
 import { setupMockedApis, resetMockedApis } from '../__tests__/rendererHelpers'
 import ContextMenu, { ContextMenuAction } from '../renderer/src/shared/components/ContextMenu'

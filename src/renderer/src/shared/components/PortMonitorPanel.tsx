@@ -41,13 +41,26 @@ export default function PortMonitorPanel({ isActive }: { isActive: boolean }) {
         <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Listening Ports</h3>
         <button 
           onClick={fetchPorts}
+          aria-label="Refresh ports"
           style={{ background: 'none', border: 'none', color: 'var(--app-blue)', cursor: 'pointer', fontSize: 12 }}
         >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {ports.length === 0 && !loading && <div style={{ color: 'var(--app-fg-muted)' }}>No listening ports found.</div>}
+        {ports.length === 0 && !loading && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--app-fg-muted)', textAlign: 'center', padding: 20
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+              <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+              <path d="M6 8h.01"></path>
+              <path d="M10 8h.01"></path>
+            </svg>
+            <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>No listening ports</p>
+            <p style={{ margin: 0, fontSize: 12 }}>Active processes will appear here</p>
+          </div>
+        )}
         {ports.map(p => (
           <div key={`${p.port}-${p.pid}`} style={{ 
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
@@ -59,6 +72,7 @@ export default function PortMonitorPanel({ isActive }: { isActive: boolean }) {
             </div>
             <button
               onClick={() => killPort(p.pid)}
+              aria-label={`Kill process ${p.process}`}
               style={{
                 background: 'var(--app-red)',
                 color: 'var(--app-modal-bg)',

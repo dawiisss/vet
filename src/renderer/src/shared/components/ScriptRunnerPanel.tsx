@@ -68,7 +68,16 @@ export default function ScriptRunnerPanel({
       <h3 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#bac2de' }}>Project Scripts</h3>
       
       {!scripts && (
-        <div style={{ color: 'var(--app-fg-muted)' }}>No package.json scripts found in project root.</div>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--app-fg-muted)', textAlign: 'center', padding: 20
+        }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+            <path d="M12 2v20"></path>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>No scripts found</p>
+          <p style={{ margin: 0, fontSize: 12 }}>Add package.json to the workspace</p>
+        </div>
       )}
 
       {scripts && (
@@ -84,6 +93,7 @@ export default function ScriptRunnerPanel({
                   data-active={isSel}
                   onMouseEnter={() => setKeyboardIndex(index)}
                   onClick={() => onRunScript(`npm run ${name}`, workspaceDir)}
+                  aria-label={`Run script ${name}`}
                   style={{
                     width: '100%',
                     textAlign: 'left',

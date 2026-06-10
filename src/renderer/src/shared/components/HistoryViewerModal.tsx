@@ -62,12 +62,17 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
       })
     })
 
+    let resizeTimeout: ReturnType<typeof setTimeout>
     const handleResize = () => {
-      try { fitAddon.fit() } catch {}
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        try { fitAddon.fit() } catch {}
+      }, 50)
     }
     window.addEventListener('resize', handleResize)
 
     return () => {
+      clearTimeout(resizeTimeout)
       window.removeEventListener('resize', handleResize)
       term.dispose()
     }

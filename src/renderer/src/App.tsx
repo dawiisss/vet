@@ -12,6 +12,7 @@ import { useTabStore } from '@/features/terminal/useTabStore'
 import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
 import FilePreviewModal from '@/features/workspace/components/FilePreviewModal'
+import ClipboardPreviewModal from '@/shared/components/ClipboardPreviewModal'
 
 function App() {
   const { config, updateConfig, openConfig } = useConfig()
@@ -24,6 +25,7 @@ function App() {
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
+    previewClipboardItem,
     initializeTabs,
     onReattachTab,
     pollTabLabels,
@@ -31,6 +33,7 @@ function App() {
     setIsCommandPaletteOpen,
     setViewingHistorySessionId,
     setPreviewFilePath,
+    setPreviewClipboardItem,
     newTab,
     closeTab,
     selectTab,
@@ -151,6 +154,9 @@ function App() {
             break
           case 'app:toggle-fullscreen':
             window.windowApi?.toggleFullscreen()
+            break
+          case 'app:maximize':
+            window.windowApi?.maximize()
             break
           case 'app:quit':
             window.windowApi?.quit()
@@ -377,6 +383,7 @@ function App() {
             activeTerminalId={activeTerminalId}
             onViewFile={(filePath) => setPreviewFilePath(filePath)}
             onLaunchConnection={(id) => newTab(undefined, id)}
+            width={config.sidebarWidth || 250}
           />
         )}
         <div
@@ -476,6 +483,7 @@ function App() {
             activeTerminalId={activeTerminalId}
             onViewFile={(filePath) => setPreviewFilePath(filePath)}
             onLaunchConnection={(id) => newTab(undefined, id)}
+            width={config.sidebarWidth || 250}
           />
         )}
         {config.tabBarPosition === 'right' && (
@@ -502,6 +510,12 @@ function App() {
       {previewFilePath && (
         <FilePreviewModal filePath={previewFilePath} onClose={() => setPreviewFilePath(null)} />
       )}
+      {previewClipboardItem && (
+        <ClipboardPreviewModal
+          item={previewClipboardItem}
+          onClose={() => setPreviewClipboardItem(null)}
+        />
+      )}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
@@ -522,6 +536,7 @@ function App() {
           { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
           { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
           { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
+          { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
           { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
           {
             id: 'extract',

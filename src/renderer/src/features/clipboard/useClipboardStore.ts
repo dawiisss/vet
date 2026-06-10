@@ -12,6 +12,7 @@ interface ClipboardStore {
   add: (text: string) => void
   remove: (id: string) => void
   clear: () => void
+  initialize: () => Promise<void>
 }
 
 export const useClipboardStore = create<ClipboardStore>((set, get) => ({
@@ -35,14 +36,38 @@ export const useClipboardStore = create<ClipboardStore>((set, get) => ({
     const newHistory = [newItem, ...history].slice(0, maxItems)
 
     set({ history: newHistory })
+
+    if (window.clipboardApi) {
+      window.clipboardApi.setHistory(newHistory).catch(() => {})
+    }
   },
 
   remove: (id: string) => {
     const newHistory = get().history.filter(item => item.id !== id)
     set({ history: newHistory })
+
+    if (window.clipboardApi) {
+      window.clipboardApi.setHistory(newHistory).catch(() => {})
+    }
   },
 
   clear: () => {
     set({ history: [] })
+
+    if (window.clipboardApi) {
+      window.clipboardApi.setHistory([]).catch(() => {})
+    }
+  },
+
+  initialize: async () => {
+    if (!window.clipboardApi) return
+    try {
+      const items = await window.clipboardApi.getHistory()
+      if (Array.isArray(items)) {
+        set({ history: items })
+      }
+    } catch {
+      // ignore
+    }
   }
 }))

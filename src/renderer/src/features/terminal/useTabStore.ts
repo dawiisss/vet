@@ -43,6 +43,7 @@ interface TabStore {
   viewingHistorySessionId: string | null
   isCommandPaletteOpen: boolean
   previewFilePath: string | null
+  previewClipboardItem: { id: string; text: string; timestamp: number } | null
   dragState: DragState | null
 
   // UI state setters
@@ -51,6 +52,7 @@ interface TabStore {
   setIsCommandPaletteOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
   setViewingHistorySessionId: (id: string | null) => void
   setPreviewFilePath: (path: string | null) => void
+  setPreviewClipboardItem: (item: { id: string; text: string; timestamp: number } | null) => void
   setDragState: (dragState: DragState | null | ((prev: DragState | null) => DragState | null)) => void
   setActiveTabId: (id: string | null) => void
   setTabs: (tabs: TabState[] | ((prev: TabState[]) => TabState[])) => void
@@ -114,6 +116,7 @@ export const useTabStore = create<TabStore>((set, get) => {
     viewingHistorySessionId: null,
     isCommandPaletteOpen: false,
     previewFilePath: null,
+    previewClipboardItem: null,
     dragState: null,
 
     setError: (err) => set({ error: err }),
@@ -125,6 +128,7 @@ export const useTabStore = create<TabStore>((set, get) => {
     })),
     setViewingHistorySessionId: (id) => set({ viewingHistorySessionId: id }),
     setPreviewFilePath: (path) => set({ previewFilePath: path }),
+    setPreviewClipboardItem: (item) => set({ previewClipboardItem: item }),
     setDragState: (dragState) => set(state => ({
       dragState: typeof dragState === 'function' ? dragState(state.dragState) : dragState
     })),
@@ -442,18 +446,24 @@ export const useTabStore = create<TabStore>((set, get) => {
       if (toExtract.length === 0) return
       
       const api = window.terminalApi
-      const newTabs: TabState[] = []
-      
-      for (const id of toExtract) {
-        let label = activeTab.label.replace(/ \+ \d+$/, '')
-        if (api) {
-          try {
-            const info = await api.getTerminalInfo(id)
-            if (info?.title) label = info.title
-          } catch {}
-        }
-        newTabs.push(newTabState(generateTabId(), id, label))
-      }
+      const baseLabel = activeTab.label.replace(/ \+ \d+$/, '')
+
+      const extractedInfo = await Promise.all(
+        toExtract.map(async (id) => {
+          let label = baseLabel
+          if (api) {
+            try {
+              const info = await api.getTerminalInfo(id)
+              if (info?.title) label = info.title
+            } catch {}
+          }
+          return { id, label }
+        })
+      )
+
+      const newTabs: TabState[] = extractedInfo.map(({ id, label }) =>
+        newTabState(generateTabId(), id, label)
+      )
 
       set((state) => {
         const next = [...state.tabs]

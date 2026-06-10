@@ -304,6 +304,7 @@ import { initPortsManager } from './ports'
 import { initWorkspaceManager } from './workspace'
 import { initConnectionsManager } from './connections'
 import { initSftpManager } from './sftp'
+import { initClipboardHistoryManager } from './clipboardHistory'
 import * as historyDb from './historyDb'
 
 app.whenReady().then(async () => {
@@ -319,6 +320,7 @@ app.whenReady().then(async () => {
   }
   
   initSessionManager()
+  initClipboardHistoryManager()
   initSysInfoManager(mainWindow)
   initPortsManager()
   initWorkspaceManager()
