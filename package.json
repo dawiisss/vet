@@ -3,6 +3,7 @@
   "desktopName": "vet.desktop",
   "version": "1.0.0",
   "description": "A feature-rich terminal emulator",
+  "author": "Vet Team <support@vet-terminal.org>",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -31,7 +32,9 @@
     "linux": {
       "target": [
         "AppImage",
-        "tar.gz"
+        "tar.gz",
+        "deb",
+        "rpm"
       ],
       "desktop": {
         "entry": {
@@ -98,6 +101,9 @@
     "ts-jest": "^29.4.11",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.0.0"
+  },
+  "overrides": {
+    "nan": "^2.22.0"
   },
   "allowScripts": {
     "node-pty@1.1.0": true
