@@ -14,3 +14,6 @@ Action: Immediately reject such tasks by modifying the orchestration plan with a
 ## 2026-06-09 - Sidebar Empty States Accessibility
 **Learning:** Text-only empty states degrade the user experience and can be visually boring or easily missed. Adding SVG icons alongside empty state text improves visual hierarchy. Additionally, custom action buttons (like 'Refresh' or 'Kill' in lists) without `aria-label`s are inaccessible to screen readers.
 **Action:** When creating or updating UI panels, ensure empty states are visually distinct (e.g., using a muted SVG icon and subtext) and always add descriptive `aria-label` attributes to action buttons lacking visible text labels.
+## 2026-06-10 - Custom Progress Bar Accessibility
+**Learning:** When custom UI elements (like `div`s) are used as visual progress bars, they are completely invisible to screen readers without ARIA attributes.
+**Action:** Always make them accessible by explicitly adding `role="progressbar"` along with corresponding `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and `aria-label` attributes.

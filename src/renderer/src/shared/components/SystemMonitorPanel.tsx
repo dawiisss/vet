@@ -37,7 +37,14 @@ export default function SystemMonitorPanel({ isActive }: { isActive: boolean }) 
           <span>CPU Usage</span>
           <span>{cpuPct}%</span>
         </div>
-        <div style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}>
+        <div
+          role="progressbar"
+          aria-label="CPU Usage"
+          aria-valuenow={parseFloat(cpuPct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}
+        >
           <div style={{ width: `${data.cpu}%`, height: '100%', background: 'var(--app-blue)', transition: 'width 0.5s' }} />
         </div>
       </div>
@@ -46,7 +53,14 @@ export default function SystemMonitorPanel({ isActive }: { isActive: boolean }) 
           <span>RAM Usage</span>
           <span>{memPct}% ({memUsedGB}GB / {memTotalGB}GB)</span>
         </div>
-        <div style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}>
+        <div
+          role="progressbar"
+          aria-label="RAM Usage"
+          aria-valuenow={parseFloat(memPct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{ width: '100%', height: 8, background: 'var(--app-border)', borderRadius: 4, overflow: 'hidden' }}
+        >
           <div style={{ width: `${memPct}%`, height: '100%', background: 'var(--app-green)', transition: 'width 0.5s' }} />
         </div>
       </div>
