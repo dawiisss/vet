@@ -40,6 +40,7 @@ interface TabStore {
   detachedTabId: string | null
   detachedTerminalIds: string[]
   isSettingsOpen: boolean
+  isAboutOpen: boolean
   viewingHistorySessionId: string | null
   isCommandPaletteOpen: boolean
   previewFilePath: string | null
@@ -49,6 +50,7 @@ interface TabStore {
   // UI state setters
   setError: (err: string | null) => void
   setIsSettingsOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
+  setIsAboutOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
   setIsCommandPaletteOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
   setViewingHistorySessionId: (id: string | null) => void
   setPreviewFilePath: (path: string | null) => void
@@ -113,6 +115,7 @@ export const useTabStore = create<TabStore>((set, get) => {
     detachedTabId: null,
     detachedTerminalIds: [],
     isSettingsOpen: false,
+    isAboutOpen: false,
     viewingHistorySessionId: null,
     isCommandPaletteOpen: false,
     previewFilePath: null,
@@ -122,6 +125,9 @@ export const useTabStore = create<TabStore>((set, get) => {
     setError: (err) => set({ error: err }),
     setIsSettingsOpen: (isOpen) => set(state => ({
       isSettingsOpen: typeof isOpen === 'function' ? isOpen(state.isSettingsOpen) : isOpen
+    })),
+    setIsAboutOpen: (isOpen) => set(state => ({
+      isAboutOpen: typeof isOpen === 'function' ? isOpen(state.isAboutOpen) : isOpen
     })),
     setIsCommandPaletteOpen: (isOpen) => set(state => ({
       isCommandPaletteOpen: typeof isOpen === 'function' ? isOpen(state.isCommandPaletteOpen) : isOpen

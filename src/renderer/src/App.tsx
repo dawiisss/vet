@@ -11,6 +11,7 @@ import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
 
 const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
+const AboutModal = lazy(() => import('@/shared/components/AboutModal'))
 const HistoryViewerModal = lazy(() => import('@/shared/components/HistoryViewerModal'))
 const CommandPalette = lazy(() => import('@/shared/components/CommandPalette'))
 const FilePreviewModal = lazy(() => import('@/features/workspace/components/FilePreviewModal'))
@@ -24,6 +25,7 @@ function App() {
     error,
     isDetached,
     isSettingsOpen,
+    isAboutOpen,
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
@@ -32,6 +34,7 @@ function App() {
     onReattachTab,
     pollTabLabels,
     setIsSettingsOpen,
+    setIsAboutOpen,
     setIsCommandPaletteOpen,
     setViewingHistorySessionId,
     setPreviewFilePath,
@@ -178,6 +181,10 @@ function App() {
       const store = useTabStore.getState()
       if (e.key === 'Escape' && store.isCommandPaletteOpen) {
         store.setIsCommandPaletteOpen(false)
+        e.preventDefault()
+        e.stopPropagation()
+      } else if (e.key === 'Escape' && store.isAboutOpen) {
+        store.setIsAboutOpen(false)
         e.preventDefault()
         e.stopPropagation()
       } else if (e.ctrlKey && e.key === ',') {
@@ -349,7 +356,7 @@ function App() {
         ['--app-modal-bg' as any]: 'rgba(0,0,0,0.25)'
       }}
     >
-      <TitleBar onOpenSettings={() => setIsSettingsOpen(true)} />
+      <TitleBar onOpenSettings={() => setIsSettingsOpen(true)} onOpenAbout={() => setIsAboutOpen(true)} />
       {(!config.tabBarPosition || config.tabBarPosition === 'top') && (
         <TabBar
           tabs={tabBarTabs}
@@ -504,6 +511,7 @@ function App() {
       </div>
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+        {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
         {viewingHistorySessionId && (
           <HistoryViewerModal
             sessionId={viewingHistorySessionId}
@@ -525,6 +533,7 @@ function App() {
             onClose={() => setIsCommandPaletteOpen(false)}
             actions={[
               { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
+              { id: 'about', label: 'App: About Vet', onExecute: () => setIsAboutOpen(true) },
               {
                 id: 'config-file',
                 label: 'Settings: Open config.json5 in Editor',

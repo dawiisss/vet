@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 
 interface TitleBarProps {
   onOpenSettings?: () => void
+  onOpenAbout?: () => void
 }
 
-function TitleBar({ onOpenSettings }: TitleBarProps) {
+function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
@@ -61,6 +62,21 @@ function TitleBar({ onOpenSettings }: TitleBarProps) {
         Vet
       </div>
       <div style={{ display: 'flex', height: '100%' }}>
+        {onOpenAbout && (
+          <button
+            className="titlebar-btn"
+            onClick={onOpenAbout}
+            style={{ ...btnStyle, color: 'var(--app-fg-subtle)' }}
+            title="About Vet"
+            aria-label="About Vet"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        )}
         {onOpenSettings && (
           <button
             className="titlebar-btn"
