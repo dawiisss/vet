@@ -1,7 +1,7 @@
-const { spawn } = require('node-pty');
-const { execSync } = require('child_process');
+const { spawn } = require("node-pty");
+const { execSync } = require("child_process");
 
-const pty = spawn('bash', [], { name: 'xterm-color', cols: 80, rows: 30 });
+const pty = spawn("bash", [], { name: "xterm-color", cols: 80, rows: 30 });
 
 setTimeout(() => {
   try {
