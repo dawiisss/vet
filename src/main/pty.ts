@@ -1,13 +1,13 @@
 import { spawn } from 'node-pty'
 import { v4 as uuidv4 } from 'uuid'
-import { promises as fs } from 'fs'
+import { promises as fs, existsSync, statSync } from 'fs'
 import path from 'path'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { platform } from 'os'
 import { getConfig } from './config'
 import * as historyDb from './historyDb'
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 interface PtyProcess {
   pty: ReturnType<typeof spawn>
@@ -82,9 +82,71 @@ export function createTerminal(options: { cwd?: string, profileId?: string, sshH
     }
   }
 
+  // Safe list of standard shell/repl executable names (without path)
+  function isValidShell(shellPath: string): boolean {
+    if (!shellPath) return false
+    const safeCommands = new Set([
+      'bash', 'sh', 'zsh', 'fish', 'dash', 'ksh', 'csh', 'tcsh',
+      'node', 'python', 'python3', 'python2',
+      'ssh', 'docker', 'kubectl',
+      'cmd.exe', 'cmd', 'powershell.exe', 'powershell', 'pwsh.exe', 'pwsh', 'wsl.exe', 'wsl'
+    ])
+    const baseName = path.basename(shellPath).toLowerCase()
+    if (safeCommands.has(baseName)) {
+      return true
+    }
+    try {
+      if (existsSync(shellPath)) {
+        const stat = statSync(shellPath)
+        if (stat.isFile()) {
+          return true
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false
+  }
+
+  // Validate and sanitize shell
+  if (!isValidShell(shell)) {
+    console.warn(`Blocked attempt to launch invalid shell: ${shell}. Falling back to default shell.`)
+    shell = process.platform === 'win32' ? 'cmd.exe' : (process.env['SHELL'] || '/bin/bash')
+  }
+
   // Handle ~ in cwd manually
   if (cwd.startsWith('~') && process.env.HOME) {
     cwd = cwd.replace(/^~/, process.env.HOME)
+  }
+
+  // Validate cwd exists and is a directory
+  if (cwd) {
+    try {
+      if (existsSync(cwd)) {
+        const stat = statSync(cwd)
+        if (!stat.isDirectory()) {
+          cwd = process.env.HOME || process.cwd()
+        }
+      } else {
+        cwd = process.env.HOME || process.cwd()
+      }
+    } catch {
+      cwd = process.env.HOME || process.cwd()
+    }
+  } else {
+    cwd = process.env.HOME || process.cwd()
+  }
+
+  // Sanitize environment variables to prevent injection
+  const cleanEnv: Record<string, string> = { ...process.env } as Record<string, string>
+  if (env && typeof env === 'object') {
+    for (const [key, value] of Object.entries(env)) {
+      if (typeof key === 'string' && typeof value === 'string') {
+        if (key.length < 256 && value.length < 8192) {
+          cleanEnv[key] = value
+        }
+      }
+    }
   }
 
   const pty = spawn(shell, args, {
@@ -92,7 +154,7 @@ export function createTerminal(options: { cwd?: string, profileId?: string, sshH
     cols: 80,
     rows: 24,
     cwd,
-    env
+    env: cleanEnv
   })
 
   let connectionType = 'local'
@@ -203,13 +265,14 @@ export async function getTerminalInfo(id: string): Promise<{ title: string; cwd:
   try {
     if (platform() === 'linux' || platform() === 'darwin') {
       // Find foreground process group
-      const { stdout: tpgidOut } = await execAsync(`ps -o tpgid= -p ${terminal.pty.pid}`)
+      const { stdout: tpgidOut } = await execFileAsync('ps', ['-o', 'tpgid=', '-p', String(terminal.pty.pid)])
       const tpgid = tpgidOut.trim()
       if (tpgid && tpgid !== String(terminal.pty.pid)) {
-        const { stdout: pgrepOut } = await execAsync(`pgrep -g ${tpgid}`)
+        const { stdout: pgrepOut } = await execFileAsync('pgrep', ['-g', tpgid])
         const pids = pgrepOut.trim().split('\n').filter(Boolean)
-        if (pids.length > 0) {
-          const { stdout: psOut } = await execAsync(`ps -o comm=,args= -p ${pids.join(',')}`)
+        const cleanPids = pids.filter(p => /^\d+$/.test(p))
+        if (cleanPids.length > 0) {
+          const { stdout: psOut } = await execFileAsync('ps', ['-o', 'comm=,args=', '-p', cleanPids.join(',')])
           const lines = psOut.trim().split('\n')
           for (const line of lines) {
             const cmd = line.trim()
@@ -238,7 +301,7 @@ export async function getTerminalInfo(id: string): Promise<{ title: string; cwd:
     if (platform() === 'linux') {
       cwd = await fs.readlink(`/proc/${terminal.pty.pid}/cwd`)
     } else if (platform() === 'darwin') {
-      const { stdout } = await execAsync(`lsof -a -d cwd -p ${terminal.pty.pid} -Fn`)
+      const { stdout } = await execFileAsync('lsof', ['-a', '-d', 'cwd', '-p', String(terminal.pty.pid), '-Fn'])
       const lines = stdout.split('\n')
       for (const line of lines) {
         if (line.startsWith('n')) {

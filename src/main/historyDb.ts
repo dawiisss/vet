@@ -33,6 +33,7 @@ export function initHistoryDb() {
 
   try {
     db = new DatabaseSync(DB_FILE)
+    db.exec('PRAGMA foreign_keys = ON;')
 
     // Create tables
     db.exec(`

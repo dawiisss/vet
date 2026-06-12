@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { Client, SFTPWrapper } from 'ssh2'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import os from 'os'
 import { getConfig } from './config'
 
 interface SftpSession {
@@ -79,19 +80,30 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
     if (process.env.SSH_AUTH_SOCK) {
       connOpts.agent = process.env.SSH_AUTH_SOCK
     }
-    try {
-      const keyPath = (process.env.HOME || '~') + '/.ssh/id_rsa'
-      connOpts.privateKey = await fs.readFile(keyPath, 'utf8')
-    } catch (err) {
-      // ignore, let ssh2 fail with "All configured authentication methods failed"
+    const home = process.env.HOME || os.homedir()
+    const defaultKeys = ['id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa']
+    for (const keyName of defaultKeys) {
+      try {
+        const keyPath = path.join(home, '.ssh', keyName)
+        connOpts.privateKey = await fs.readFile(keyPath, 'utf8')
+        break
+      } catch (err) {
+        // try next
+      }
     }
   }
 
   return new Promise((resolve, reject) => {
     const client = new Client()
+
+    const cleanupTempPassword = () => {
+      tempPasswords.delete(sshHostId)
+    }
+
     client.on('ready', () => {
       client.sftp((err, sftp) => {
         if (err) {
+          cleanupTempPassword()
           client.end()
           return reject(err)
         }
@@ -100,6 +112,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
         client.exec('pwd', (err, stream) => {
           let homeDir = '/'
           if (err) {
+            cleanupTempPassword()
             const session = { client, sftp, homeDir }
             sftpSessions.set(sshHostId, session)
             resolve(session)
@@ -108,6 +121,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
           let data = ''
           stream.on('data', (chunk: Buffer) => data += chunk.toString())
           stream.on('close', () => {
+            cleanupTempPassword()
             homeDir = data.trim() || '/'
             const session = { client, sftp, homeDir }
             sftpSessions.set(sshHostId, session)
@@ -116,12 +130,19 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
         })
       })
     })
-    client.on('error', (err) => reject(err))
-    client.on('close', () => sftpSessions.delete(sshHostId))
+    client.on('error', (err) => {
+      cleanupTempPassword()
+      reject(err)
+    })
+    client.on('close', () => {
+      cleanupTempPassword()
+      sftpSessions.delete(sshHostId)
+    })
     
     try {
       client.connect(connOpts)
     } catch (err) {
+      cleanupTempPassword()
       reject(err)
     }
   })
@@ -130,6 +151,12 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
 export function initSftpManager() {
   ipcMain.handle('sftp:set-temp-password', (_, sshHostId: string, password: string) => {
     tempPasswords.set(sshHostId, password)
+    // Clear after 60 seconds to prevent credentials from lingering in memory indefinitely
+    setTimeout(() => {
+      if (tempPasswords.get(sshHostId) === password) {
+        tempPasswords.delete(sshHostId)
+      }
+    }, 60000)
   })
 
   ipcMain.handle('sftp:list-dir', async (_, sshHostId: string, dirPath: string) => {

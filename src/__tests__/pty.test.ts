@@ -30,6 +30,11 @@ jest.mock('child_process', () => ({
       cb(null, { stdout: '', stderr: '' })
     }
   }),
+  execFile: jest.fn((_file, _args, cb) => {
+    if (typeof cb === 'function') {
+      cb(null, { stdout: '', stderr: '' })
+    }
+  }),
 }))
 
 jest.mock('os', () => ({
