@@ -68,6 +68,9 @@ interface Config {
   sshHosts?: SshHost[] | Array<{ name: string; command: string }>
   dockerDefaultShell?: string
   profiles?: Profile[]
+  browserHomepage?: string
+  browserSearchEngine?: 'duckduckgo' | 'google' | 'bing'
+  browserAdblockEnabled?: boolean
 }
 
 interface TerminalApi {
@@ -96,6 +99,8 @@ interface WindowApi {
   isMaximized: () => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void
+  onWebviewKeydown: (callback: (data: { key: string; code: string; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; metaKey: boolean }) => void) => () => void
+  setWebviewIgnoreMouseEvents: (wcId: number, ignore: boolean) => Promise<void>
 }
 
 interface ConfigApi {
@@ -149,4 +154,12 @@ interface Window {
   sftpApi: SftpApi
   clipboardApi: ClipboardApi
   serializeAddons: Map<string, any>
+  adblockerApi: {
+    toggle: (enabled: boolean) => Promise<boolean>
+    getStats: (webContentsId: number) => Promise<number>
+    clearStats: (webContentsId: number) => Promise<number>
+    getHtmlReplaceRules: (url: string) => Promise<{ pruneKeys: string[]; replaceRules: Array<{ regex: string; flags: string; replacement: string }>}>
+    getAppPreloadPath: () => Promise<string>
+    onBlockedEvent: (callback: (event: any, data: { webContentsId: number; url: string; count: number }) => void) => () => void
+  }
 }

@@ -1,10 +1,11 @@
-import { app, BrowserWindow, session } from 'electron'
+import { app, BrowserWindow, session, ipcMain, webContents } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
 import { setForwardTarget, destroyTerminal } from './pty'
 import { registerWindowHandlers } from './ipc/windowHandlers'
 import { registerHistoryHandlers } from './ipc/historyHandlers'
 import { registerTerminalHandlers } from './ipc/terminalHandlers'
+import { initAdblocker, registerAdblockerIpcHandlers } from './adblocker'
 
 import icon from '../../resources/icon.png?asset'
 
@@ -34,7 +35,8 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webviewTag: true
     }
   })
 
@@ -109,6 +111,48 @@ function createWindow(): BrowserWindow {
     }
   })
 
+  // Forward webview keyboard events for app hotkeys / shortcuts
+  win.webContents.on('did-attach-webview', (_, guestWebContents) => {
+    guestWebContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown') {
+        const hasModifier = input.control || input.meta || input.alt
+        const isFunctionKey = /^F\d+$/.test(input.key)
+        const isEscape = input.key === 'Escape'
+        
+        if (hasModifier || isFunctionKey || isEscape) {
+          const modifiers = []
+          if (input.control) modifiers.push('ctrl')
+          if (input.meta) modifiers.push('cmd')
+          if (input.shift) modifiers.push('shift')
+          if (input.alt) modifiers.push('alt')
+          
+          const keyName = input.key.toLowerCase()
+          modifiers.push(keyName)
+          const shortcutString = modifiers.join('+')
+          
+          const currentConfig = getConfig()
+          const action = currentConfig.keybindings?.[shortcutString]
+          
+          const isAppShortcut = action !== undefined || input.key === 'Escape'
+          
+          if (isAppShortcut) {
+            event.preventDefault()
+            if (!win.isDestroyed()) {
+              win.webContents.send('webview:keydown', {
+                key: input.key,
+                code: input.code,
+                ctrlKey: input.control,
+                shiftKey: input.shift,
+                altKey: input.alt,
+                metaKey: input.meta
+              })
+            }
+          }
+        }
+      }
+    })
+  })
+
   return win
 }
 
@@ -134,6 +178,16 @@ function registerIpcHandlers(): void {
     loadWindow,
     registerForwardTarget
   })
+  registerAdblockerIpcHandlers()
+
+  ipcMain.handle('webview:set-ignore-mouse-events', (_, wcId: number, ignore: boolean) => {
+    try {
+      const wc = webContents.fromId(wcId)
+      if (wc && !wc.isDestroyed()) {
+        wc.setIgnoreMouseEvents(ignore)
+      }
+    } catch {}
+  })
 }
 
 import { initConfigManager, getConfig } from './config'
@@ -146,6 +200,20 @@ import { initSftpManager } from './sftp'
 import { initClipboardHistoryManager } from './clipboardHistory'
 import * as historyDb from './historyDb'
 
+if (process.platform === 'linux' && app.commandLine) {
+  app.commandLine.appendSwitch('disable-accelerated-video-decode')
+}
+
+process.on('unhandledRejection', (reason) => {
+  if (reason instanceof Error && reason.message.includes('Script failed to execute')) {
+    return
+  }
+  console.error('[unhandledRejection]', reason)
+})
+
+import { EventEmitter } from 'events'
+EventEmitter.defaultMaxListeners = 50
+
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.vet')
 
@@ -154,6 +222,7 @@ app.whenReady().then(async () => {
   mainWindow = createWindow()
   
   await initConfigManager(mainWindow)
+  
   const config = getConfig()
   if (config.vibrancy && config.vibrancy !== 'none') {
     mainWindow.setVibrancy(config.vibrancy)
@@ -169,6 +238,9 @@ app.whenReady().then(async () => {
   historyDb.initHistoryDb()
 
   loadWindow(mainWindow)
+
+  // Load adblocker engine in background — IPC handlers are already registered
+  initAdblocker(app.getPath('userData'))
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

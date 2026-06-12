@@ -101,6 +101,10 @@ jest.mock('../main/historyDb', () => ({
   deleteSession: jest.fn(),
 }))
 
+jest.mock('../main/adblocker', () => ({
+  initAdblocker: jest.fn(() => Promise.resolve()),
+}))
+
 describe('main process index', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -152,8 +156,10 @@ describe('main process index', () => {
     const { initWorkspaceManager } = require('../main/workspace')
     const { initConnectionsManager } = require('../main/connections')
     const { initHistoryDb } = require('../main/historyDb')
+    const { initAdblocker } = require('../main/adblocker')
 
     expect(initConfigManager).toHaveBeenCalled()
+    expect(initAdblocker).toHaveBeenCalled()
     expect(initSessionManager).toHaveBeenCalled()
     expect(initSysInfoManager).toHaveBeenCalled()
     expect(initPortsManager).toHaveBeenCalled()

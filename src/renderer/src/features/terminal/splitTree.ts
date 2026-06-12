@@ -10,6 +10,7 @@
  */
 export interface SplitNode {
   terminalId?: string
+  browserId?: string
   direction?: 'horizontal' | 'vertical'
   children?: SplitNode[]
   sizes?: number[]
@@ -23,6 +24,16 @@ export interface SplitNode {
  */
 export function leafNode(terminalId: string): SplitNode {
   return { terminalId }
+}
+
+/**
+ * Creates a leaf node representing a single browser view.
+ *
+ * @param browserId - The unique identifier of the browser view.
+ * @returns A browser leaf node.
+ */
+export function browserLeafNode(browserId: string): SplitNode {
+  return { browserId }
 }
 
 /**
@@ -87,7 +98,7 @@ export function firstLeafId(root: SplitNode): string {
   while (node.children && node.children.length > 0) {
     node = node.children[0]
   }
-  return node.terminalId!
+  return node.terminalId || node.browserId || ''
 }
 
 export function collectTerminalIds(root: SplitNode): string[] {
@@ -103,10 +114,35 @@ export function collectTerminalIds(root: SplitNode): string[] {
   return ids
 }
 
+export function collectLeafIds(root: SplitNode): string[] {
+  const ids: string[] = []
+  function walk(node: SplitNode): void {
+    if (node.terminalId) {
+      ids.push(node.terminalId)
+    } else if (node.browserId) {
+      ids.push(node.browserId)
+    } else if (node.children) {
+      node.children.forEach(walk)
+    }
+  }
+  walk(root)
+  return ids
+}
+
+export function leafCount(root: SplitNode): number {
+  if (root.terminalId || root.browserId) return 1
+  if (root.children) {
+    let count = 0
+    for (const child of root.children) count += leafCount(child)
+    return count
+  }
+  return 0
+}
+
 export function leafPaths(root: SplitNode): number[][] {
   const paths: number[][] = []
   function walk(node: SplitNode, path: number[]): void {
-    if (node.terminalId) {
+    if (node.terminalId || node.browserId) {
       paths.push([...path])
     } else if (node.children) {
       node.children.forEach((child, i) => walk(child, [...path, i]))
@@ -137,9 +173,11 @@ export function insertLeaves(
   direction: 'horizontal' | 'vertical',
   newTerminalIds: string[]
 ): { root: SplitNode; focusedPath: number[] } {
+  const toNode = (id: string) => id.startsWith('browser-') ? browserLeafNode(id) : leafNode(id)
+
   if (path.length === 0) {
     // Root leaf — wrap in new split
-    const newLeaves = newTerminalIds.map(leafNode)
+    const newLeaves = newTerminalIds.map(toNode)
     const newSplit = splitNode(direction, [root, ...newLeaves])
     return { root: newSplit, focusedPath: [newLeaves.length] }
   }
@@ -147,7 +185,7 @@ export function insertLeaves(
   const parentPath = path.slice(0, -1)
   const leafIndex = path[path.length - 1]
   const parent = getNode(root, parentPath)
-  const newLeaves = newTerminalIds.map(leafNode)
+  const newLeaves = newTerminalIds.map(toNode)
 
   if (parent.direction === direction) {
     // Same direction — insert adjacent in the parent

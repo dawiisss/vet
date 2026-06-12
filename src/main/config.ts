@@ -52,6 +52,9 @@ const DEFAULT_CONFIG: any = {
     'ctrl+shift+m': 'app:maximize',
     'ctrl+q': 'app:quit'
   },
+  browserHomepage: 'https://duckduckgo.com',
+  browserSearchEngine: 'duckduckgo',
+  browserAdblockEnabled: true,
   profiles: [
     {
       id: "default",
@@ -148,6 +151,16 @@ export function sanitizeConfig(conf: any): any {
     sanitized.clipboardHistoryKeepDays = 7
   } else {
     sanitized.clipboardHistoryKeepDays = Math.max(1, Math.min(365, sanitized.clipboardHistoryKeepDays))
+  }
+
+  if (sanitized.browserAdblockEnabled === undefined) {
+    sanitized.browserAdblockEnabled = true
+  }
+  if (!sanitized.browserHomepage || typeof sanitized.browserHomepage !== 'string') {
+    sanitized.browserHomepage = 'https://duckduckgo.com'
+  }
+  if (sanitized.browserSearchEngine !== 'duckduckgo' && sanitized.browserSearchEngine !== 'google' && sanitized.browserSearchEngine !== 'bing') {
+    sanitized.browserSearchEngine = 'duckduckgo'
   }
 
   return sanitized

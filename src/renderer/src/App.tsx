@@ -5,7 +5,7 @@ import TabBar from '@/features/terminal/components/TabBar'
 import type { TabBarTab } from '@/features/terminal/components/TabBar'
 import SplitPane from '@/features/terminal/components/SplitPane'
 import React, { lazy, Suspense } from 'react'
-import { getNode, collectTerminalIds } from '@/features/terminal/splitTree'
+import { getNode, collectTerminalIds, leafCount } from '@/features/terminal/splitTree'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
 import { useTabDrag } from '@/features/terminal/useTabDrag'
@@ -47,6 +47,7 @@ function App() {
     onReattachTab,
     pollTabLabels,
     newTab,
+    newBrowserTab,
     closeTab,
     selectTab,
     splitTab,
@@ -200,6 +201,32 @@ function App() {
     }
     window.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
+  }, [])
+
+  // Handle key events forwarded from webviews
+  useEffect(() => {
+    if (!window.windowApi?.onWebviewKeydown) return
+
+    const unsubscribe = window.windowApi.onWebviewKeydown((data) => {
+      const eventInit: KeyboardEventInit = {
+        key: data.key,
+        code: data.code,
+        ctrlKey: data.ctrlKey,
+        shiftKey: data.shiftKey,
+        altKey: data.altKey,
+        metaKey: data.metaKey,
+        bubbles: true,
+        cancelable: true
+      }
+      
+      const fakeEvent = new KeyboardEvent('keydown', eventInit)
+      window.dispatchEvent(fakeEvent)
+      document.dispatchEvent(fakeEvent)
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   if (error) {
@@ -429,8 +456,9 @@ function App() {
                   path={[]}
                   focusedPath={tab.focusedPath}
                   isActive={tab.id === activeTabId}
+                  leafCount={leafCount(tab.root)}
                   onExtract={
-                    collectTerminalIds(tab.root).length > 1
+                    leafCount(tab.root) > 1
                       ? (path) => extractToTab(tab.id, path)
                       : undefined
                   }
@@ -552,6 +580,7 @@ function App() {
                 onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
               },
               { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
+              { id: 'new-browser-tab', label: 'View: Open Web Browser Tab', onExecute: newBrowserTab },
               { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
               { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
               { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },

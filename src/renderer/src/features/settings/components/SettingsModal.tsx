@@ -9,13 +9,14 @@ import { GeneralTab } from './tabs/GeneralTab'
 import { SidebarTab } from './tabs/SidebarTab'
 import { ProfilesTab } from './tabs/ProfilesTab'
 import { HistoryTab } from './tabs/HistoryTab'
+import { BrowserTab } from './tabs/BrowserTab'
 
 interface SettingsModalProps {
   onClose: () => void
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'sidebar' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'sidebar' | 'themes' | 'keybindings' | 'profiles' | 'ssh-profiles' | 'history' | 'browser'>('general')
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,11 +74,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           </button>
         </div>
 
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('general')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'general' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -92,6 +94,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('sidebar')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'sidebar' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -106,6 +109,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('themes')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'themes' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -120,6 +124,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('keybindings')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'keybindings' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -134,6 +139,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('profiles')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'profiles' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -148,6 +154,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('ssh-profiles')}
             style={{
               flex: 1,
+              minWidth: 105,
               padding: '12px 0',
               background: activeTab === 'ssh-profiles' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -162,6 +169,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             onClick={() => setActiveTab('history')}
             style={{
               flex: 1,
+              minWidth: 85,
               padding: '12px 0',
               background: activeTab === 'history' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
@@ -171,6 +179,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             }}
           >
             History
+          </button>
+          <button
+            onClick={() => setActiveTab('browser')}
+            style={{
+              flex: 1,
+              minWidth: 85,
+              padding: '12px 0',
+              background: activeTab === 'browser' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none',
+              color: activeTab === 'browser' ? 'var(--app-fg)' : 'var(--app-fg-muted)',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'browser' ? 600 : 400
+            }}
+          >
+            Browser
           </button>
         </div>
 
@@ -182,6 +205,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           {activeTab === 'ssh-profiles' && <SshProfilesManager />}
           {activeTab === 'history' && <HistoryTab />}
           {activeTab === 'profiles' && <ProfilesTab />}
+          {activeTab === 'browser' && <BrowserTab />}
         </div>
       </div>
     </ModalOverlay>
