@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, ipcMain, webContents } from 'electron'
+import { app, BrowserWindow, ipcMain, webContents } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
 import { setForwardTarget, destroyTerminal } from './pty'
@@ -36,7 +36,8 @@ function createWindow(): BrowserWindow {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      webviewTag: true
+      webviewTag: true,
+      webSecurity: true
     }
   })
 
@@ -47,7 +48,6 @@ function createWindow(): BrowserWindow {
     }
     if (input.key === 'F5') {
       event.preventDefault()
-      webSecurity: true
     }
   })
 
