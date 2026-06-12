@@ -38,6 +38,16 @@ function createWindow(): BrowserWindow {
     }
   })
 
+  // Prevent default reload shortcuts (Ctrl+R, Cmd+R, F5)
+  win.webContents.on('before-input-event', (event, input) => {
+    if ((input.control || input.meta) && input.key.toLowerCase() === 'r') {
+      event.preventDefault()
+    }
+    if (input.key === 'F5') {
+      event.preventDefault()
+    }
+  })
+
   win.on('closed', () => {
     const terminals = windowTerminals.get(win.id)
     if (terminals) {
