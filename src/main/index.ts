@@ -1,7 +1,7 @@
 import { app, BrowserWindow, session } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
-import { setForwardTarget } from './pty'
+import { setForwardTarget, destroyTerminal } from './pty'
 import { registerWindowHandlers } from './ipc/windowHandlers'
 import { registerHistoryHandlers } from './ipc/historyHandlers'
 import { registerTerminalHandlers } from './ipc/terminalHandlers'
@@ -41,7 +41,6 @@ function createWindow(): BrowserWindow {
   win.on('closed', () => {
     const terminals = windowTerminals.get(win.id)
     if (terminals) {
-      const { destroyTerminal } = require('./pty')
       for (const tId of terminals) {
         destroyTerminal(tId)
       }
