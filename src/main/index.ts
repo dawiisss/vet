@@ -47,6 +47,7 @@ function createWindow(): BrowserWindow {
     }
     if (input.key === 'F5') {
       event.preventDefault()
+      webSecurity: true
     }
   })
 

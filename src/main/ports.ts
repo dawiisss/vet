@@ -1,9 +1,9 @@
 import { ipcMain } from 'electron'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import os from 'os'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export interface PortInfo {
   port: number
@@ -16,10 +16,8 @@ export function initPortsManager() {
     try {
       const isWin = os.platform() === 'win32'
       if (isWin) {
-        const { stdout } = await execAsync('netstat -ano | findstr LISTENING')
-        // Windows netstat output:
-        //  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1144
-        const lines = stdout.split('\n').filter(l => l.trim())
+        const { stdout } = await execFileAsync('netstat', ['-ano'])
+        const lines = stdout.split('\n').filter(l => l.trim() && l.includes('LISTENING'))
         const ports: PortInfo[] = []
         for (const line of lines) {
           const parts = line.trim().split(/\s+/)
@@ -35,10 +33,7 @@ export function initPortsManager() {
         }
         return ports
       } else {
-        const { stdout } = await execAsync('lsof -iTCP -sTCP:LISTEN -P -n')
-        // lsof output:
-        // COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-        // node    12345 user   23u  IPv6 0x...      0t0  TCP *:3000 (LISTEN)
+        const { stdout } = await execFileAsync('lsof', ['-iTCP', '-sTCP:LISTEN', '-P', '-n'])
         const lines = stdout.split('\n').filter(l => l.trim()).slice(1) // skip header
         const ports: PortInfo[] = []
         for (const line of lines) {
@@ -62,6 +57,42 @@ export function initPortsManager() {
     }
   })
 
+  async function getListeningPids(): Promise<Set<number>> {
+    const pids = new Set<number>()
+    try {
+      const isWin = os.platform() === 'win32'
+      if (isWin) {
+        const { stdout } = await execFileAsync('netstat', ['-ano'])
+        const lines = stdout.split('\n').filter(l => l.trim())
+        for (const line of lines) {
+          if (!line.includes('LISTENING')) continue
+          const parts = line.trim().split(/\s+/)
+          if (parts.length >= 5) {
+            const pid = parseInt(parts[4])
+            if (pid && !isNaN(pid)) {
+              pids.add(pid)
+            }
+          }
+        }
+      } else {
+        const { stdout } = await execFileAsync('lsof', ['-iTCP', '-sTCP:LISTEN', '-P', '-n'])
+        const lines = stdout.split('\n').filter(l => l.trim()).slice(1) // skip header
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/)
+          if (parts.length >= 9) {
+            const pid = parseInt(parts[1])
+            if (pid && !isNaN(pid)) {
+              pids.add(pid)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to list listening PIDs', err)
+    }
+    return pids
+  }
+
   ipcMain.handle('ports:kill', async (_, pid: number) => {
     try {
       const numericPid = Number(pid)
@@ -70,8 +101,30 @@ export function initPortsManager() {
         return false
       }
 
-      // Use secure process.kill instead of vulnerable shell execution
-      process.kill(numericPid, 'SIGKILL')
+      // Restrict kill to listening PIDs only
+      const listeningPids = await getListeningPids()
+      if (!listeningPids.has(numericPid)) {
+        console.error(`Attempted to kill unauthorized PID: ${numericPid}`)
+        return false
+      }
+
+      // Try SIGTERM first, then SIGKILL
+      try {
+        process.kill(numericPid, 'SIGTERM')
+        // Wait briefly for process to exit
+        await new Promise(resolve => setTimeout(resolve, 500))
+        // Verify if it is still alive
+        try {
+          process.kill(numericPid, 0)
+          // Still alive, force kill
+          process.kill(numericPid, 'SIGKILL')
+        } catch {
+          // Already exited or permission error
+        }
+      } catch {
+        // Fallback to SIGKILL
+        process.kill(numericPid, 'SIGKILL')
+      }
       return true
     } catch (err) {
       console.error(`Failed to kill pid ${pid}`, err)

@@ -6,9 +6,9 @@ jest.mock('electron', () => ({
   ipcMain: { handle: jest.fn() },
 }))
 
-const execMock = jest.fn()
+const execFileMock = jest.fn()
 jest.mock('child_process', () => ({
-  exec: execMock,
+  execFile: execFileMock,
 }))
 
 jest.mock('os', () => ({
@@ -32,7 +32,7 @@ import { initConnectionsManager } from '../main/connections'
 import { ipcMain } from 'electron'
 
 function mockExecCallback(stdout: string, error: Error | null = null) {
-  execMock.mockImplementation(    (_cmd: string, cb: (...args: unknown[]) => void) => {
+  execFileMock.mockImplementation((_file: string, _args: string[], cb: (...args: unknown[]) => void) => {
     if (cb && typeof cb === 'function') {
       cb(error, { stdout }, '')
       return undefined as any
