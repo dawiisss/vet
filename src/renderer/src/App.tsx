@@ -144,10 +144,10 @@ function App() {
             store.navigateSplit(-1)
             break
           case 'settings:toggle':
-            store.setIsSettingsOpen((prev) => !prev)
+            useUIStore.getState().setIsSettingsOpen((prev) => !prev)
             break
           case 'command-palette:toggle':
-            store.setIsCommandPaletteOpen((prev) => !prev)
+            useUIStore.getState().setIsCommandPaletteOpen((prev) => !prev)
             break
           case 'tabbar:toggle-position': {
             const currentPos = currentConfig.tabBarPosition || 'top'
@@ -179,23 +179,23 @@ function App() {
   // Escape Settings / Command Palette shortcut handling
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const store = useTabStore.getState()
-      if (e.key === 'Escape' && store.isCommandPaletteOpen) {
-        store.setIsCommandPaletteOpen(false)
+      const uiStore = useUIStore.getState()
+      if (e.key === 'Escape' && uiStore.isCommandPaletteOpen) {
+        uiStore.setIsCommandPaletteOpen(false)
         e.preventDefault()
         e.stopPropagation()
-      } else if (e.key === 'Escape' && store.isAboutOpen) {
-        store.setIsAboutOpen(false)
+      } else if (e.key === 'Escape' && uiStore.isAboutOpen) {
+        uiStore.setIsAboutOpen(false)
         e.preventDefault()
         e.stopPropagation()
       } else if (e.ctrlKey && e.key === ',') {
         e.preventDefault()
         e.stopPropagation()
-        store.setIsSettingsOpen((prev) => !prev)
+        uiStore.setIsSettingsOpen((prev) => !prev)
       } else if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault()
         e.stopPropagation()
-        store.setIsCommandPaletteOpen((prev) => !prev)
+        uiStore.setIsCommandPaletteOpen((prev) => !prev)
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown, { capture: true })

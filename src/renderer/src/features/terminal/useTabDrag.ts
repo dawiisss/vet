@@ -10,7 +10,6 @@ export function useTabDrag() {
   const setDragState = useTabStore(s => s.setDragState)
   const setTabs = useTabStore(s => s.setTabs)
   const activeTabId = useTabStore(s => s.activeTabId)
-  const tabs = useTabStore(s => s.tabs)
   const detachTab = useTabStore(s => s.detachTab)
   const mergeTabAsSplit = useTabStore(s => s.mergeTabAsSplit)
 
