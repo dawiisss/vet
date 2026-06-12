@@ -1,15 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell, session } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
-import {
-  createTerminal,
-  destroyTerminal,
-  writeToTerminal,
-  resizeTerminal,
-  setForwardTarget,
-  getTerminalInfo,
-  getHistory
-} from './pty'
+import { setForwardTarget } from './pty'
+import { registerWindowHandlers } from './ipc/windowHandlers'
+import { registerHistoryHandlers } from './ipc/historyHandlers'
+import { registerTerminalHandlers } from './ipc/terminalHandlers'
 
 import icon from '../../resources/icon.png?asset'
 
@@ -46,6 +41,7 @@ function createWindow(): BrowserWindow {
   win.on('closed', () => {
     const terminals = windowTerminals.get(win.id)
     if (terminals) {
+      const { destroyTerminal } = require('./pty')
       for (const tId of terminals) {
         destroyTerminal(tId)
       }
@@ -73,6 +69,7 @@ function createWindow(): BrowserWindow {
   // Security: Block unauthorized new window creation
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
+      const { shell } = require('electron')
       const parsedUrl = new URL(url)
       const safeProtocols = ['http:', 'https:', 'mailto:']
       if (safeProtocols.includes(parsedUrl.protocol)) {
@@ -119,181 +116,14 @@ function loadWindow(win: BrowserWindow, extraParams?: string): void {
 }
 
 function registerIpcHandlers(): void {
-  // Window control
-  ipcMain.handle('win:minimize', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    win?.minimize()
-  })
-
-  ipcMain.handle('win:maximize', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win?.isMaximized()) {
-      win.unmaximize()
-    } else {
-      win?.maximize()
-    }
-  })
-
-  ipcMain.handle('win:toggle-fullscreen', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win) {
-      win.setFullScreen(!win.isFullScreen())
-    }
-  })
-
-  ipcMain.handle('win:close', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    win?.close()
-  })
-
-  ipcMain.handle('app:quit', () => {
-    app.quit()
-  })
-
-  ipcMain.handle('win:is-maximized', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    return win?.isMaximized() ?? false
-  })
-
-  ipcMain.handle('win:open-external', async (_event, url: string) => {
-    try {
-      const parsedUrl = new URL(url)
-      const safeProtocols = ['http:', 'https:', 'mailto:']
-      if (safeProtocols.includes(parsedUrl.protocol)) {
-        await shell.openExternal(url)
-      } else {
-        console.warn(`[security] Blocked attempt to open external URL with unsafe protocol: ${url}`)
-      }
-    } catch (e) {
-      console.warn(`[security] Blocked attempt to open invalid external URL: ${url}`)
-    }
-  })
-
-  // Terminal
-  ipcMain.handle('terminal:create', async (event, { cwd, profileId, sshHostId }: { cwd?: string, profileId?: string, sshHostId?: string }) => {
-    const id = createTerminal({
-      cwd: cwd || process.cwd(),
-      profileId,
-      sshHostId
-    })
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win) {
-      registerForwardTarget(id, win)
-      if (!windowTerminals.has(win.id)) {
-        windowTerminals.set(win.id, new Set())
-      }
-      windowTerminals.get(win.id)!.add(id)
-    }
-    return { id }
-  })
-
-  ipcMain.handle('terminal:enable-forwarding', async (event, { id }: { id: string }) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win) {
-      registerForwardTarget(id, win)
-    }
-  })
-
-  ipcMain.on('terminal:write', (_event, { id, data }: { id: string; data: string }) => {
-    writeToTerminal(id, data)
-  })
-
-  ipcMain.handle('terminal:resize', async (_event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
-    resizeTerminal(id, cols, rows)
-  })
-
-  ipcMain.handle('terminal:destroy', async (event, { id }: { id: string }) => {
-    destroyTerminal(id)
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win && windowTerminals.has(win.id)) {
-      windowTerminals.get(win.id)!.delete(id)
-    }
-  })
-
-  ipcMain.handle('terminal:get-history', async (_event, { id }: { id: string }) => {
-    return getHistory(id)
-  })
-
-  ipcMain.handle('terminal:detach-tab', async (event, { tabId, terminalIds }: { tabId: string; terminalIds: string[] }) => {
-    const senderWin = BrowserWindow.fromWebContents(event.sender)
-    const detachedWin = createWindow()
-
-    const params = new URLSearchParams()
-    params.set('detached', tabId)
-    params.set('terminals', terminalIds.join(','))
-    loadWindow(detachedWin, params.toString())
-
-    if (!windowTerminals.has(detachedWin.id)) {
-      windowTerminals.set(detachedWin.id, new Set())
-    }
-
-    for (const terminalId of terminalIds) {
-      registerForwardTarget(terminalId, detachedWin)
-      windowTerminals.get(detachedWin.id)!.add(terminalId)
-      if (senderWin && windowTerminals.has(senderWin.id)) {
-        windowTerminals.get(senderWin.id)!.delete(terminalId)
-      }
-    }
-
-    detachedWin.webContents.once('did-finish-load', () => {
-    })
-
-    return { success: true }
-  })
-
-  ipcMain.handle('terminal:reattach-tab', async (event, { terminalIds }: { terminalIds: string[] }) => {
-    if (mainWindow) {
-      if (!windowTerminals.has(mainWindow.id)) {
-        windowTerminals.set(mainWindow.id, new Set())
-      }
-      for (const terminalId of terminalIds) {
-        registerForwardTarget(terminalId, mainWindow)
-        windowTerminals.get(mainWindow.id)!.add(terminalId)
-      }
-    }
-
-    const senderWin = BrowserWindow.fromWebContents(event.sender)
-    if (senderWin && windowTerminals.has(senderWin.id)) {
-      for (const terminalId of terminalIds) {
-        windowTerminals.get(senderWin.id)!.delete(terminalId)
-      }
-    }
-    senderWin?.close()
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('terminal:reattach-tab', { terminalIds })
-    }
-
-    return { success: true }
-  })
-
-
-  ipcMain.handle('terminal:get-info', async (_event, { id }: { id: string }) => {
-    return await getTerminalInfo(id)
-  })
-
-  ipcMain.handle('history:search', async (_event, query: string) => {
-    return historyDb.searchHistory(query)
-  })
-  
-  ipcMain.handle('history:get-sessions', async () => {
-    return historyDb.getHistorySessions()
-  })
-
-  ipcMain.handle('history:get-session-transcript', async (_event, id: string) => {
-    return historyDb.getSessionTranscript(id)
-  })
-
-  ipcMain.handle('history:get-scrollback-chunk', async (_event, id: string, beforeTimestamp: number) => {
-    return historyDb.getScrollbackChunk(id, beforeTimestamp)
-  })
-
-  ipcMain.handle('history:clear', async () => {
-    historyDb.clearHistory()
-  })
-
-  ipcMain.handle('history:delete-session', async (_event, id: string) => {
-    historyDb.deleteSession(id)
+  registerWindowHandlers()
+  registerHistoryHandlers()
+  registerTerminalHandlers({
+    windowTerminals,
+    getMainWindow: () => mainWindow,
+    createWindow,
+    loadWindow,
+    registerForwardTarget
   })
 }
 

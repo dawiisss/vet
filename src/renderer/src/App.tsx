@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import TitleBar from '@/shared/components/TitleBar'
+import { buildShortcutString } from '@/shared/utils/keybindings'
 import TabBar from '@/features/terminal/components/TabBar'
 import type { TabBarTab } from '@/features/terminal/components/TabBar'
 import SplitPane from '@/features/terminal/components/SplitPane'
@@ -79,19 +80,9 @@ function App() {
   // Keyboard shortcut listener utilizing Zustand direct state fetching to prevent duplicate event bindings
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      let key = e.key.toLowerCase()
-      if (key === 'control') key = 'ctrl'
+      const shortcut = buildShortcutString(e)
+      if (!shortcut) return
 
-      if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) return
-
-      const parts = []
-      if (e.ctrlKey) parts.push('ctrl')
-      if (e.altKey) parts.push('alt')
-      if (e.shiftKey) parts.push('shift')
-      if (e.metaKey) parts.push('meta')
-      parts.push(key)
-
-      const shortcut = parts.join('+')
       const currentConfig = useConfigStore.getState().config
       const action = (currentConfig.keybindings || {})[shortcut]
 
