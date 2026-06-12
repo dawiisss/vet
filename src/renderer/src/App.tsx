@@ -8,8 +8,11 @@ import React, { lazy, Suspense } from 'react'
 import { getNode, collectTerminalIds } from '@/features/terminal/splitTree'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
+import { useTabDrag } from '@/features/terminal/useTabDrag'
+import { useUIStore } from '@/shared/stores/useUIStore'
 import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
+import ErrorBoundary from '@/shared/components/ErrorBoundary'
 
 const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
 const AboutModal = lazy(() => import('@/shared/components/AboutModal'))
@@ -21,25 +24,28 @@ const ClipboardPreviewModal = lazy(() => import('@/shared/components/ClipboardPr
 function App() {
   const { config, updateConfig, openConfig } = useConfig()
   const {
-    tabs,
-    activeTabId,
     error,
-    isDetached,
     isSettingsOpen,
     isAboutOpen,
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
     previewClipboardItem,
-    initializeTabs,
-    onReattachTab,
-    pollTabLabels,
     setIsSettingsOpen,
     setIsAboutOpen,
     setIsCommandPaletteOpen,
     setViewingHistorySessionId,
     setPreviewFilePath,
-    setPreviewClipboardItem,
+    setPreviewClipboardItem
+  } = useUIStore()
+
+  const {
+    tabs,
+    activeTabId,
+    isDetached,
+    initializeTabs,
+    onReattachTab,
+    pollTabLabels,
     newTab,
     closeTab,
     selectTab,
@@ -53,12 +59,16 @@ function App() {
     renameTab,
     handleRunScript,
     handleInjectSnippet,
-    handleDragStart,
-    handleDragMove,
-    handleDragEnd,
     navigateSplit,
     reattachMe
   } = useTabStore()
+
+  const {
+    dragState,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd
+  } = useTabDrag()
 
   const terminalAreaRef = useRef<HTMLDivElement>(null)
 
@@ -376,15 +386,17 @@ function App() {
           />
         )}
         {config.sidebarOpen && config.sidebarPlacement === 'left' && (
-          <Sidebar
-            onRunScript={handleRunScript}
-            onInjectSnippet={handleInjectSnippet}
-            onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
-            activeTerminalId={activeTerminalId}
-            onViewFile={(filePath) => setPreviewFilePath(filePath)}
-            onLaunchConnection={(id) => newTab(undefined, id)}
-            width={config.sidebarWidth || 250}
-          />
+          <ErrorBoundary name="Left Sidebar">
+            <Sidebar
+              onRunScript={handleRunScript}
+              onInjectSnippet={handleInjectSnippet}
+              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              activeTerminalId={activeTerminalId}
+              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onLaunchConnection={(id) => newTab(undefined, id)}
+              width={config.sidebarWidth || 250}
+            />
+          </ErrorBoundary>
         )}
         <div
           ref={terminalAreaRef}
@@ -411,29 +423,31 @@ function App() {
                 height: '100%'
               }}
             >
-              <SplitPane
-                node={tab.root}
-                path={[]}
-                focusedPath={tab.focusedPath}
-                isActive={tab.id === activeTabId}
-                onExtract={
-                  collectTerminalIds(tab.root).length > 1
-                    ? (path) => extractToTab(tab.id, path)
-                    : undefined
-                }
-                onFocus={(path) => onFocusSplit(tab.id, path)}
-                onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-                onContextMenuAction={(path, action) =>
-                  handleContextMenuAction(tab.id, path, action)
-                }
-              />
+              <ErrorBoundary name="Terminal SplitPane">
+                <SplitPane
+                  node={tab.root}
+                  path={[]}
+                  focusedPath={tab.focusedPath}
+                  isActive={tab.id === activeTabId}
+                  onExtract={
+                    collectTerminalIds(tab.root).length > 1
+                      ? (path) => extractToTab(tab.id, path)
+                      : undefined
+                  }
+                  onFocus={(path) => onFocusSplit(tab.id, path)}
+                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                  onContextMenuAction={(path, action) =>
+                    handleContextMenuAction(tab.id, path, action)
+                  }
+                />
+              </ErrorBoundary>
             </div>
           ))}
           <div
             id="drag-zone-right"
             style={{
-              display: 'none',
+              display: dragState?.zone === 'right' ? 'flex' : 'none',
               position: 'absolute',
               top: 0,
               right: 0,
@@ -455,7 +469,7 @@ function App() {
           <div
             id="drag-zone-bottom"
             style={{
-              display: 'none',
+              display: dragState?.zone === 'bottom' ? 'flex' : 'none',
               position: 'absolute',
               bottom: 0,
               left: 0,
@@ -476,15 +490,17 @@ function App() {
           </div>
         </div>
         {config.sidebarOpen && config.sidebarPlacement === 'right' && (
-          <Sidebar
-            onRunScript={handleRunScript}
-            onInjectSnippet={handleInjectSnippet}
-            onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
-            activeTerminalId={activeTerminalId}
-            onViewFile={(filePath) => setPreviewFilePath(filePath)}
-            onLaunchConnection={(id) => newTab(undefined, id)}
-            width={config.sidebarWidth || 250}
-          />
+          <ErrorBoundary name="Right Sidebar">
+            <Sidebar
+              onRunScript={handleRunScript}
+              onInjectSnippet={handleInjectSnippet}
+              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              activeTerminalId={activeTerminalId}
+              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onLaunchConnection={(id) => newTab(undefined, id)}
+              width={config.sidebarWidth || 250}
+            />
+          </ErrorBoundary>
         )}
         {config.tabBarPosition === 'right' && (
           <TabBar

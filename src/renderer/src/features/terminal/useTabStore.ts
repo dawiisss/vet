@@ -25,9 +25,9 @@ export interface TabState {
   focusedPath: number[]
 }
 
-type DropZone = 'none' | 'right' | 'bottom' | 'outside'
+export type DropZone = 'none' | 'right' | 'bottom' | 'outside'
 
-interface DragState {
+export interface DragState {
   tabId: string
   zone: DropZone
 }
@@ -35,26 +35,12 @@ interface DragState {
 interface TabStore {
   tabs: TabState[]
   activeTabId: string | null
-  error: string | null
   isDetached: boolean
   detachedTabId: string | null
   detachedTerminalIds: string[]
-  isSettingsOpen: boolean
-  isAboutOpen: boolean
-  viewingHistorySessionId: string | null
-  isCommandPaletteOpen: boolean
-  previewFilePath: string | null
-  previewClipboardItem: { id: string; text: string; timestamp: number } | null
   dragState: DragState | null
 
   // UI state setters
-  setError: (err: string | null) => void
-  setIsSettingsOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setIsAboutOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setIsCommandPaletteOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setViewingHistorySessionId: (id: string | null) => void
-  setPreviewFilePath: (path: string | null) => void
-  setPreviewClipboardItem: (item: { id: string; text: string; timestamp: number } | null) => void
   setDragState: (dragState: DragState | null | ((prev: DragState | null) => DragState | null)) => void
   setActiveTabId: (id: string | null) => void
   setTabs: (tabs: TabState[] | ((prev: TabState[]) => TabState[])) => void
@@ -79,9 +65,6 @@ interface TabStore {
   renameTab: (tabId: string, newLabel: string) => void
   handleRunScript: (cmd: string, cwd: string) => Promise<void>
   handleInjectSnippet: (snippet: string) => void
-  handleDragStart: (tabId: string) => void
-  handleDragMove: (x: number, y: number, terminalArea: HTMLDivElement | null) => void
-  handleDragEnd: (tabId: string, x: number, y: number, terminalArea: HTMLDivElement | null) => void
 }
 
 let tabCounter = 1
@@ -110,31 +93,11 @@ export const useTabStore = create<TabStore>((set, get) => {
   return {
     tabs: [],
     activeTabId: null,
-    error: null,
     isDetached: false,
     detachedTabId: null,
     detachedTerminalIds: [],
-    isSettingsOpen: false,
-    isAboutOpen: false,
-    viewingHistorySessionId: null,
-    isCommandPaletteOpen: false,
-    previewFilePath: null,
-    previewClipboardItem: null,
     dragState: null,
 
-    setError: (err) => set({ error: err }),
-    setIsSettingsOpen: (isOpen) => set(state => ({
-      isSettingsOpen: typeof isOpen === 'function' ? isOpen(state.isSettingsOpen) : isOpen
-    })),
-    setIsAboutOpen: (isOpen) => set(state => ({
-      isAboutOpen: typeof isOpen === 'function' ? isOpen(state.isAboutOpen) : isOpen
-    })),
-    setIsCommandPaletteOpen: (isOpen) => set(state => ({
-      isCommandPaletteOpen: typeof isOpen === 'function' ? isOpen(state.isCommandPaletteOpen) : isOpen
-    })),
-    setViewingHistorySessionId: (id) => set({ viewingHistorySessionId: id }),
-    setPreviewFilePath: (path) => set({ previewFilePath: path }),
-    setPreviewClipboardItem: (item) => set({ previewClipboardItem: item }),
     setDragState: (dragState) => set(state => ({
       dragState: typeof dragState === 'function' ? dragState(state.dragState) : dragState
     })),
@@ -664,101 +627,6 @@ export const useTabStore = create<TabStore>((set, get) => {
       const node = getNode(activeTab.root, activeTab.focusedPath)
       if (node && node.terminalId) {
         api.write(node.terminalId, snippet)
-      }
-    },
-
-    handleDragStart: (tabId) => {
-      set({ dragState: { tabId, zone: 'none' } })
-      const rightZone = document.getElementById('drag-zone-right')
-      if (rightZone) rightZone.style.display = 'none'
-      const bottomZone = document.getElementById('drag-zone-bottom')
-      if (bottomZone) bottomZone.style.display = 'none'
-    },
-
-    handleDragMove: (x, y, terminalArea) => {
-      if (!terminalArea) {
-        const rightZone = document.getElementById('drag-zone-right')
-        if (rightZone) rightZone.style.display = 'none'
-        const bottomZone = document.getElementById('drag-zone-bottom')
-        if (bottomZone) bottomZone.style.display = 'none'
-        return
-      }
-
-      const r = terminalArea.getBoundingClientRect()
-      const relX = x - r.left
-      const relY = y - r.top
-      const rightPct = relX / r.width
-      const bottomPct = relY / r.height
-
-      let zone: DropZone = 'none'
-      if (relX >= 0 && relX <= r.width && relY >= 0 && relY <= r.height) {
-        if (rightPct > 0.8) zone = 'right'
-        else if (bottomPct > 0.8) zone = 'bottom'
-      } else {
-        zone = 'outside'
-      }
-
-      const rightZone = document.getElementById('drag-zone-right')
-      const bottomZone = document.getElementById('drag-zone-bottom')
-
-      if (rightZone && bottomZone) {
-        rightZone.style.display = zone === 'right' ? 'flex' : 'none'
-        bottomZone.style.display = zone === 'bottom' ? 'flex' : 'none'
-      }
-    },
-
-    handleDragEnd: (tabId, x, y, terminalArea) => {
-      set({ dragState: null })
-      const rightZone = document.getElementById('drag-zone-right')
-      if (rightZone) rightZone.style.display = 'none'
-      const bottomZone = document.getElementById('drag-zone-bottom')
-      if (bottomZone) bottomZone.style.display = 'none'
-
-      // Check if dropped onto another tab for reordering
-      const elements = document.elementsFromPoint(x, y)
-      const tabItem = elements.find(el => el.classList.contains('tab-item'))
-      
-      if (tabItem) {
-        const targetTabId = (tabItem as HTMLElement).dataset.tabid
-        if (targetTabId && targetTabId !== tabId) {
-          set(state => {
-            const newTabs = [...state.tabs]
-            const sourceIndex = newTabs.findIndex(t => t.id === tabId)
-            const targetIndex = newTabs.findIndex(t => t.id === targetTabId)
-            if (sourceIndex > -1 && targetIndex > -1) {
-              const [moved] = newTabs.splice(sourceIndex, 1)
-              newTabs.splice(targetIndex, 0, moved)
-            }
-            return { tabs: newTabs }
-          })
-        }
-        return
-      }
-
-      if (!terminalArea) return
-
-      const r = terminalArea.getBoundingClientRect()
-      const inside =
-        x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
-
-      if (!inside) {
-        get().detachTab(tabId)
-        return
-      }
-
-      const relX = x - r.left
-      const relY = y - r.top
-      const rightPct = relX / r.width
-      const bottomPct = relY / r.height
-
-      if (tabId === get().activeTabId) {
-        return
-      }
-
-      if (rightPct > 0.8) {
-        get().mergeTabAsSplit(tabId, 'horizontal')
-      } else if (bottomPct > 0.8) {
-        get().mergeTabAsSplit(tabId, 'vertical')
       }
     }
   }
