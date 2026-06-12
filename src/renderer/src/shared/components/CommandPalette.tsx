@@ -165,6 +165,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
             <div style={{ padding: '20px', color: 'var(--app-fg-muted)', textAlign: 'center' }}>
               No commands found.
             </div>
+          )}
         </div>
       </div>
     </ModalOverlay>
