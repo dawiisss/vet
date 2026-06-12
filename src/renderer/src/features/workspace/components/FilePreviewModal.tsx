@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { ModalOverlay } from '@/shared/components/ModalOverlay'
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useFocusTrap } from '@/shared/hooks/useFocusTrap'
 
 interface FilePreviewModalProps {
   filePath: string
@@ -9,6 +12,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
   const [content, setContent] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(true)
   const contentRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let active = true
@@ -33,17 +37,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
     }
   }, [filePath])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [onClose])
+  useEscapeKey(onClose)
+  useFocusTrap(modalRef)
 
   useEffect(() => {
     if (!loading && contentRef.current) {
@@ -71,22 +66,13 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
   const lines = content.split('\n')
 
   return (
-    <div
+    <ModalOverlay
+      containerRef={modalRef}
       onClick={handleOverlayClick}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999
-      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview of ${filePath}`}
+      style={{ zIndex: 99999 }}
     >
       <div
         style={{
@@ -209,7 +195,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ filePath, onClose }
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 

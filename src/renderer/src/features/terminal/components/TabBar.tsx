@@ -205,7 +205,10 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 maxWidth: isVertical ? 140 : 180,
-                flex: 1
+                flex: 1,
+                display: / \+ \d+$/.test(tab.label) ? 'flex' : 'block',
+                alignItems: 'center',
+                minWidth: 0
               }}
             >
               {editingTabId === tab.id ? (
@@ -239,7 +242,22 @@ function TabBar({ tabs, activeTabId, onSelect, onClose, onNew, onDragStart, onDr
                   }}
                 />
               ) : (
-                tab.label
+                (() => {
+                  const m = tab.label.match(/^(.+?)( \+ \d+)$/)
+                  if (m) {
+                    return (
+                      <>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                          {m[1]}
+                        </span>
+                        <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+                          {m[2]}
+                        </span>
+                      </>
+                    )
+                  }
+                  return tab.label
+                })()
               )}
             </span>
             <span

@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
+import { ModalOverlay } from './ModalOverlay'
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useFocusTrap } from '@/shared/hooks/useFocusTrap'
 
 interface ClipboardPreviewModalProps {
   item: { id: string; text: string; timestamp: number }
@@ -7,23 +10,15 @@ interface ClipboardPreviewModalProps {
 
 export default function ClipboardPreviewModal({ item, onClose }: ClipboardPreviewModalProps) {
   const contentRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [onClose])
+  useEscapeKey(onClose)
+  useFocusTrap(modalRef)
 
   useEffect(() => {
     if (contentRef.current) {
@@ -57,22 +52,13 @@ export default function ClipboardPreviewModal({ item, onClose }: ClipboardPrevie
   const lines = item.text.split('\n')
 
   return (
-    <div
+    <ModalOverlay
+      containerRef={modalRef}
       onClick={handleOverlayClick}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999
-      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Clipboard Preview"
+      style={{ position: 'fixed', zIndex: 99999 }}
     >
       <div
         style={{
@@ -199,6 +185,6 @@ export default function ClipboardPreviewModal({ item, onClose }: ClipboardPrevie
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

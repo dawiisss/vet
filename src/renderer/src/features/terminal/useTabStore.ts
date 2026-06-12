@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import {
   leafNode,
+  browserLeafNode,
   collectTerminalIds,
+  collectLeafIds,
+  leafCount,
   navigatePath,
   insertLeaves,
   removeLeaf,
@@ -25,9 +28,9 @@ export interface TabState {
   focusedPath: number[]
 }
 
-type DropZone = 'none' | 'right' | 'bottom' | 'outside'
+export type DropZone = 'none' | 'right' | 'bottom' | 'outside'
 
-interface DragState {
+export interface DragState {
   tabId: string
   zone: DropZone
 }
@@ -35,26 +38,14 @@ interface DragState {
 interface TabStore {
   tabs: TabState[]
   activeTabId: string | null
-  error: string | null
   isDetached: boolean
   detachedTabId: string | null
   detachedTerminalIds: string[]
-  isSettingsOpen: boolean
-  isAboutOpen: boolean
-  viewingHistorySessionId: string | null
-  isCommandPaletteOpen: boolean
-  previewFilePath: string | null
-  previewClipboardItem: { id: string; text: string; timestamp: number } | null
   dragState: DragState | null
+  tabActivationOrder: string[]
+  hibernatedTabIds: string[]
 
   // UI state setters
-  setError: (err: string | null) => void
-  setIsSettingsOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setIsAboutOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setIsCommandPaletteOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void
-  setViewingHistorySessionId: (id: string | null) => void
-  setPreviewFilePath: (path: string | null) => void
-  setPreviewClipboardItem: (item: { id: string; text: string; timestamp: number } | null) => void
   setDragState: (dragState: DragState | null | ((prev: DragState | null) => DragState | null)) => void
   setActiveTabId: (id: string | null) => void
   setTabs: (tabs: TabState[] | ((prev: TabState[]) => TabState[])) => void
@@ -64,6 +55,7 @@ interface TabStore {
   onReattachTab: () => () => void
   pollTabLabels: () => () => void
   newTab: (profileId?: string, sshHostId?: string) => Promise<void>
+  newBrowserTab: () => void
   closeTab: (tabId: string) => void
   selectTab: (id: string) => void
   detachTab: (tabId: string) => Promise<void>
@@ -79,9 +71,6 @@ interface TabStore {
   renameTab: (tabId: string, newLabel: string) => void
   handleRunScript: (cmd: string, cwd: string) => Promise<void>
   handleInjectSnippet: (snippet: string) => void
-  handleDragStart: (tabId: string) => void
-  handleDragMove: (x: number, y: number, terminalArea: HTMLDivElement | null) => void
-  handleDragEnd: (tabId: string, x: number, y: number, terminalArea: HTMLDivElement | null) => void
 }
 
 let tabCounter = 1
@@ -100,6 +89,15 @@ function newTabState(tabId: string, terminalId: string, label?: string): TabStat
   }
 }
 
+function newBrowserTabState(tabId: string, browserId: string, label?: string): TabState {
+  return {
+    id: tabId,
+    label: label || 'Web Browser',
+    root: browserLeafNode(browserId),
+    focusedPath: []
+  }
+}
+
 function pathsEqual(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
 }
@@ -110,35 +108,66 @@ export const useTabStore = create<TabStore>((set, get) => {
   return {
     tabs: [],
     activeTabId: null,
-    error: null,
     isDetached: false,
     detachedTabId: null,
     detachedTerminalIds: [],
-    isSettingsOpen: false,
-    isAboutOpen: false,
-    viewingHistorySessionId: null,
-    isCommandPaletteOpen: false,
-    previewFilePath: null,
-    previewClipboardItem: null,
     dragState: null,
+    tabActivationOrder: [],
+    hibernatedTabIds: [],
 
-    setError: (err) => set({ error: err }),
-    setIsSettingsOpen: (isOpen) => set(state => ({
-      isSettingsOpen: typeof isOpen === 'function' ? isOpen(state.isSettingsOpen) : isOpen
-    })),
-    setIsAboutOpen: (isOpen) => set(state => ({
-      isAboutOpen: typeof isOpen === 'function' ? isOpen(state.isAboutOpen) : isOpen
-    })),
-    setIsCommandPaletteOpen: (isOpen) => set(state => ({
-      isCommandPaletteOpen: typeof isOpen === 'function' ? isOpen(state.isCommandPaletteOpen) : isOpen
-    })),
-    setViewingHistorySessionId: (id) => set({ viewingHistorySessionId: id }),
-    setPreviewFilePath: (path) => set({ previewFilePath: path }),
-    setPreviewClipboardItem: (item) => set({ previewClipboardItem: item }),
     setDragState: (dragState) => set(state => ({
       dragState: typeof dragState === 'function' ? dragState(state.dragState) : dragState
     })),
-    setActiveTabId: (id) => set({ activeTabId: id }),
+    setActiveTabId: (id) => {
+      if (!id) {
+        set({ activeTabId: null })
+        return
+      }
+      set((state) => {
+        let config: any = undefined
+        try { config = (window as any).__configStore?.getState?.()?.config } catch {}
+        const maxActive = config?.maxActiveTerminals ?? 4
+        const order = state.tabActivationOrder.filter(t => t !== id)
+        order.unshift(id)
+
+        let hibernated = state.hibernatedTabIds.filter(t => t !== id)
+
+        if (maxActive > 0) {
+          const nonHibernatedCount = state.tabs.length - hibernated.length
+          let excess = nonHibernatedCount - maxActive
+          let i = order.length - 1
+          while (excess > 0 && i >= 0) {
+            const candidateId = order[i]
+            if (candidateId !== id && !hibernated.includes(candidateId)) {
+              const tab = state.tabs.find(t => t.id === candidateId)
+              if (tab) {
+                collectTerminalIds(tab.root).forEach(termId => {
+                  if (_destroyTerminalCache) _destroyTerminalCache(termId)
+                })
+                hibernated = [...hibernated, candidateId]
+              }
+              excess--
+            }
+            i--
+          }
+        }
+
+        return {
+          activeTabId: id,
+          tabActivationOrder: order,
+          hibernatedTabIds: hibernated
+        }
+      })
+      // Notify main process of foreground terminals
+      const activeTab = get().tabs.find(t => t.id === id)
+      if (activeTab) {
+        const termIds = collectTerminalIds(activeTab.root)
+        try {
+          const api = (window as any).terminalApi
+          if (api) api.setForeground(termIds)
+        } catch {}
+      }
+    },
     setTabs: (tabs) => set(state => ({
       tabs: typeof tabs === 'function' ? tabs(state.tabs) : tabs
     })),
@@ -172,7 +201,8 @@ export const useTabStore = create<TabStore>((set, get) => {
             root,
             focusedPath: []
           }],
-          activeTabId: detached
+          activeTabId: detached,
+          tabActivationOrder: [detached]
         })
         return
       }
@@ -192,7 +222,8 @@ export const useTabStore = create<TabStore>((set, get) => {
         } catch {}
         set({
           tabs: [newTabState(tabId, id, label)],
-          activeTabId: tabId
+          activeTabId: tabId,
+          tabActivationOrder: [tabId]
         })
       }).catch((err) => {
         set({ error: `Failed to create terminal: ${err}` })
@@ -229,7 +260,8 @@ export const useTabStore = create<TabStore>((set, get) => {
               root,
               focusedPath: []
             }],
-            activeTabId: tabId
+            activeTabId: tabId,
+            tabActivationOrder: [tabId, ...state.tabActivationOrder]
           }))
         }
         fetchLabel()
@@ -249,20 +281,34 @@ export const useTabStore = create<TabStore>((set, get) => {
 
         for (const tab of get().tabs) {
           const targetNode = getNode(tab.root, tab.focusedPath)
-          if (targetNode && targetNode.terminalId) {
-            try {
+          if (!targetNode) continue
+
+          try {
+            const totalLeaves = leafCount(tab.root)
+            const suffix = totalLeaves > 1 ? ` + ${totalLeaves - 1}` : ''
+
+            let targetLabel: string
+            if (targetNode.terminalId) {
               const info = await api.getTerminalInfo(targetNode.terminalId)
-              const countAttached = collectTerminalIds(tab.root).length - 1
-              const suffix = countAttached > 0 ? ` + ${countAttached}` : ''
-              const targetLabel = info.title ? info.title + suffix : ''
-              
-              if (targetLabel && targetLabel !== tab.label) {
-                updates.set(tab.id, targetLabel)
-                changed = true
+              const hasBrowser = collectLeafIds(tab.root).some(id => id.startsWith('browser-'))
+              if (hasBrowser) {
+                const base = tab.label.replace(/ \+ \d+$/, '')
+                targetLabel = base + suffix
+              } else {
+                targetLabel = info.title ? info.title + suffix : ''
               }
-            } catch {
-              // ignore
+            } else {
+              // Focused node is a browser — keep existing base label, update suffix
+              const base = tab.label.replace(/ \+ \d+$/, '')
+              targetLabel = base + suffix
             }
+
+            if (targetLabel && targetLabel !== tab.label) {
+              updates.set(tab.id, targetLabel)
+              changed = true
+            }
+          } catch {
+            // ignore
           }
         }
 
@@ -298,11 +344,22 @@ export const useTabStore = create<TabStore>((set, get) => {
         } catch {}
         set((state) => ({
           tabs: [...state.tabs, newTabState(tabId, id, label)],
-          activeTabId: tabId
+          activeTabId: tabId,
+          tabActivationOrder: [tabId, ...state.tabActivationOrder]
         }))
       } catch (err) {
         set({ error: `Failed to create terminal: ${err}` })
       }
+    },
+
+    newBrowserTab: () => {
+      const browserId = `browser-${Date.now()}`
+      const tabId = generateTabId()
+      set((state) => ({
+        tabs: [...state.tabs, newBrowserTabState(tabId, browserId)],
+        activeTabId: tabId,
+        tabActivationOrder: [tabId, ...state.tabActivationOrder]
+      }))
     },
 
     closeTab: (tabId) => {
@@ -326,7 +383,9 @@ export const useTabStore = create<TabStore>((set, get) => {
       }
       set({
         tabs: next,
-        activeTabId: newActiveTabId
+        activeTabId: newActiveTabId,
+        tabActivationOrder: get().tabActivationOrder.filter(t => t !== tabId),
+        hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== tabId)
       })
     },
 
@@ -357,7 +416,9 @@ export const useTabStore = create<TabStore>((set, get) => {
         }
         set({
           tabs: next,
-          activeTabId: newActiveTabId
+          activeTabId: newActiveTabId,
+          tabActivationOrder: get().tabActivationOrder.filter(t => t !== tabId),
+          hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== tabId)
         })
       } catch (err) {
         set({ error: `Failed to detach tab: ${err}` })
@@ -387,7 +448,7 @@ export const useTabStore = create<TabStore>((set, get) => {
       const activeTab = prevTabs.find((t) => t.id === activeTabId)
       if (!activeTab) return
 
-      const newTerminalIds = collectTerminalIds(fromTab.root)
+      const newTerminalIds = collectLeafIds(fromTab.root)
       const updated = prevTabs.map((tab) => {
         if (tab.id !== activeTabId) return tab
 
@@ -399,27 +460,32 @@ export const useTabStore = create<TabStore>((set, get) => {
         }
       })
       set({
-        tabs: updated.filter((t) => t.id !== fromTabId)
+        tabs: updated.filter((t) => t.id !== fromTabId),
+        tabActivationOrder: get().tabActivationOrder.filter(t => t !== fromTabId),
+        hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== fromTabId)
       })
     },
+
+
 
     splitTab: async (direction, targetTabId, targetPath) => {
       const activeTabId = get().activeTabId
       const tabId = targetTabId || activeTabId
       if (!tabId) return
-      const api = window.terminalApi
-      if (!api) return
 
-      try {
-        const { id } = await api.create()
+      const tab = get().tabs.find((t) => t.id === tabId)
+      if (!tab) return
+
+      const path = targetPath || tab.focusedPath
+      const targetNode = getNode(tab.root, path)
+      const isBrowser = targetNode && targetNode.browserId !== undefined
+
+      if (isBrowser) {
+        const browserId = `browser-${Date.now()}`
         set((state) => {
-          const tab = state.tabs.find((t) => t.id === tabId)
-          if (!tab) {
-            api.destroy(id)
-            return state
-          }
-          const path = targetPath || tab.focusedPath
-          const result = insertLeaves(tab.root, path, direction, [id])
+          const currentTab = state.tabs.find((t) => t.id === tabId)
+          if (!currentTab) return state
+          const result = insertLeaves(currentTab.root, path, direction, [browserId])
           return {
             tabs: state.tabs.map((t) => {
               if (t.id !== tabId) return t
@@ -431,8 +497,32 @@ export const useTabStore = create<TabStore>((set, get) => {
             })
           }
         })
-      } catch (err) {
-        set({ error: `Failed to split: ${err}` })
+      } else {
+        const api = window.terminalApi
+        if (!api) return
+        try {
+          const { id } = await api.create()
+          set((state) => {
+            const currentTab = state.tabs.find((t) => t.id === tabId)
+            if (!currentTab) {
+              api.destroy(id)
+              return state
+            }
+            const result = insertLeaves(currentTab.root, path, direction, [id])
+            return {
+              tabs: state.tabs.map((t) => {
+                if (t.id !== tabId) return t
+                return {
+                  ...t,
+                  root: result.root,
+                  focusedPath: result.focusedPath
+                }
+              })
+            }
+          })
+        } catch (err) {
+          set({ error: `Failed to split: ${err}` })
+        }
       }
     },
 
@@ -444,31 +534,38 @@ export const useTabStore = create<TabStore>((set, get) => {
       if (!activeTab) return
 
       const focusedNode = getNode(activeTab.root, activeTab.focusedPath)
-      if (!focusedNode || !focusedNode.terminalId) return
+      if (!focusedNode) return
 
-      const allTerminalIds = collectTerminalIds(activeTab.root)
-      const toExtract = allTerminalIds.filter(id => id !== focusedNode.terminalId)
+      const targetId = focusedNode.terminalId || focusedNode.browserId
+      if (!targetId) return
+
+      // Find all leaf nodes except the focused one
+      const allPaths = leafPaths(activeTab.root)
+      const toExtract = allPaths
+        .map(p => getNode(activeTab.root, p))
+        .filter(node => (node.terminalId || node.browserId) && (node.terminalId !== targetId && node.browserId !== targetId))
       
       if (toExtract.length === 0) return
-      
+
       const api = window.terminalApi
       const baseLabel = activeTab.label.replace(/ \+ \d+$/, '')
 
-      const extractedInfo = await Promise.all(
-        toExtract.map(async (id) => {
-          let label = baseLabel
-          if (api) {
-            try {
-              const info = await api.getTerminalInfo(id)
-              if (info?.title) label = info.title
-            } catch {}
+      const extractedTabs: TabState[] = await Promise.all(
+        toExtract.map(async (node) => {
+          const tabId = generateTabId()
+          if (node.browserId) {
+            return newBrowserTabState(tabId, node.browserId)
+          } else {
+            let label = baseLabel
+            if (api && node.terminalId) {
+              try {
+                const info = await api.getTerminalInfo(node.terminalId)
+                if (info?.title) label = info.title
+              } catch {}
+            }
+            return newTabState(tabId, node.terminalId!, label)
           }
-          return { id, label }
         })
-      )
-
-      const newTabs: TabState[] = extractedInfo.map(({ id, label }) =>
-        newTabState(generateTabId(), id, label)
       )
 
       set((state) => {
@@ -478,20 +575,23 @@ export const useTabStore = create<TabStore>((set, get) => {
         
         next[tabIdx] = {
           ...next[tabIdx],
-          root: leafNode(focusedNode.terminalId!),
+          root: focusedNode.terminalId ? leafNode(focusedNode.terminalId) : browserLeafNode(focusedNode.browserId!),
           focusedPath: []
         }
         
-        next.splice(tabIdx + 1, 0, ...newTabs)
+        next.splice(tabIdx + 1, 0, ...extractedTabs)
         return { tabs: next }
       })
     },
 
     closeSplit: (tabId, terminalId) => {
-      const api = window.terminalApi
-      if (!api) return
-      api.destroy(terminalId)
-      if (_destroyTerminalCache) _destroyTerminalCache(terminalId)
+      if (!terminalId.startsWith('browser-')) {
+        const api = window.terminalApi
+        if (api) {
+          api.destroy(terminalId)
+        }
+        if (_destroyTerminalCache) _destroyTerminalCache(terminalId)
+      }
 
       const activeTabId = get().activeTabId
       const prevTabs = get().tabs
@@ -501,10 +601,10 @@ export const useTabStore = create<TabStore>((set, get) => {
 
       const tab = prevTabs[tabIdx]
 
-      // Find path of this terminal in the tree
+      // Find path of this terminal or browser leaf in the tree
       const foundPath = leafPaths(tab.root).find((p) => {
         const node = getNode(tab.root, p)
-        return node.terminalId === terminalId
+        return node.terminalId === terminalId || node.browserId === terminalId
       })
 
       if (!foundPath) return
@@ -527,11 +627,11 @@ export const useTabStore = create<TabStore>((set, get) => {
       }
 
       let newFocusedPath = result.newPath
-      const remaining = collectTerminalIds(result.root)
+      const remaining = leafPaths(result.root).map(p => getNode(result.root, p))
       if (remaining.length > 0) {
         const paths = leafPaths(result.root)
         if (paths.length > 0 && !paths.some((p) => pathsEqual(p, result.newPath))) {
-          newFocusedPath = paths[Math.min(paths.length - 1, paths.length - 1)]
+          newFocusedPath = paths[paths.length - 1]
         }
       }
 
@@ -544,8 +644,6 @@ export const useTabStore = create<TabStore>((set, get) => {
     },
 
     extractToTab: async (tabId, path) => {
-      const api = window.terminalApi
-      if (!api) return
       const prevTabs = get().tabs
       const tab = prevTabs.find((t) => t.id === tabId)
       if (!tab) return
@@ -555,14 +653,20 @@ export const useTabStore = create<TabStore>((set, get) => {
       }
 
       const targetNode = getNode(tab.root, path)
-      if (!targetNode || !targetNode.terminalId) return
-      const terminalId = targetNode.terminalId
+      if (!targetNode) return
+      const isBrowser = targetNode.browserId !== undefined
+      const leafId = targetNode.terminalId || targetNode.browserId
+      if (!leafId) return
 
       let label = tab.label.replace(/ \+ \d+$/, '')
-      try {
-        const info = await api.getTerminalInfo(terminalId)
-        if (info?.title) label = info.title
-      } catch {}
+      if (!isBrowser) {
+        const api = window.terminalApi
+        if (!api) return
+        try {
+          const info = await api.getTerminalInfo(leafId)
+          if (info?.title) label = info.title
+        } catch {}
+      }
 
       const tIndex = prevTabs.findIndex((t) => t.id === tabId)
       if (tIndex === -1) return
@@ -575,12 +679,15 @@ export const useTabStore = create<TabStore>((set, get) => {
       updated[tIndex] = { ...currentTab, root: newRoot, focusedPath: newPath }
 
       const extractedTabId = generateTabId()
-      const extractedTab = newTabState(extractedTabId, terminalId, label)
+      const extractedTab = isBrowser
+        ? newBrowserTabState(extractedTabId, leafId, label)
+        : newTabState(extractedTabId, leafId, label)
 
       updated.splice(tIndex + 1, 0, extractedTab)
       set({
         tabs: updated,
-        activeTabId: extractedTabId
+        activeTabId: extractedTabId,
+        tabActivationOrder: [extractedTabId, ...(get().tabActivationOrder.filter(t => t !== extractedTabId))]
       })
     },
 
@@ -644,7 +751,8 @@ export const useTabStore = create<TabStore>((set, get) => {
           const tabId = generateTabId()
           set((state) => ({
             tabs: [...state.tabs, newTabState(tabId, id, 'Script')],
-            activeTabId: tabId
+            activeTabId: tabId,
+            tabActivationOrder: [tabId, ...state.tabActivationOrder]
           }))
         }
         setTimeout(() => {
@@ -664,101 +772,6 @@ export const useTabStore = create<TabStore>((set, get) => {
       const node = getNode(activeTab.root, activeTab.focusedPath)
       if (node && node.terminalId) {
         api.write(node.terminalId, snippet)
-      }
-    },
-
-    handleDragStart: (tabId) => {
-      set({ dragState: { tabId, zone: 'none' } })
-      const rightZone = document.getElementById('drag-zone-right')
-      if (rightZone) rightZone.style.display = 'none'
-      const bottomZone = document.getElementById('drag-zone-bottom')
-      if (bottomZone) bottomZone.style.display = 'none'
-    },
-
-    handleDragMove: (x, y, terminalArea) => {
-      if (!terminalArea) {
-        const rightZone = document.getElementById('drag-zone-right')
-        if (rightZone) rightZone.style.display = 'none'
-        const bottomZone = document.getElementById('drag-zone-bottom')
-        if (bottomZone) bottomZone.style.display = 'none'
-        return
-      }
-
-      const r = terminalArea.getBoundingClientRect()
-      const relX = x - r.left
-      const relY = y - r.top
-      const rightPct = relX / r.width
-      const bottomPct = relY / r.height
-
-      let zone: DropZone = 'none'
-      if (relX >= 0 && relX <= r.width && relY >= 0 && relY <= r.height) {
-        if (rightPct > 0.8) zone = 'right'
-        else if (bottomPct > 0.8) zone = 'bottom'
-      } else {
-        zone = 'outside'
-      }
-
-      const rightZone = document.getElementById('drag-zone-right')
-      const bottomZone = document.getElementById('drag-zone-bottom')
-
-      if (rightZone && bottomZone) {
-        rightZone.style.display = zone === 'right' ? 'flex' : 'none'
-        bottomZone.style.display = zone === 'bottom' ? 'flex' : 'none'
-      }
-    },
-
-    handleDragEnd: (tabId, x, y, terminalArea) => {
-      set({ dragState: null })
-      const rightZone = document.getElementById('drag-zone-right')
-      if (rightZone) rightZone.style.display = 'none'
-      const bottomZone = document.getElementById('drag-zone-bottom')
-      if (bottomZone) bottomZone.style.display = 'none'
-
-      // Check if dropped onto another tab for reordering
-      const elements = document.elementsFromPoint(x, y)
-      const tabItem = elements.find(el => el.classList.contains('tab-item'))
-      
-      if (tabItem) {
-        const targetTabId = (tabItem as HTMLElement).dataset.tabid
-        if (targetTabId && targetTabId !== tabId) {
-          set(state => {
-            const newTabs = [...state.tabs]
-            const sourceIndex = newTabs.findIndex(t => t.id === tabId)
-            const targetIndex = newTabs.findIndex(t => t.id === targetTabId)
-            if (sourceIndex > -1 && targetIndex > -1) {
-              const [moved] = newTabs.splice(sourceIndex, 1)
-              newTabs.splice(targetIndex, 0, moved)
-            }
-            return { tabs: newTabs }
-          })
-        }
-        return
-      }
-
-      if (!terminalArea) return
-
-      const r = terminalArea.getBoundingClientRect()
-      const inside =
-        x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
-
-      if (!inside) {
-        get().detachTab(tabId)
-        return
-      }
-
-      const relX = x - r.left
-      const relY = y - r.top
-      const rightPct = relX / r.width
-      const bottomPct = relY / r.height
-
-      if (tabId === get().activeTabId) {
-        return
-      }
-
-      if (rightPct > 0.8) {
-        get().mergeTabAsSplit(tabId, 'horizontal')
-      } else if (bottomPct > 0.8) {
-        get().mergeTabAsSplit(tabId, 'vertical')
       }
     }
   }

@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react'
 import TitleBar from '@/shared/components/TitleBar'
+import { buildShortcutString } from '@/shared/utils/keybindings'
 import TabBar from '@/features/terminal/components/TabBar'
 import type { TabBarTab } from '@/features/terminal/components/TabBar'
 import SplitPane from '@/features/terminal/components/SplitPane'
 import React, { lazy, Suspense } from 'react'
-import { getNode, collectTerminalIds } from '@/features/terminal/splitTree'
+import { getNode, collectTerminalIds, leafCount } from '@/features/terminal/splitTree'
 import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
+import { useTabDrag } from '@/features/terminal/useTabDrag'
+import { useUIStore } from '@/shared/stores/useUIStore'
 import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
+import ErrorBoundary from '@/shared/components/ErrorBoundary'
 
 const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
 const AboutModal = lazy(() => import('@/shared/components/AboutModal'))
@@ -20,26 +24,31 @@ const ClipboardPreviewModal = lazy(() => import('@/shared/components/ClipboardPr
 function App() {
   const { config, updateConfig, openConfig } = useConfig()
   const {
-    tabs,
-    activeTabId,
     error,
-    isDetached,
     isSettingsOpen,
     isAboutOpen,
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
     previewClipboardItem,
-    initializeTabs,
-    onReattachTab,
-    pollTabLabels,
     setIsSettingsOpen,
     setIsAboutOpen,
     setIsCommandPaletteOpen,
     setViewingHistorySessionId,
     setPreviewFilePath,
-    setPreviewClipboardItem,
+    setPreviewClipboardItem
+  } = useUIStore()
+
+  const {
+    tabs,
+    activeTabId,
+    isDetached,
+    hibernatedTabIds,
+    initializeTabs,
+    onReattachTab,
+    pollTabLabels,
     newTab,
+    newBrowserTab,
     closeTab,
     selectTab,
     splitTab,
@@ -52,12 +61,16 @@ function App() {
     renameTab,
     handleRunScript,
     handleInjectSnippet,
-    handleDragStart,
-    handleDragMove,
-    handleDragEnd,
     navigateSplit,
     reattachMe
   } = useTabStore()
+
+  const {
+    dragState,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd
+  } = useTabDrag()
 
   const terminalAreaRef = useRef<HTMLDivElement>(null)
 
@@ -79,19 +92,9 @@ function App() {
   // Keyboard shortcut listener utilizing Zustand direct state fetching to prevent duplicate event bindings
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      let key = e.key.toLowerCase()
-      if (key === 'control') key = 'ctrl'
+      const shortcut = buildShortcutString(e)
+      if (!shortcut) return
 
-      if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) return
-
-      const parts = []
-      if (e.ctrlKey) parts.push('ctrl')
-      if (e.altKey) parts.push('alt')
-      if (e.shiftKey) parts.push('shift')
-      if (e.metaKey) parts.push('meta')
-      parts.push(key)
-
-      const shortcut = parts.join('+')
       const currentConfig = useConfigStore.getState().config
       const action = (currentConfig.keybindings || {})[shortcut]
 
@@ -143,10 +146,10 @@ function App() {
             store.navigateSplit(-1)
             break
           case 'settings:toggle':
-            store.setIsSettingsOpen((prev) => !prev)
+            useUIStore.getState().setIsSettingsOpen((prev) => !prev)
             break
           case 'command-palette:toggle':
-            store.setIsCommandPaletteOpen((prev) => !prev)
+            useUIStore.getState().setIsCommandPaletteOpen((prev) => !prev)
             break
           case 'tabbar:toggle-position': {
             const currentPos = currentConfig.tabBarPosition || 'top'
@@ -178,27 +181,53 @@ function App() {
   // Escape Settings / Command Palette shortcut handling
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const store = useTabStore.getState()
-      if (e.key === 'Escape' && store.isCommandPaletteOpen) {
-        store.setIsCommandPaletteOpen(false)
+      const uiStore = useUIStore.getState()
+      if (e.key === 'Escape' && uiStore.isCommandPaletteOpen) {
+        uiStore.setIsCommandPaletteOpen(false)
         e.preventDefault()
         e.stopPropagation()
-      } else if (e.key === 'Escape' && store.isAboutOpen) {
-        store.setIsAboutOpen(false)
+      } else if (e.key === 'Escape' && uiStore.isAboutOpen) {
+        uiStore.setIsAboutOpen(false)
         e.preventDefault()
         e.stopPropagation()
       } else if (e.ctrlKey && e.key === ',') {
         e.preventDefault()
         e.stopPropagation()
-        store.setIsSettingsOpen((prev) => !prev)
+        uiStore.setIsSettingsOpen((prev) => !prev)
       } else if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault()
         e.stopPropagation()
-        store.setIsCommandPaletteOpen((prev) => !prev)
+        uiStore.setIsCommandPaletteOpen((prev) => !prev)
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
+  }, [])
+
+  // Handle key events forwarded from webviews
+  useEffect(() => {
+    if (!window.windowApi?.onWebviewKeydown) return
+
+    const unsubscribe = window.windowApi.onWebviewKeydown((data) => {
+      const eventInit: KeyboardEventInit = {
+        key: data.key,
+        code: data.code,
+        ctrlKey: data.ctrlKey,
+        shiftKey: data.shiftKey,
+        altKey: data.altKey,
+        metaKey: data.metaKey,
+        bubbles: true,
+        cancelable: true
+      }
+      
+      const fakeEvent = new KeyboardEvent('keydown', eventInit)
+      window.dispatchEvent(fakeEvent)
+      document.dispatchEvent(fakeEvent)
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   if (error) {
@@ -262,7 +291,9 @@ function App() {
           </span>
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {tabs.map((tab) => (
+          {tabs.map((tab) => {
+            const isHibernated = hibernatedTabIds.includes(tab.id)
+            return (
             <div
               key={tab.id}
               style={{
@@ -278,17 +309,19 @@ function App() {
                 height: '100%'
               }}
             >
-              <SplitPane
-                node={tab.root}
-                path={[]}
-                focusedPath={tab.focusedPath}
-                isActive={tab.id === activeTabId}
-                onFocus={(path) => onFocusSplit(tab.id, path)}
-                onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-              />
+              {!isHibernated && (
+                <SplitPane
+                  node={tab.root}
+                  path={[]}
+                  focusedPath={tab.focusedPath}
+                  isActive={tab.id === activeTabId}
+                  onFocus={(path) => onFocusSplit(tab.id, path)}
+                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                />
+              )}
             </div>
-          ))}
+          )})}
         </div>
       </div>
     )
@@ -385,15 +418,17 @@ function App() {
           />
         )}
         {config.sidebarOpen && config.sidebarPlacement === 'left' && (
-          <Sidebar
-            onRunScript={handleRunScript}
-            onInjectSnippet={handleInjectSnippet}
-            onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
-            activeTerminalId={activeTerminalId}
-            onViewFile={(filePath) => setPreviewFilePath(filePath)}
-            onLaunchConnection={(id) => newTab(undefined, id)}
-            width={config.sidebarWidth || 250}
-          />
+          <ErrorBoundary name="Left Sidebar">
+            <Sidebar
+              onRunScript={handleRunScript}
+              onInjectSnippet={handleInjectSnippet}
+              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              activeTerminalId={activeTerminalId}
+              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onLaunchConnection={(id) => newTab(undefined, id)}
+              width={config.sidebarWidth || 250}
+            />
+          </ErrorBoundary>
         )}
         <div
           ref={terminalAreaRef}
@@ -404,7 +439,9 @@ function App() {
             borderTop: (!config.tabBarPosition || config.tabBarPosition === 'top') ? '1px solid var(--app-border)' : 'none'
           }}
         >
-          {tabs.map((tab) => (
+          {tabs.map((tab) => {
+            const isHibernated = hibernatedTabIds.includes(tab.id)
+            return (
             <div
               key={tab.id}
               style={{
@@ -420,29 +457,34 @@ function App() {
                 height: '100%'
               }}
             >
-              <SplitPane
-                node={tab.root}
-                path={[]}
-                focusedPath={tab.focusedPath}
-                isActive={tab.id === activeTabId}
-                onExtract={
-                  collectTerminalIds(tab.root).length > 1
-                    ? (path) => extractToTab(tab.id, path)
-                    : undefined
-                }
-                onFocus={(path) => onFocusSplit(tab.id, path)}
-                onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-                onContextMenuAction={(path, action) =>
-                  handleContextMenuAction(tab.id, path, action)
-                }
-              />
+              {!isHibernated && (
+              <ErrorBoundary name="Terminal SplitPane">
+                <SplitPane
+                  node={tab.root}
+                  path={[]}
+                  focusedPath={tab.focusedPath}
+                  isActive={tab.id === activeTabId}
+                  leafCount={leafCount(tab.root)}
+                  onExtract={
+                    leafCount(tab.root) > 1
+                      ? (path) => extractToTab(tab.id, path)
+                      : undefined
+                  }
+                  onFocus={(path) => onFocusSplit(tab.id, path)}
+                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                  onContextMenuAction={(path, action) =>
+                    handleContextMenuAction(tab.id, path, action)
+                  }
+                />
+              </ErrorBoundary>
+              )}
             </div>
-          ))}
+          )})}
           <div
             id="drag-zone-right"
             style={{
-              display: 'none',
+              display: dragState?.zone === 'right' ? 'flex' : 'none',
               position: 'absolute',
               top: 0,
               right: 0,
@@ -464,7 +506,7 @@ function App() {
           <div
             id="drag-zone-bottom"
             style={{
-              display: 'none',
+              display: dragState?.zone === 'bottom' ? 'flex' : 'none',
               position: 'absolute',
               bottom: 0,
               left: 0,
@@ -485,15 +527,17 @@ function App() {
           </div>
         </div>
         {config.sidebarOpen && config.sidebarPlacement === 'right' && (
-          <Sidebar
-            onRunScript={handleRunScript}
-            onInjectSnippet={handleInjectSnippet}
-            onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
-            activeTerminalId={activeTerminalId}
-            onViewFile={(filePath) => setPreviewFilePath(filePath)}
-            onLaunchConnection={(id) => newTab(undefined, id)}
-            width={config.sidebarWidth || 250}
-          />
+          <ErrorBoundary name="Right Sidebar">
+            <Sidebar
+              onRunScript={handleRunScript}
+              onInjectSnippet={handleInjectSnippet}
+              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              activeTerminalId={activeTerminalId}
+              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onLaunchConnection={(id) => newTab(undefined, id)}
+              width={config.sidebarWidth || 250}
+            />
+          </ErrorBoundary>
         )}
         {config.tabBarPosition === 'right' && (
           <TabBar
@@ -545,6 +589,7 @@ function App() {
                 onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
               },
               { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
+              { id: 'new-browser-tab', label: 'View: Open Web Browser Tab', onExecute: newBrowserTab },
               { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
               { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
               { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
