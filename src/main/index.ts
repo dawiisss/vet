@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, session } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
 import {
@@ -309,6 +309,7 @@ import * as historyDb from './historyDb'
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.vet')
+
 
   registerIpcHandlers()
   mainWindow = createWindow()

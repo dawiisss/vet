@@ -39,6 +39,13 @@ jest.mock('electron', () => {
     },
     BrowserWindow,
     ipcMain: { handle: ipcHandleMock, on: ipcOnMock },
+    session: {
+      defaultSession: {
+        webRequest: {
+          onHeadersReceived: jest.fn()
+        }
+      }
+    }
   }
 })
 
