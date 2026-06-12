@@ -20,6 +20,9 @@ const terminalHistories: Map<string, string> = new Map()
 const terminalSshHosts: Map<string, string> = new Map()
 const outputBuffers: Map<string, string> = new Map()
 const outputTimeouts: Map<string, NodeJS.Timeout> = new Map()
+const foregroundTerminalIds: Set<string> = new Set()
+const terminalHistoryOrder: string[] = []
+const MAX_BACKGROUND_TERMINAL_HISTORIES = 4
 
 export function setForwardTarget(terminalId: string, target: (event: string, ...args: unknown[]) => void): void {
   forwardTargets.set(terminalId, target)
@@ -42,6 +45,37 @@ export function getHistory(id: string): { data: string; oldestTimestamp: number 
       data: chunks.map(c => c.data).join(''),
       oldestTimestamp: chunks[0].timestamp
     }
+  }
+}
+
+export function setForegroundTerminals(ids: string[]): void {
+  const newSet = new Set(ids)
+
+  for (const id of foregroundTerminalIds) {
+    if (!newSet.has(id)) {
+      const idx = terminalHistoryOrder.indexOf(id)
+      if (idx !== -1) {
+        terminalHistoryOrder.splice(idx, 1)
+      }
+      terminalHistoryOrder.unshift(id)
+    }
+  }
+
+  for (const id of ids) {
+    const idx = terminalHistoryOrder.indexOf(id)
+    if (idx !== -1) {
+      terminalHistoryOrder.splice(idx, 1)
+    }
+  }
+
+  while (terminalHistoryOrder.length > MAX_BACKGROUND_TERMINAL_HISTORIES) {
+    const evicted = terminalHistoryOrder.pop()!
+    terminalHistories.delete(evicted)
+  }
+
+  foregroundTerminalIds.clear()
+  for (const id of ids) {
+    foregroundTerminalIds.add(id)
   }
 }
 

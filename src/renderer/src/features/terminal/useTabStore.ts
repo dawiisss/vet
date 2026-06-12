@@ -42,6 +42,8 @@ interface TabStore {
   detachedTabId: string | null
   detachedTerminalIds: string[]
   dragState: DragState | null
+  tabActivationOrder: string[]
+  hibernatedTabIds: string[]
 
   // UI state setters
   setDragState: (dragState: DragState | null | ((prev: DragState | null) => DragState | null)) => void
@@ -110,11 +112,62 @@ export const useTabStore = create<TabStore>((set, get) => {
     detachedTabId: null,
     detachedTerminalIds: [],
     dragState: null,
+    tabActivationOrder: [],
+    hibernatedTabIds: [],
 
     setDragState: (dragState) => set(state => ({
       dragState: typeof dragState === 'function' ? dragState(state.dragState) : dragState
     })),
-    setActiveTabId: (id) => set({ activeTabId: id }),
+    setActiveTabId: (id) => {
+      if (!id) {
+        set({ activeTabId: null })
+        return
+      }
+      set((state) => {
+        let config: any = undefined
+        try { config = (window as any).__configStore?.getState?.()?.config } catch {}
+        const maxActive = config?.maxActiveTerminals ?? 4
+        const order = state.tabActivationOrder.filter(t => t !== id)
+        order.unshift(id)
+
+        let hibernated = state.hibernatedTabIds.filter(t => t !== id)
+
+        if (maxActive > 0) {
+          const nonHibernatedCount = state.tabs.length - hibernated.length
+          let excess = nonHibernatedCount - maxActive
+          let i = order.length - 1
+          while (excess > 0 && i >= 0) {
+            const candidateId = order[i]
+            if (candidateId !== id && !hibernated.includes(candidateId)) {
+              const tab = state.tabs.find(t => t.id === candidateId)
+              if (tab) {
+                collectTerminalIds(tab.root).forEach(termId => {
+                  if (_destroyTerminalCache) _destroyTerminalCache(termId)
+                })
+                hibernated = [...hibernated, candidateId]
+              }
+              excess--
+            }
+            i--
+          }
+        }
+
+        return {
+          activeTabId: id,
+          tabActivationOrder: order,
+          hibernatedTabIds: hibernated
+        }
+      })
+      // Notify main process of foreground terminals
+      const activeTab = get().tabs.find(t => t.id === id)
+      if (activeTab) {
+        const termIds = collectTerminalIds(activeTab.root)
+        try {
+          const api = (window as any).terminalApi
+          if (api) api.setForeground(termIds)
+        } catch {}
+      }
+    },
     setTabs: (tabs) => set(state => ({
       tabs: typeof tabs === 'function' ? tabs(state.tabs) : tabs
     })),
@@ -148,7 +201,8 @@ export const useTabStore = create<TabStore>((set, get) => {
             root,
             focusedPath: []
           }],
-          activeTabId: detached
+          activeTabId: detached,
+          tabActivationOrder: [detached]
         })
         return
       }
@@ -168,7 +222,8 @@ export const useTabStore = create<TabStore>((set, get) => {
         } catch {}
         set({
           tabs: [newTabState(tabId, id, label)],
-          activeTabId: tabId
+          activeTabId: tabId,
+          tabActivationOrder: [tabId]
         })
       }).catch((err) => {
         set({ error: `Failed to create terminal: ${err}` })
@@ -205,7 +260,8 @@ export const useTabStore = create<TabStore>((set, get) => {
               root,
               focusedPath: []
             }],
-            activeTabId: tabId
+            activeTabId: tabId,
+            tabActivationOrder: [tabId, ...state.tabActivationOrder]
           }))
         }
         fetchLabel()
@@ -288,7 +344,8 @@ export const useTabStore = create<TabStore>((set, get) => {
         } catch {}
         set((state) => ({
           tabs: [...state.tabs, newTabState(tabId, id, label)],
-          activeTabId: tabId
+          activeTabId: tabId,
+          tabActivationOrder: [tabId, ...state.tabActivationOrder]
         }))
       } catch (err) {
         set({ error: `Failed to create terminal: ${err}` })
@@ -300,7 +357,8 @@ export const useTabStore = create<TabStore>((set, get) => {
       const tabId = generateTabId()
       set((state) => ({
         tabs: [...state.tabs, newBrowserTabState(tabId, browserId)],
-        activeTabId: tabId
+        activeTabId: tabId,
+        tabActivationOrder: [tabId, ...state.tabActivationOrder]
       }))
     },
 
@@ -325,7 +383,9 @@ export const useTabStore = create<TabStore>((set, get) => {
       }
       set({
         tabs: next,
-        activeTabId: newActiveTabId
+        activeTabId: newActiveTabId,
+        tabActivationOrder: get().tabActivationOrder.filter(t => t !== tabId),
+        hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== tabId)
       })
     },
 
@@ -356,7 +416,9 @@ export const useTabStore = create<TabStore>((set, get) => {
         }
         set({
           tabs: next,
-          activeTabId: newActiveTabId
+          activeTabId: newActiveTabId,
+          tabActivationOrder: get().tabActivationOrder.filter(t => t !== tabId),
+          hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== tabId)
         })
       } catch (err) {
         set({ error: `Failed to detach tab: ${err}` })
@@ -398,7 +460,9 @@ export const useTabStore = create<TabStore>((set, get) => {
         }
       })
       set({
-        tabs: updated.filter((t) => t.id !== fromTabId)
+        tabs: updated.filter((t) => t.id !== fromTabId),
+        tabActivationOrder: get().tabActivationOrder.filter(t => t !== fromTabId),
+        hibernatedTabIds: get().hibernatedTabIds.filter(t => t !== fromTabId)
       })
     },
 
@@ -622,7 +686,8 @@ export const useTabStore = create<TabStore>((set, get) => {
       updated.splice(tIndex + 1, 0, extractedTab)
       set({
         tabs: updated,
-        activeTabId: extractedTabId
+        activeTabId: extractedTabId,
+        tabActivationOrder: [extractedTabId, ...(get().tabActivationOrder.filter(t => t !== extractedTabId))]
       })
     },
 
@@ -686,7 +751,8 @@ export const useTabStore = create<TabStore>((set, get) => {
           const tabId = generateTabId()
           set((state) => ({
             tabs: [...state.tabs, newTabState(tabId, id, 'Script')],
-            activeTabId: tabId
+            activeTabId: tabId,
+            tabActivationOrder: [tabId, ...state.tabActivationOrder]
           }))
         }
         setTimeout(() => {

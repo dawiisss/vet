@@ -43,6 +43,7 @@ function App() {
     tabs,
     activeTabId,
     isDetached,
+    hibernatedTabIds,
     initializeTabs,
     onReattachTab,
     pollTabLabels,
@@ -290,7 +291,9 @@ function App() {
           </span>
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {tabs.map((tab) => (
+          {tabs.map((tab) => {
+            const isHibernated = hibernatedTabIds.includes(tab.id)
+            return (
             <div
               key={tab.id}
               style={{
@@ -306,17 +309,19 @@ function App() {
                 height: '100%'
               }}
             >
-              <SplitPane
-                node={tab.root}
-                path={[]}
-                focusedPath={tab.focusedPath}
-                isActive={tab.id === activeTabId}
-                onFocus={(path) => onFocusSplit(tab.id, path)}
-                onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-              />
+              {!isHibernated && (
+                <SplitPane
+                  node={tab.root}
+                  path={[]}
+                  focusedPath={tab.focusedPath}
+                  isActive={tab.id === activeTabId}
+                  onFocus={(path) => onFocusSplit(tab.id, path)}
+                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                />
+              )}
             </div>
-          ))}
+          )})}
         </div>
       </div>
     )
@@ -434,7 +439,9 @@ function App() {
             borderTop: (!config.tabBarPosition || config.tabBarPosition === 'top') ? '1px solid var(--app-border)' : 'none'
           }}
         >
-          {tabs.map((tab) => (
+          {tabs.map((tab) => {
+            const isHibernated = hibernatedTabIds.includes(tab.id)
+            return (
             <div
               key={tab.id}
               style={{
@@ -450,6 +457,7 @@ function App() {
                 height: '100%'
               }}
             >
+              {!isHibernated && (
               <ErrorBoundary name="Terminal SplitPane">
                 <SplitPane
                   node={tab.root}
@@ -470,8 +478,9 @@ function App() {
                   }
                 />
               </ErrorBoundary>
+              )}
             </div>
-          ))}
+          )})}
           <div
             id="drag-zone-right"
             style={{

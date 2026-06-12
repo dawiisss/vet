@@ -103,6 +103,15 @@ jest.mock('../main/historyDb', () => ({
 
 jest.mock('../main/adblocker', () => ({
   initAdblocker: jest.fn(() => Promise.resolve()),
+  registerAdblockerIpcHandlers: jest.fn(),
+}))
+
+jest.mock('../main/sftp', () => ({
+  initSftpManager: jest.fn(),
+}))
+
+jest.mock('../main/clipboardHistory', () => ({
+  initClipboardHistoryManager: jest.fn(),
 }))
 
 describe('main process index', () => {
@@ -135,6 +144,7 @@ describe('main process index', () => {
     expect(calls).toContain('terminal:detach-tab')
     expect(calls).toContain('terminal:reattach-tab')
     expect(calls).toContain('terminal:get-info')
+    expect(calls).toContain('terminal:set-foreground')
 
     // History
     expect(calls).toContain('history:search')

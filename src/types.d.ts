@@ -64,6 +64,7 @@ interface Config {
   clipboardHistoryKeepDays?: number
   tabBarPosition?: 'top' | 'left' | 'right'
   webglEnabled?: boolean
+  maxActiveTerminals?: number
   sshParseGlobal?: boolean
   sshHosts?: SshHost[] | Array<{ name: string; command: string }>
   dockerDefaultShell?: string
@@ -86,6 +87,7 @@ interface TerminalApi {
   onExit: (callback: (id: string, exitCode: number) => void) => () => void
   onReattachTab: (callback: (terminalIds: string[]) => void) => () => void
   getTerminalInfo: (id: string) => Promise<{ title: string; cwd: string; sshHostId?: string }>
+  setForeground: (ids: string[]) => Promise<void>
   saveSession: (state: any) => Promise<void>
   getSession: () => Promise<any>
 }

@@ -36,6 +36,7 @@ const terminalApi: TerminalApi = {
   reattachTab: (terminalIds: string[]) =>
     ipcRenderer.invoke('terminal:reattach-tab', { terminalIds }),
   getTerminalInfo: (id: string) => ipcRenderer.invoke('terminal:get-info', { id }),
+  setForeground: (ids: string[]) => ipcRenderer.invoke('terminal:set-foreground', { ids }),
   onData: (callback) => {
     dataHandlers.add(callback)
     return () => dataHandlers.delete(callback)
@@ -204,6 +205,7 @@ webFrame.executeJavaScript(`
   window.__adblockHtmlInstalled = true
 
   var ruleCache = new Map()
+  var RULE_CACHE_MAX = 500
   var pruneKeys = ['adPlacements', 'adSlots']
 
   // Intercept YouTube window globals the moment inline scripts set them
@@ -242,13 +244,30 @@ webFrame.executeJavaScript(`
     } catch(_){}
   }, { once: true })
 
+  function cacheGet(key) {
+    if (!ruleCache.has(key)) return
+    var val = ruleCache.get(key)
+    ruleCache.delete(key)
+    ruleCache.set(key, val)
+    return val
+  }
+
+  function cacheSet(key, value) {
+    if (ruleCache.size >= RULE_CACHE_MAX) {
+      var firstKey = ruleCache.keys().next().value
+      ruleCache.delete(firstKey)
+    }
+    ruleCache.delete(key)
+    ruleCache.set(key, value)
+  }
+
   function getRules(url) {
-    var c = ruleCache.get(url)
+    var c = cacheGet(url)
     if (c !== undefined) return Promise.resolve(c)
     if (!window.adblockerApi || !window.adblockerApi.getHtmlReplaceRules) return Promise.resolve({ pruneKeys: [], replaceRules: [] })
     return window.adblockerApi.getHtmlReplaceRules(url).then(function(r) {
       r = r || { pruneKeys: [], replaceRules: [] }
-      ruleCache.set(url, r)
+      cacheSet(url, r)
       return r
     }).catch(function(){ return { pruneKeys: [], replaceRules: [] } })
   }

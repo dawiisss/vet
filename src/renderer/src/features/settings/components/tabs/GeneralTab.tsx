@@ -64,7 +64,17 @@ export const GeneralTab: React.FC = () => {
             <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
           </FormSelect>
         </div>
-        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+          <FormLabel htmlFor="max-active-terminals-input">Max Active Terminals (0 = unlimited)</FormLabel>
+          <FormInput
+            id="max-active-terminals-input"
+            type="number"
+            min="0"
+            max="20"
+            value={config.maxActiveTerminals ?? 4}
+            onChange={(e) => updateConfig({ maxActiveTerminals: parseInt(e.target.value) || 0 })}
+          />
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>

@@ -28,17 +28,17 @@ import si from 'systeminformation'
 describe('sysinfo', () => {
   let startHandler: (...args: any[]) => any
   let stopHandler: (...args: any[]) => any
-  let intervalCallback: (() => void) | null = null
+  let timeoutCallback: (() => void) | null = null
 
   beforeEach(() => {
     jest.clearAllMocks()
     jest.useFakeTimers()
 
-    jest.spyOn(global, 'setInterval').mockImplementation((fn) => {
-      intervalCallback = fn as unknown as () => void
+    jest.spyOn(global, 'setTimeout').mockImplementation((fn) => {
+      timeoutCallback = fn as unknown as () => void
       return 1 as any
     })
-    jest.spyOn(global, 'clearInterval').mockImplementation(jest.fn())
+    jest.spyOn(global, 'clearTimeout').mockImplementation(jest.fn())
 
     mockWindow.isDestroyed.mockReturnValue(false)
     mockWebContents.send.mockClear()
@@ -52,7 +52,7 @@ describe('sysinfo', () => {
 
   afterEach(() => {
     jest.useRealTimers()
-    intervalCallback = null
+    timeoutCallback = null
   })
 
   describe('initSysInfoManager', () => {
@@ -69,9 +69,9 @@ describe('sysinfo', () => {
     it('starts polling and sends data', async () => {
       await startHandler()
 
-      expect(setInterval).toHaveBeenCalled()
+      expect(setTimeout).toHaveBeenCalled()
 
-      await intervalCallback?.()
+      await timeoutCallback?.()
       await Promise.resolve().then(() => {})
 
       expect(si.currentLoad).toHaveBeenCalled()
@@ -85,26 +85,26 @@ describe('sysinfo', () => {
       }))
     })
 
-    it('clears previous interval when starting again', async () => {
+    it('clears previous timeout when starting again', async () => {
       await startHandler()
       await startHandler()
-      expect(clearInterval).toHaveBeenCalled()
+      expect(clearTimeout).toHaveBeenCalled()
     })
 
     it('does not send data when window is destroyed', async () => {
       mockWindow.isDestroyed.mockReturnValue(true)
 
       await startHandler()
-      await intervalCallback?.()
+      await timeoutCallback?.()
 
       expect(mockWebContents.send).not.toHaveBeenCalled()
     })
   })
 
   describe('sysinfo:stop', () => {
-    it('stops the polling interval', async () => {
+    it('stops the polling timeout', async () => {
       await stopHandler()
-      expect(clearInterval).toHaveBeenCalled()
+      expect(clearTimeout).toHaveBeenCalled()
     })
   })
 })

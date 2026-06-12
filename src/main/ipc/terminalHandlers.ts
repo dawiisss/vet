@@ -5,7 +5,8 @@ import {
   writeToTerminal,
   resizeTerminal,
   getTerminalInfo,
-  getHistory
+  getHistory,
+  setForegroundTerminals
 } from '../pty'
 
 interface TerminalHandlersOptions {
@@ -125,5 +126,9 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
   ipcMain.handle('terminal:get-info', async (_event, { id }: { id: string }) => {
     return await getTerminalInfo(id)
+  })
+
+  ipcMain.handle('terminal:set-foreground', async (_event, { ids }: { ids: string[] }) => {
+    setForegroundTerminals(ids)
   })
 }

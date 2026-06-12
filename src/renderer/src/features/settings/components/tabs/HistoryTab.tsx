@@ -35,8 +35,8 @@ export const HistoryTab: React.FC = () => {
           <FormInput
             id="db-size-limit-input"
             type="number"
-            value={config.historyDatabaseLimitMb || 500}
-            onChange={(e) => updateConfig({ historyDatabaseLimitMb: parseInt(e.target.value) || 500 })}
+            value={config.historyDatabaseLimitMb || 100}
+            onChange={(e) => updateConfig({ historyDatabaseLimitMb: parseInt(e.target.value) || 100 })}
           />
         </div>
       </div>
