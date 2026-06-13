@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react'
+import { ModalOverlay } from './ModalOverlay'
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
 
 interface AboutModalProps {
   onClose: () => void
@@ -12,16 +14,9 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
     if (modalRef.current) {
       modalRef.current.focus()
     }
+  }, [])
 
-    // Escape listener
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  useEscapeKey(onClose)
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -35,22 +30,14 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
   }
 
   return (
-    <div
+    <ModalOverlay
       onClick={handleOverlayClick}
+      containerRef={modalRef}
       role="dialog"
       aria-modal="true"
       aria-label="About Vet"
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         zIndex: 20000,
         userSelect: 'none'
       }}
@@ -245,7 +232,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
           Done
         </button>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 

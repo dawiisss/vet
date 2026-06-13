@@ -33,6 +33,7 @@ export function initHistoryDb() {
 
   try {
     db = new DatabaseSync(DB_FILE)
+    db.exec('PRAGMA foreign_keys = ON;')
 
     // Create tables
     db.exec(`
@@ -281,7 +282,7 @@ function getDatabaseSizeMb(): number {
 function pruneHistory() {
   if (!db) return
   const config = getConfig()
-  const limitMb = config.historyDatabaseLimitMb || 500
+  const limitMb = config.historyDatabaseLimitMb || 100
   const keepDays = config.historyKeepDays || 30
 
   try {
@@ -305,10 +306,10 @@ function pruneHistory() {
           deleteStmt.run(row.id)
           deleteSearchStmt.run(row.id)
         }
-        
-        db.exec('VACUUM')
+
         sizeMb = getDatabaseSizeMb()
       }
+      db.exec('VACUUM')
     }
   } catch (err) {
     console.error('Prune Error:', err)

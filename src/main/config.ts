@@ -1,8 +1,38 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, safeStorage } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import chokidar from 'chokidar'
 import JSON5 from 'json5'
+
+function encryptField(value: string): string {
+  if (!value) return value
+  if (value.startsWith('encrypted:')) return value
+  if (!safeStorage || !safeStorage.isEncryptionAvailable()) return value
+  try {
+    const encrypted = safeStorage.encryptString(value)
+    return 'encrypted:' + encrypted.toString('base64')
+  } catch (err) {
+    console.error('Failed to encrypt config field:', err)
+    return value
+  }
+}
+
+function decryptField(value: string): string {
+  if (!value) return value
+  if (!value.startsWith('encrypted:')) return value
+  if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
+    console.warn('Encryption not available, cannot decrypt field')
+    return value
+  }
+  try {
+    const base64Data = value.substring('encrypted:'.length)
+    const encryptedBuffer = Buffer.from(base64Data, 'base64')
+    return safeStorage.decryptString(encryptedBuffer)
+  } catch (err) {
+    console.error('Failed to decrypt config field:', err)
+    return ''
+  }
+}
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.config', 'vet')
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json5')
@@ -14,6 +44,7 @@ const DEFAULT_CONFIG: any = {
   opacity: 1.0,
   vibrancy: 'none',
   webglEnabled: true,
+  maxActiveTerminals: 4,
   sidebarPlacement: 'right',
   sidebarOpen: true,
   sidebarWidth: 250,
@@ -27,7 +58,7 @@ const DEFAULT_CONFIG: any = {
   cursorStyle: 'block',
   cursorBlink: true,
   historyLoggingEnabled: true,
-  historyDatabaseLimitMb: 500,
+  historyDatabaseLimitMb: 100,
   historyKeepDays: 30,
   virtualScrollbackEnabled: true,
   virtualScrollbackBufferSize: 1000,
@@ -52,6 +83,9 @@ const DEFAULT_CONFIG: any = {
     'ctrl+shift+m': 'app:maximize',
     'ctrl+q': 'app:quit'
   },
+  browserHomepage: 'https://duckduckgo.com',
+  browserSearchEngine: 'duckduckgo',
+  browserAdblockEnabled: true,
   profiles: [
     {
       id: "default",
@@ -150,6 +184,16 @@ export function sanitizeConfig(conf: any): any {
     sanitized.clipboardHistoryKeepDays = Math.max(1, Math.min(365, sanitized.clipboardHistoryKeepDays))
   }
 
+  if (sanitized.browserAdblockEnabled === undefined) {
+    sanitized.browserAdblockEnabled = true
+  }
+  if (!sanitized.browserHomepage || typeof sanitized.browserHomepage !== 'string') {
+    sanitized.browserHomepage = 'https://duckduckgo.com'
+  }
+  if (sanitized.browserSearchEngine !== 'duckduckgo' && sanitized.browserSearchEngine !== 'google' && sanitized.browserSearchEngine !== 'bing') {
+    sanitized.browserSearchEngine = 'duckduckgo'
+  }
+
   return sanitized
 }
 
@@ -205,7 +249,21 @@ async function loadConfig(): Promise<boolean> {
   try {
     const raw = await fs.readFile(CONFIG_FILE, 'utf-8')
     const parsed = JSON5.parse(raw)
-    currentConfig = sanitizeConfig({ ...DEFAULT_CONFIG, ...parsed })
+    const sanitized = sanitizeConfig({ ...DEFAULT_CONFIG, ...parsed })
+    
+    // Decrypt passwords and passphrases in the loaded config
+    if (sanitized.sshHosts && Array.isArray(sanitized.sshHosts)) {
+      for (const h of sanitized.sshHosts) {
+        if (h.password) {
+          h.password = decryptField(h.password)
+        }
+        if (h.passphrase) {
+          h.passphrase = decryptField(h.passphrase)
+        }
+      }
+    }
+    
+    currentConfig = sanitized
     return true
   } catch (e: any) {
     if (e.code === 'ENOENT') {
@@ -220,7 +278,19 @@ async function loadConfig(): Promise<boolean> {
 
 async function saveConfig(): Promise<void> {
   try {
-    const content = JSON5.stringify(currentConfig, null, 2)
+    // Clone config to encrypt passwords for saving without modifying the in-memory config
+    const configToSave = JSON.parse(JSON.stringify(currentConfig))
+    if (configToSave.sshHosts && Array.isArray(configToSave.sshHosts)) {
+      for (const h of configToSave.sshHosts) {
+        if (h.password) {
+          h.password = encryptField(h.password)
+        }
+        if (h.passphrase) {
+          h.passphrase = encryptField(h.passphrase)
+        }
+      }
+    }
+    const content = JSON5.stringify(configToSave, null, 2)
     await fs.writeFile(CONFIG_FILE, content, 'utf-8')
   } catch (e) {
     console.error('Failed to save config file:', e)

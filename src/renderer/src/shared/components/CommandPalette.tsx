@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { ModalOverlay } from '@/shared/components/ModalOverlay'
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useFocusTrap } from '@/shared/hooks/useFocusTrap'
 
 export interface CommandAction {
   id: string
@@ -53,6 +56,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
     setSelectedIndex(0)
   }, [query])
 
+  useEscapeKey(onClose, isOpen)
+  useFocusTrap(containerRef, isOpen)
+
   if (!isOpen) return null
 
   const executeSelected = () => {
@@ -85,45 +91,14 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
   }
 
   return (
-    <div
-      ref={containerRef}
+    <ModalOverlay
+      containerRef={containerRef}
       onClick={handleOverlayClick}
-      onKeyDownCapture={(e) => {
-        if (e.key === 'Tab' && containerRef.current) {
-          const focusableElements = Array.from(
-            containerRef.current.querySelectorAll<HTMLElement>(
-              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            )
-          ).filter((el) => el.offsetParent !== null)
-
-          if (focusableElements.length > 0) {
-            const firstElement = focusableElements[0]
-            const lastElement = focusableElements[focusableElements.length - 1]
-
-            if (e.shiftKey) {
-              if (document.activeElement === firstElement || document.activeElement === containerRef.current) {
-                e.preventDefault()
-                lastElement.focus()
-              }
-            } else {
-              if (document.activeElement === lastElement) {
-                e.preventDefault()
-                firstElement.focus()
-              }
-            }
-          }
-        }
-      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command Palette"
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
         alignItems: 'flex-start',
-        justifyContent: 'center',
         paddingTop: '10vh',
         zIndex: 10000
       }}
@@ -193,7 +168,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, action
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 

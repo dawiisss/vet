@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
+import { buildShortcutString } from '@/shared/utils/keybindings'
 
 const AVAILABLE_ACTIONS = [
   { id: 'tab:new', label: 'New Tab' },
@@ -43,28 +44,15 @@ export const KeybindingsManager: React.FC = () => {
       e.preventDefault()
       e.stopPropagation()
 
-      // Normalize key
-      let key = e.key.toLowerCase()
-      if (key === 'control') key = 'ctrl'
-      if (key === 'escape') {
+      if (e.key === 'Escape') {
         setRecordingAction(null)
         return
       }
 
-      // We only care if there is an actual key pressed besides modifiers
-      if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
+      const shortcut = buildShortcutString(e)
+      if (!shortcut) {
         return // Wait for next key
       }
-
-      const parts = []
-      if (e.ctrlKey) parts.push('ctrl')
-      if (e.altKey) parts.push('alt')
-      if (e.shiftKey) parts.push('shift')
-      if (e.metaKey) parts.push('meta')
-      
-      parts.push(key)
-
-      const shortcut = parts.join('+')
 
       // Update config
       const newKeybindings = { ...currentKeybindings }

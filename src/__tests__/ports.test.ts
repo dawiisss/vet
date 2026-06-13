@@ -8,6 +8,7 @@ jest.mock('electron', () => ({
 
 jest.mock('child_process', () => ({
   exec: jest.fn(),
+  execFile: jest.fn(),
 }))
 
 jest.mock('os', () => ({
@@ -50,7 +51,7 @@ describe('ports', () => {
 
     it('parses lsof output into port info', async () => {
       const child = require('child_process')
-      child.exec.mockImplementation((_cmd: string, cb: any) => {
+      child.execFile.mockImplementation((_file: string, _args: string[], cb: any) => {
         cb(null, { stdout: lsofOutput })
         return {}
       })
@@ -64,7 +65,7 @@ describe('ports', () => {
     it('returns empty array on exec error', async () => {
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const child = require('child_process')
-      child.exec.mockImplementation((_cmd: string, cb: any) => {
+      child.execFile.mockImplementation((_file: string, _args: string[], cb: any) => {
         cb(new Error('lsof not found'))
         return {}
       })
@@ -78,6 +79,11 @@ describe('ports', () => {
   describe('ports:kill handler', () => {
     beforeEach(() => {
       jest.spyOn(process, 'kill').mockImplementation(() => true)
+      const child = require('child_process')
+      child.execFile.mockImplementation((_file: string, _args: string[], cb: any) => {
+        cb(null, { stdout: 'COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nnode    1234 user   23u  IPv6 0x...      0t0  TCP *:3000 (LISTEN)' })
+        return {}
+      })
     })
 
     afterEach(() => {
@@ -87,7 +93,7 @@ describe('ports', () => {
     it('kills process by pid using process.kill', async () => {
       const result = await killHandler({}, 1234)
       expect(result).toBe(true)
-      expect(process.kill).toHaveBeenCalledWith(1234, 'SIGKILL')
+      expect(process.kill).toHaveBeenCalledWith(1234, 'SIGTERM')
     })
 
     it('returns false on invalid pid', async () => {

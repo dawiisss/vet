@@ -59,6 +59,14 @@ jest.mock('@xterm/addon-image', () => ({
   ImageAddon: jest.fn().mockImplementation(() => ({ dispose: jest.fn() })),
 }))
 
+jest.mock('../renderer/src/features/browser/components/BrowserView', () => {
+  return {
+    __esModule: true,
+    default: () => <div data-testid="mock-browser-view" />,
+    BrowserView: () => <div data-testid="mock-browser-view" />
+  }
+})
+
 jest.mock('../renderer/src/features/settings/useConfigStore', () => ({
   useConfig: () => ({
     config: {
@@ -155,5 +163,16 @@ describe('SplitPane', () => {
     )
     const handles = container.querySelectorAll('.split-handle')
     expect(handles).toHaveLength(2)
+  })
+
+  it('renders browser view for browser leaf node', () => {
+    const node = { browserId: 'browser-1' }
+    const { getByTestId } = render(
+      <SplitPane
+        node={node} path={[]} focusedPath={[]} isActive={true}
+        onFocus={onFocus} onExit={onExit} onResize={onResize}
+      />
+    )
+    expect(getByTestId('mock-browser-view')).toBeInTheDocument()
   })
 })

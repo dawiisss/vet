@@ -39,6 +39,13 @@ jest.mock('electron', () => {
     },
     BrowserWindow,
     ipcMain: { handle: ipcHandleMock, on: ipcOnMock },
+    session: {
+      defaultSession: {
+        webRequest: {
+          onHeadersReceived: jest.fn()
+        }
+      }
+    }
   }
 })
 
@@ -94,6 +101,19 @@ jest.mock('../main/historyDb', () => ({
   deleteSession: jest.fn(),
 }))
 
+jest.mock('../main/adblocker', () => ({
+  initAdblocker: jest.fn(() => Promise.resolve()),
+  registerAdblockerIpcHandlers: jest.fn(),
+}))
+
+jest.mock('../main/sftp', () => ({
+  initSftpManager: jest.fn(),
+}))
+
+jest.mock('../main/clipboardHistory', () => ({
+  initClipboardHistoryManager: jest.fn(),
+}))
+
 describe('main process index', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -124,6 +144,7 @@ describe('main process index', () => {
     expect(calls).toContain('terminal:detach-tab')
     expect(calls).toContain('terminal:reattach-tab')
     expect(calls).toContain('terminal:get-info')
+    expect(calls).toContain('terminal:set-foreground')
 
     // History
     expect(calls).toContain('history:search')
@@ -145,8 +166,10 @@ describe('main process index', () => {
     const { initWorkspaceManager } = require('../main/workspace')
     const { initConnectionsManager } = require('../main/connections')
     const { initHistoryDb } = require('../main/historyDb')
+    const { initAdblocker } = require('../main/adblocker')
 
     expect(initConfigManager).toHaveBeenCalled()
+    expect(initAdblocker).toHaveBeenCalled()
     expect(initSessionManager).toHaveBeenCalled()
     expect(initSysInfoManager).toHaveBeenCalled()
     expect(initPortsManager).toHaveBeenCalled()

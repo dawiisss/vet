@@ -1,12 +1,12 @@
 import { ipcMain } from 'electron'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import os from 'os'
 import { getConfig } from './config'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export interface ConnectionInfo {
   name: string
@@ -58,7 +58,7 @@ export function initConnectionsManager() {
 
   ipcMain.handle('connections:get-docker', async (): Promise<ConnectionInfo[]> => {
     try {
-      const { stdout } = await execAsync('docker ps --format "{{.Names}}"')
+      const { stdout } = await execFileAsync('docker', ['ps', '--format', '{{.Names}}'])
       const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean)
       const config = getConfig()
       const shell = config.dockerDefaultShell || '/bin/bash'

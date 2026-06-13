@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react'
 import TerminalView from './TerminalView'
+import BrowserView from '../../browser/components/BrowserView'
 import { getNode, firstLeafId } from '../splitTree'
 import type { SplitNode } from '../splitTree'
 
@@ -13,19 +14,37 @@ interface SplitPaneProps {
   onResize: (path: number[], newSizes: number[]) => void
   onExtract?: (path: number[]) => void
   onContextMenuAction?: (path: number[], action: 'split-h' | 'split-v' | 'close') => void
+  leafCount?: number
 }
 
 function pathsEqual(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
 }
 
-function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResize, onExtract, onContextMenuAction }: SplitPaneProps) {
+function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResize, onExtract, onContextMenuAction, leafCount }: SplitPaneProps) {
   if (node.terminalId) {
     const focused = isActive && pathsEqual(path, focusedPath)
     return (
       <div style={{ flex: 1, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
         <TerminalView
           terminalId={node.terminalId}
+          isActive={isActive}
+          isFocused={focused}
+          onFocus={() => onFocus(path)}
+          onExit={(id) => onExit(id)}
+          onExtract={onExtract ? () => onExtract(path) : undefined}
+          onContextMenuAction={onContextMenuAction ? (action) => onContextMenuAction(path, action) : undefined}
+        />
+      </div>
+    )
+  }
+
+  if (node.browserId) {
+    const focused = isActive && pathsEqual(path, focusedPath)
+    return (
+      <div style={{ flex: 1, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+        <BrowserView
+          browserId={node.browserId}
           isActive={isActive}
           isFocused={focused}
           onFocus={() => onFocus(path)}
@@ -53,6 +72,7 @@ function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResiz
       onExit={onExit}
       onResize={onResize}
       onExtract={onExtract}
+      leafCount={leafCount}
     >
       {children}
     </SplitContainer>
@@ -71,6 +91,7 @@ interface SplitContainerProps {
   onResize: (path: number[], newSizes: number[]) => void
   onExtract?: (path: number[]) => void
   onContextMenuAction?: (path: number[], action: 'split-h' | 'split-v' | 'close') => void
+  leafCount?: number
 }
 
 function SplitContainer({
@@ -84,7 +105,8 @@ function SplitContainer({
   onExit,
   onResize,
   onExtract,
-  onContextMenuAction
+  onContextMenuAction,
+  leafCount
 }: SplitContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef<{
@@ -192,6 +214,7 @@ function SplitContainer({
               onResize={onResize}
               onExtract={onExtract}
               onContextMenuAction={onContextMenuAction}
+              leafCount={leafCount}
             />
           </div>
         </React.Fragment>

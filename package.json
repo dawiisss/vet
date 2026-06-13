@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "main": "./out/main/index.js",
@@ -53,10 +53,12 @@
         "dmg",
         "zip"
       ]
-    }
+    },
+    "npmRebuild": true
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "@ghostery/adblocker-electron": "^2.18.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-image": "^0.9.0",
     "@xterm/addon-ligatures": "^0.10.0",
@@ -103,7 +105,8 @@
     "typescript-eslint": "^8.0.0"
   },
   "overrides": {
-    "nan": "^2.22.0"
+    "nan": "^2.22.0",
+    "esbuild": "^0.28.1"
   },
   "allowScripts": {
     "node-pty@1.1.0": true

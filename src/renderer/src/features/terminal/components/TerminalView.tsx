@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { buildShortcutString } from '@/shared/utils/keybindings'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SerializeAddon } from '@xterm/addon-serialize'
@@ -295,18 +296,8 @@ function TerminalView({ terminalId, isActive, isFocused, onExit, onFocus, onExtr
           return false
         }
         
-        let key = e.key.toLowerCase()
-        if (key === 'control') key = 'ctrl'
-        if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) return true
-
-        const parts = []
-        if (e.ctrlKey) parts.push('ctrl')
-        if (e.altKey) parts.push('alt')
-        if (e.shiftKey) parts.push('shift')
-        if (e.metaKey) parts.push('meta')
-        parts.push(key)
-
-        const shortcut = parts.join('+')
+        const shortcut = buildShortcutString(e)
+        if (!shortcut) return true
 
         if (shortcut === 'ctrl+backspace') {
           window.terminalApi?.write(terminalId, '\x17')

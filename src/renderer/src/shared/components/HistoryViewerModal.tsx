@@ -4,6 +4,9 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { useConfig } from '@/features/settings/useConfigStore'
 import { resolveTheme, toXtermTheme } from '@/themes'
+import { ModalOverlay } from './ModalOverlay'
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useFocusTrap } from '@/shared/hooks/useFocusTrap'
 import '@xterm/xterm/css/xterm.css'
 
 interface HistoryViewerModalProps {
@@ -13,10 +16,14 @@ interface HistoryViewerModalProps {
 
 const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onClose }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
   const { config } = useConfig()
+
+  useEscapeKey(onClose)
+  useFocusTrap(modalRef)
 
   useEffect(() => {
     const container = containerRef.current
@@ -92,18 +99,13 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
   }
 
   return (
-    <div
+    <ModalOverlay
+      containerRef={modalRef}
       onClick={handleOverlayClick}
-      style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000
-      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="History Viewer"
+      style={{ zIndex: 10000 }}
     >
       <div
         style={{
@@ -168,7 +170,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({ sessionId, onCl
           style={{ flex: 1, padding: '10px 10px 10px 20px', overflow: 'hidden' }} 
         />
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
