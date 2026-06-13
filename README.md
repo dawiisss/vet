@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)](https://nodejs.org)
-[![Platform Compatibility](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/dawiisss/vet)
+[![Platform Compatibility](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://github.com/dawiisss/vet)
 [![Adblock Engine](https://img.shields.io/badge/adblocker-ghostery-brightgreen.svg)](https://github.com/ghostery/adblocker)
 
 Vet (Very Easy Terminal) is a free, open-source, high-performance, cross-platform terminal emulator and developer productivity workspace built on **Electron**, **React**, and **TypeScript**. Designed for software engineers, systems administrators, DevOps professionals, and power users, Vet combines a GPU-accelerated command-line interface (CLI) with a suite of integrated tools—including a secure ad-blocking web browser, a remote SSH/SFTP connection manager, and live system monitoring—to deliver a unified, zero-config workspace.
