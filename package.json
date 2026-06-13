@@ -102,12 +102,13 @@
     "react-dom": "^19.0.0",
     "ts-jest": "^29.4.11",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "cpu-features": "file:./stubs/cpu-features-0.0.10.tgz"
   },
   "overrides": {
     "nan": "^2.22.0",
     "esbuild": "^0.28.1",
-    "cpu-features": "file:./stubs/cpu-features"
+    "cpu-features": "$cpu-features"
   },
   "allowScripts": {
     "node-pty@1.1.0": true
