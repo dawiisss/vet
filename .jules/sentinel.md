@@ -3,3 +3,7 @@
 **Vulnerability:** N/A (Typing issue)
 **Learning:** The `dompurify` package (starting from v3) includes its own type definitions. Installing the deprecated `@types/dompurify` stub package is unnecessary and causes package manager warnings.
 **Prevention:** When installing `dompurify` to patch XSS vectors via `dangerouslySetInnerHTML`, only `pnpm add dompurify` is required. Do not add `@types/dompurify` to devDependencies.
+## 2024-10-24 - [WebContents Security] Fix WebContents navigation/window bypass
+**Vulnerability:** The `will-navigate` and `setWindowOpenHandler` security restrictions were only attached to the main `BrowserWindow` instance. If a new `webContents` (like a `<webview>` or child window) was spawned, it would bypass these restrictions, allowing arbitrary navigation or uncontrolled window creation.
+**Learning:** Security handlers must be attached globally via `app.on('web-contents-created')` to catch *all* webContents. Crucially, this global listener must be registered *before* `createWindow()` is called, and it must explicitly differentiate between the main window and `<webview>` tags (which need to load external URLs) to avoid breaking functionality.
+**Prevention:** Apply the Principle of Least Privilege globally. Always attach Electron security event listeners to the global `app` lifecycle events (`web-contents-created`) rather than specific `BrowserWindow` instances, while ensuring proper type checks (`contents.getType()`) are used to maintain intended component capabilities.

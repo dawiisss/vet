@@ -78,39 +78,6 @@ function createWindow(): BrowserWindow {
     console.log(`[renderer ${prefix}] ${message}`)
   })
 
-  // Security: Block unauthorized new window creation
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const { shell } = require('electron')
-      const parsedUrl = new URL(url)
-      const safeProtocols = ['http:', 'https:', 'mailto:']
-      if (safeProtocols.includes(parsedUrl.protocol)) {
-        shell.openExternal(url)
-      } else {
-        console.warn(`[security] Blocked attempt to open new window with unsafe URL: ${url}`)
-      }
-    } catch (e) {
-      console.warn(`[security] Blocked attempt to open new window with invalid URL: ${url}`)
-    }
-    return { action: 'deny' }
-  })
-
-  // Security: Block unauthorized navigation
-  win.webContents.on('will-navigate', (event, url) => {
-    try {
-      const parsedUrl = new URL(url)
-      // Allow local file navigation in dev or to our specific index.html
-      if (parsedUrl.protocol === 'file:' || (is.dev && parsedUrl.hostname === 'localhost')) {
-         return
-      }
-
-      console.warn(`[security] Blocked unauthorized navigation to: ${url}`)
-      event.preventDefault()
-    } catch (e) {
-      console.warn(`[security] Blocked unauthorized navigation to invalid URL: ${url}`)
-      event.preventDefault()
-    }
-  })
 
   // Forward webview keyboard events for app hotkeys / shortcuts
   win.webContents.on('did-attach-webview', (_, guestWebContents) => {
@@ -218,6 +185,45 @@ EventEmitter.defaultMaxListeners = 50
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.vet')
 
+  // Security: Prevent arbitrary window creation from any web contents
+  app.on('web-contents-created', (_event, contents) => {
+    contents.setWindowOpenHandler(({ url }) => {
+      try {
+        const { shell } = require('electron')
+        const parsedUrl = new URL(url)
+        const safeProtocols = ['http:', 'https:', 'mailto:']
+        if (safeProtocols.includes(parsedUrl.protocol)) {
+          shell.openExternal(url)
+        } else {
+          console.warn(`[security] Blocked attempt to open new window with unsafe URL: ${url}`)
+        }
+      } catch (e) {
+        console.warn(`[security] Blocked attempt to open new window with invalid URL: ${url}`)
+      }
+      return { action: 'deny' }
+    })
+
+    contents.on('will-navigate', (event, url) => {
+      // Do not block navigation for webviews, which are used to browse external content
+      if (contents.getType() === 'webview') {
+        return
+      }
+
+      try {
+        const parsedUrl = new URL(url)
+        // Allow local file navigation in dev or to our specific index.html
+        if (parsedUrl.protocol === 'file:' || (is.dev && parsedUrl.hostname === 'localhost')) {
+           return
+        }
+
+        console.warn(`[security] Blocked unauthorized navigation to: ${url}`)
+        event.preventDefault()
+      } catch (e) {
+        console.warn(`[security] Blocked unauthorized navigation to invalid URL: ${url}`)
+        event.preventDefault()
+      }
+    })
+  })
 
   registerIpcHandlers()
   mainWindow = createWindow()
@@ -239,6 +245,8 @@ app.whenReady().then(async () => {
   historyDb.initHistoryDb()
 
   loadWindow(mainWindow)
+
+
 
   // Load adblocker engine in background — IPC handlers are already registered
   initAdblocker(app.getPath('userData'))
