@@ -15,8 +15,6 @@ jobs:
             target: linux
           - os: windows-latest
             target: win
-          - os: macos-latest
-            target: mac
 
     runs-on: ${{ matrix.os }}
 
@@ -41,13 +39,21 @@ jobs:
           npm run test
 
       - name: Build & Package
-        run: npm run dist:${{ matrix.target }}
+        run: npm run dist:${{ matrix.target }} -- --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vet-${{ matrix.target }}
-          path: dist/*
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
+            dist/*.yml
 
   release:
     needs: build
@@ -63,4 +69,12 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*
+          files: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
+            dist/*.yml

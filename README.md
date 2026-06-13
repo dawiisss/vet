@@ -86,16 +86,16 @@ Download distribution-specific binaries from the `dist/` folder:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.0.1_amd64.deb
+  sudo apt install ./dist/vet_1.0.2_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.0.1.x86_64.rpm
+  sudo dnf install ./dist/vet-1.0.2.x86_64.rpm
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.0.1.AppImage
-  ./dist/Vet-1.0.1.AppImage
+  chmod +x dist/Vet-1.0.2.AppImage
+  ./dist/Vet-1.0.2.AppImage
   ```
 
 ---
