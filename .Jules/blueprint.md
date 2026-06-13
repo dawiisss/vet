@@ -1,3 +1,0 @@
-## 2026-06-05 - Isolating IPC Boundaries from Domain Logic
-**Learning:** Mixing Electron's IPC transport logic (`ipcMain.handle`) directly with file system operations (like `fs.readFile` and `fs.readdir`) creates tight coupling, making the domain logic harder to test and reuse outside the context of IPC communication.
-**Action:** Extract core domain logic into dedicated service classes (e.g., `WorkspaceService`), ensuring the `ipcMain` handlers only act as the transport layer that delegates calls to these isolated services.
