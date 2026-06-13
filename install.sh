@@ -48,10 +48,23 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # 2. Detect package manager and system capabilities
 IS_DEB=false
 IS_RPM=false
-if command -v apt-get &> /dev/null || command -v dpkg &> /dev/null; then
-  IS_DEB=true
-elif command -v dnf &> /dev/null || command -v rpm &> /dev/null; then
-  IS_RPM=true
+
+if [ -f /etc/os-release ]; then
+  eval "$(grep -E '^(ID|ID_LIKE)=' /etc/os-release)"
+  if [[ "$ID" =~ ^(debian|ubuntu)$ ]] || [[ "$ID_LIKE" =~ (debian|ubuntu) ]]; then
+    IS_DEB=true
+  elif [[ "$ID" =~ ^(fedora|rhel|centos|suse|opensuse)$ ]] || [[ "$ID_LIKE" =~ (fedora|rhel|centos|suse|opensuse) ]]; then
+    IS_RPM=true
+  fi
+fi
+
+# Fallback to command detection if os-release wasn't conclusive
+if [ "$IS_DEB" = false ] && [ "$IS_RPM" = false ]; then
+  if command -v apt-get &> /dev/null; then
+    IS_DEB=true
+  elif command -v dnf &> /dev/null || command -v yum &> /dev/null; then
+    IS_RPM=true
+  fi
 fi
 
 # Define URLs for release assets
