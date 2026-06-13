@@ -45,7 +45,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vet-${{ matrix.target }}
-          path: dist/*
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
 
   release:
     needs: build
@@ -61,4 +68,11 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*
+          files: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
