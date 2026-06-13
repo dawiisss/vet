@@ -1,6 +1,0 @@
-## 2026-06-06 - xterm.js Addon Lifecycle Management
-Learning: When adding new xterm.js addons like `ImageAddon`, they must be properly managed via refs, cached in `terminalCache`, and explicitly disposed using their `.dispose()` method when the terminal instance is destroyed to prevent memory leaks.
-Action: Always verify the lifecycle logic (instantiation, caching, restoring, and disposal) matches the existing patterns (like `WebglAddon`) when introducing new xterm.js addons into React components.
-## 2026-06-06 - Safe Clipboard Handling in Electron Terminals
-Learning: Persisting clipboard data from a terminal (which often contains secrets/API keys) to `localStorage` is a security risk. Additionally, relying on `term.onSelectionChange` to capture copies floods the clipboard and the store during mouse drag selections. Global monkey patching is also an anti-pattern.
-Action: To safely build a clipboard history feature, use transient, in-memory Zustand stores without `localStorage`. Update the store by explicitly dispatching `useClipboardStore.getState().add(sel)` immediately alongside existing `navigator.clipboard.writeText(sel)` calls rather than using global patches or selection change hooks.
