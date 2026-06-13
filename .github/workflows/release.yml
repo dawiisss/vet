@@ -41,7 +41,7 @@ jobs:
           npm run test
 
       - name: Build & Package
-        run: npm run dist:${{ matrix.target }}
+        run: npm run dist:${{ matrix.target }} -- --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
