@@ -153,15 +153,15 @@ All terminal sessions are saved locally to an SQLite database on your machine (l
 
 ## Contributing & Community
 
-Contributions to Vet are highly appreciated! Please review our **[Contributing Guidelines](file:///home/dawiisss/Documents/GitHub/vet2/CONTRIBUTING.md)** for details on coding standards, local development workflows, and pull request submissions.
+Contributions to Vet are highly appreciated! Please review our **[Contributing Guidelines](./CONTRIBUTING.md)** for details on coding standards, local development workflows, and pull request submissions.
 
 For additional support, security inquiries, and software licensing:
-* **[Security Policy](file:///home/dawiisss/Documents/GitHub/vet2/SECURITY.md)**: Guidelines on reporting vulnerabilities responsibly.
-* **[Get Support](file:///home/dawiisss/Documents/GitHub/vet2/SUPPORT.md)**: Channels for questions, troubleshooting, and discussions.
-* **[Third-Party Acknowledgements](file:///home/dawiisss/Documents/GitHub/vet2/ACKNOWLEDGEMENTS.md)**: License credits for our bundled open-source dependencies.
+* **[Security Policy](./SECURITY.md)**: Guidelines on reporting vulnerabilities responsibly.
+* **[Get Support](./SUPPORT.md)**: Channels for questions, troubleshooting, and discussions.
+* **[Third-Party Acknowledgements](./ACKNOWLEDGEMENTS.md)**: License credits for our bundled open-source dependencies.
 
 ---
 
 ## License
 
-Vet is distributed under the MIT License. See [LICENSE](file:///home/dawiisss/Documents/GitHub/vet2/LICENSE) for more details.
+Vet is distributed under the MIT License. See [LICENSE](./LICENSE) for more details.
