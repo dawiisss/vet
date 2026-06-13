@@ -53,6 +53,7 @@ jobs:
             dist/*.exe
             dist/*.zip
             dist/*.blockmap
+            dist/*.yml
 
   release:
     needs: build
@@ -76,3 +77,4 @@ jobs:
             dist/*.exe
             dist/*.zip
             dist/*.blockmap
+            dist/*.yml
