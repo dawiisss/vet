@@ -59,6 +59,7 @@ const windowApi: WindowApi = {
   toggleFullscreen: () => ipcRenderer.invoke('win:toggle-fullscreen'),
   close: () => ipcRenderer.invoke('win:close'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
   isMaximized: () => ipcRenderer.invoke('win:is-maximized'),
   openExternal: (url: string) => ipcRenderer.invoke('win:open-external', url),
   onMaximizeChange: (callback) => {

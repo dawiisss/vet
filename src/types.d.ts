@@ -98,6 +98,7 @@ interface WindowApi {
   toggleFullscreen: () => Promise<void>
   close: () => Promise<void>
   quit: () => Promise<void>
+  getVersion: () => Promise<string>
   isMaximized: () => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void

@@ -29,6 +29,7 @@ const windowApi = {
   isMaximized: jest.fn(() => Promise.resolve(false)),
   openExternal: jest.fn(() => Promise.resolve()),
   onMaximizeChange: jest.fn(() => jest.fn()),
+  getVersion: jest.fn(() => Promise.resolve('1.0.2')),
 }
 
 const configApi = {
