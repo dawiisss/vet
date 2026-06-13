@@ -106,7 +106,8 @@
   },
   "overrides": {
     "nan": "^2.22.0",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "cpu-features": "file:./stubs/cpu-features"
   },
   "allowScripts": {
     "node-pty@1.1.0": true
