@@ -100,7 +100,7 @@ describe('sysinfo', () => {
       ;(si.currentLoad as jest.Mock).mockRejectedValueOnce(testError)
 
       await startHandler()
-      await intervalCallback?.()
+      await timeoutCallback?.()
 
       // Need to flush microtasks for the promise rejection to be caught
       await Promise.resolve().then(() => {})
