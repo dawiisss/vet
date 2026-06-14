@@ -49,6 +49,17 @@ jest.mock('electron', () => {
   }
 })
 
+jest.mock('electron-updater', () => ({
+  autoUpdater: {
+    autoDownload: false,
+    checkForUpdates: jest.fn(() => Promise.resolve({ success: true })),
+    checkForUpdatesAndNotify: jest.fn(() => Promise.resolve()),
+    downloadUpdate: jest.fn(() => Promise.resolve({ success: true })),
+    quitAndInstall: jest.fn(),
+    on: jest.fn(),
+  }
+}))
+
 jest.mock('@electron-toolkit/utils', () => ({
   electronApp: { setAppUserModelId: jest.fn() },
   is: { dev: false },

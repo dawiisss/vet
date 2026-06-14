@@ -227,7 +227,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
               GitHub Repository
             </a>
           </div>
-          {import.meta.env.DEV && (
+          {process.env.NODE_ENV === 'development' && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--app-fg-muted)' }}>Developer Mode</span>
               <button
