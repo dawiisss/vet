@@ -2,6 +2,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'catppuccin-mocha': {
     background: '#1e1e2e',
     foreground: '#cdd6f4',
+    accent: '#cba6f7', // Mauve
     cursor: '#f5e0dc',
     cursorAccent: '#1e1e2e',
     selection: '#585b70',
@@ -25,6 +26,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'nord': {
     background: '#2e3440',
     foreground: '#d8dee9',
+    accent: '#88c0d0', // Frost Cyan
     cursor: '#d8dee9',
     cursorAccent: '#2e3440',
     selection: '#4c566a',
@@ -48,6 +50,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'dracula': {
     background: '#282a36',
     foreground: '#f8f8f2',
+    accent: '#bd93f9', // Dracula Purple
     cursor: '#f8f8f2',
     cursorAccent: '#282a36',
     selection: '#44475a',
@@ -71,6 +74,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'onedark': {
     background: '#282c34',
     foreground: '#abb2bf',
+    accent: '#61afef', // One Dark Blue
     cursor: '#528bff',
     cursorAccent: '#282c34',
     selection: '#3e4451',
@@ -94,6 +98,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'monokai': {
     background: '#272822',
     foreground: '#f8f8f2',
+    accent: '#f92672', // Monokai Pink
     cursor: '#f8f8f0',
     cursorAccent: '#272822',
     selection: '#49483e',
@@ -117,6 +122,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'tokyo-night': {
     background: '#1a1b26',
     foreground: '#c0caf5',
+    accent: '#7aa2f7', // Tokyo Night Blue
     cursor: '#c0caf5',
     cursorAccent: '#1a1b26',
     selection: '#283457',
@@ -140,6 +146,7 @@ export const builtinThemes: Record<string, ThemeConfig> = {
   'solarized-dark': {
     background: '#002b36',
     foreground: '#839496',
+    accent: '#268bd2', // Solarized Blue
     cursor: '#839496',
     cursorAccent: '#002b36',
     selection: '#073642',

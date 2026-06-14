@@ -394,7 +394,7 @@ function App() {
         ['--app-bg' as any]: themeObj.background,
         ['--app-fg' as any]: themeObj.foreground,
         ['--app-border' as any]: themeObj.selection || 'rgba(255,255,255,0.1)',
-        ['--app-accent' as any]: themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
+        ['--app-accent' as any]: themeObj.accent || themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
         ['--app-red' as any]: themeObj.red || 'var(--app-red)',
         ['--app-green' as any]: themeObj.green || 'var(--app-green)',
         ['--app-yellow' as any]: themeObj.yellow || 'var(--app-yellow)',

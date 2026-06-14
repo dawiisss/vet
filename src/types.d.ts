@@ -1,6 +1,7 @@
 interface ThemeConfig {
   background: string
   foreground: string
+  accent?: string
   cursor: string
   cursorAccent?: string
   selection: string
