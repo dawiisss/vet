@@ -227,6 +227,32 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
               GitHub Repository
             </a>
           </div>
+          {import.meta.env.DEV && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'var(--app-fg-muted)' }}>Developer Mode</span>
+              <button
+                onClick={() => {
+                  window.updaterApi.simulateUpdate()
+                  onClose()
+                }}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid var(--app-accent, #10b981)',
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  color: 'var(--app-accent, #10b981)',
+                  cursor: 'pointer',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  transition: 'background-color 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.22)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.12)'}
+              >
+                Simulate Update
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action button */}

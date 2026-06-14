@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain, webContents } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import { setForwardTarget, destroyTerminal } from './pty'
 import { registerWindowHandlers } from './ipc/windowHandlers'
 import { registerHistoryHandlers } from './ipc/historyHandlers'
 import { registerTerminalHandlers } from './ipc/terminalHandlers'
+import { registerUpdaterHandlers } from './ipc/updaterHandlers'
 import { initAdblocker, registerAdblockerIpcHandlers } from './adblocker'
 
 import icon from '../../resources/icon.png?asset'
@@ -180,6 +182,7 @@ function registerIpcHandlers(): void {
     registerForwardTarget
   })
   registerAdblockerIpcHandlers()
+  registerUpdaterHandlers(() => mainWindow)
 
   ipcMain.handle('webview:set-ignore-mouse-events', (_, wcId: number, ignore: boolean) => {
     try {
@@ -242,6 +245,11 @@ app.whenReady().then(async () => {
 
   // Load adblocker engine in background — IPC handlers are already registered
   initAdblocker(app.getPath('userData'))
+
+  // Start update check in background after 5s
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify().catch(console.error)
+  }, 5000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
