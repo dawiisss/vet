@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-
-
+import { useUpdaterStore } from '@/shared/stores/useUpdaterStore'
+import { useUIStore } from '@/shared/stores/useUIStore'
 
 interface TitleBarProps {
   onOpenSettings?: () => void
@@ -9,6 +9,8 @@ interface TitleBarProps {
 
 function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false)
+  const { status, updateInfo } = useUpdaterStore()
+  const setIsUpdateModalOpen = useUIStore((s) => s.setIsUpdateModalOpen)
 
   useEffect(() => {
     const api = window.windowApi
@@ -62,6 +64,43 @@ function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
         Vet
       </div>
       <div style={{ display: 'flex', height: '100%' }}>
+        {(status === 'available' || status === 'downloading' || status === 'downloaded') && (
+          <button
+            className="titlebar-btn"
+            onClick={() => setIsUpdateModalOpen(true)}
+            style={{
+              ...btnStyle,
+              color: 'var(--app-accent, #10b981)',
+              position: 'relative'
+            }}
+            title={`Software Update Available (${updateInfo?.version || ''})`}
+            aria-label="Software Update Available"
+          >
+            <style>{`
+              @keyframes vetUpdatePulse {
+                0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+              }
+              .vet-update-badge {
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background-color: var(--app-accent, #10b981);
+                animation: vetUpdatePulse 2s infinite;
+              }
+            `}</style>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="8 17 12 21 16 17"></polyline>
+              <line x1="12" y1="12" x2="12" y2="21"></line>
+              <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+            </svg>
+            <span className="vet-update-badge" />
+          </button>
+        )}
         {onOpenAbout && (
           <button
             className="titlebar-btn"
