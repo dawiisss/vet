@@ -1,0 +1,1 @@
+## 2026-06-15 - Adding comprehensive unit tests for buildShortcutString Learning: The Arrange-Act-Assert pattern effectively structures testing of key combinations and modifier precedence in keyboard event utilities. Action: Will continue applying AAA and rigorous edge case coverage for input handling functions.
