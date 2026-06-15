@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useFocusTrap } from '@/shared/hooks/useFocusTrap'
 
-const TestComponent = ({ active = true }) => {
+const TestComponent = ({ active = true }: { active?: boolean }) => {
   const ref = useRef<HTMLDivElement>(null)
   useFocusTrap(ref, active)
 
