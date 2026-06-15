@@ -1,0 +1,1 @@
+## 2024-06-15 - [Database] Learning: [N+1 SQLite Queries] Action: [When replacing N+1 queries with a single query using an IN clause in node:sqlite, dynamically construct the parameterized query with the exact number of ? placeholders and execute it by spreading the array of values. Always ensure the number of parameters remains safely below SQLite's maximum variable limits.]
