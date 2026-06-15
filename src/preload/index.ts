@@ -320,7 +320,12 @@ webFrame.executeJavaScript(`
   function applyRules(text, rules) {
     if (!rules || !rules.length) return text
     for (var i = 0; i < rules.length; i++) {
-      try { text = text.replace(new RegExp(rules[i].regex, rules[i].flags), rules[i].replacement) } catch(_){}
+      try {
+        if (!rules[i]._compiledRegex) {
+          rules[i]._compiledRegex = new RegExp(rules[i].regex, rules[i].flags)
+        }
+        text = text.replace(rules[i]._compiledRegex, rules[i].replacement)
+      } catch(_){}
     }
     return text
   }
