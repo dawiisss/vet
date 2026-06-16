@@ -80,7 +80,7 @@ Every terminal session is indexed and saved to a local SQLite database. Search y
 ### Automated Installer (Linux)
 Install Vet instantly using our automated bash script:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/dev/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/main/install.sh | bash
 ```
 
 ### Manual Package Installation

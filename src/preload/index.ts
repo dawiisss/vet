@@ -59,6 +59,7 @@ const windowApi: WindowApi = {
   toggleFullscreen: () => ipcRenderer.invoke('win:toggle-fullscreen'),
   close: () => ipcRenderer.invoke('win:close'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
   isMaximized: () => ipcRenderer.invoke('win:is-maximized'),
   openExternal: (url: string) => ipcRenderer.invoke('win:open-external', url),
   onMaximizeChange: (callback) => {
@@ -174,6 +175,32 @@ const adblockerApi = {
   getAppPreloadPath: () => ipcRenderer.invoke('adblocker:get-app-preload-path') as Promise<string>
 }
 
+const statusChangeHandlers = new Set<(status: any, info?: any) => void>()
+const downloadProgressHandlers = new Set<(progress: any) => void>()
+
+ipcRenderer.on('updater:status', (_event, status, info) => {
+  statusChangeHandlers.forEach((h) => h(status, info))
+})
+
+ipcRenderer.on('updater:progress', (_event, progress) => {
+  downloadProgressHandlers.forEach((h) => h(progress))
+})
+
+const updaterApi: UpdaterApi = {
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+  quitAndInstall: () => ipcRenderer.invoke('updater:install'),
+  simulateUpdate: () => ipcRenderer.invoke('updater:simulate'),
+  onStatusChange: (callback) => {
+    statusChangeHandlers.add(callback)
+    return () => statusChangeHandlers.delete(callback)
+  },
+  onDownloadProgress: (callback) => {
+    downloadProgressHandlers.add(callback)
+    return () => downloadProgressHandlers.delete(callback)
+  }
+}
+
 contextBridge.exposeInMainWorld('terminalApi', terminalApi)
 contextBridge.exposeInMainWorld('windowApi', windowApi)
 contextBridge.exposeInMainWorld('configApi', configApi)
@@ -185,6 +212,7 @@ contextBridge.exposeInMainWorld('historyApi', historyApi)
 contextBridge.exposeInMainWorld('clipboardApi', clipboardApi)
 contextBridge.exposeInMainWorld('sftpApi', sftpApi)
 contextBridge.exposeInMainWorld('adblockerApi', adblockerApi)
+contextBridge.exposeInMainWorld('updaterApi', updaterApi)
 
 // Bridge mouse events from the webview's main world to the host renderer
 // so tab drag-and-drop works over browser panes.

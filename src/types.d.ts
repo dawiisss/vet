@@ -1,6 +1,7 @@
 interface ThemeConfig {
   background: string
   foreground: string
+  accent?: string
   cursor: string
   cursorAccent?: string
   selection: string
@@ -98,6 +99,7 @@ interface WindowApi {
   toggleFullscreen: () => Promise<void>
   close: () => Promise<void>
   quit: () => Promise<void>
+  getVersion: () => Promise<string>
   isMaximized: () => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void
@@ -147,6 +149,28 @@ interface SftpApi {
   getHomeDir: (sshHostId: string) => Promise<string>
 }
 
+interface UpdateInfo {
+  version: string
+  releaseDate: string
+  releaseNotes?: string
+}
+
+interface UpdateProgress {
+  percent: number
+  bytesPerSecond: number
+  transferred: number
+  total: number
+}
+
+interface UpdaterApi {
+  checkForUpdates: () => Promise<{ success: boolean; error?: string }>
+  downloadUpdate: () => Promise<{ success: boolean; error?: string }>
+  quitAndInstall: () => Promise<{ success: boolean; error?: string }>
+  simulateUpdate: () => Promise<void>
+  onStatusChange: (callback: (status: 'idle' | 'checking' | 'available' | 'uptodate' | 'downloading' | 'downloaded' | 'error', info?: UpdateInfo | string) => void) => () => void
+  onDownloadProgress: (callback: (progress: UpdateProgress) => void) => () => void
+}
+
 interface Window {
   terminalApi: TerminalApi
   windowApi: WindowApi
@@ -155,6 +179,7 @@ interface Window {
   workspaceApi: WorkspaceApi
   sftpApi: SftpApi
   clipboardApi: ClipboardApi
+  updaterApi: UpdaterApi
   serializeAddons: Map<string, any>
   adblockerApi: {
     toggle: (enabled: boolean) => Promise<boolean>

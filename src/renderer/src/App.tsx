@@ -13,9 +13,11 @@ import { useUIStore } from '@/shared/stores/useUIStore'
 import { builtinThemes, resolveTheme } from '@/themes'
 import Sidebar from '@/shared/components/Sidebar'
 import ErrorBoundary from '@/shared/components/ErrorBoundary'
+import { useUpdaterStore } from '@/shared/stores/useUpdaterStore'
 
 const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
 const AboutModal = lazy(() => import('@/shared/components/AboutModal'))
+const UpdateModal = lazy(() => import('@/shared/components/UpdateModal'))
 const HistoryViewerModal = lazy(() => import('@/shared/components/HistoryViewerModal'))
 const CommandPalette = lazy(() => import('@/shared/components/CommandPalette'))
 const FilePreviewModal = lazy(() => import('@/features/workspace/components/FilePreviewModal'))
@@ -27,12 +29,14 @@ function App() {
     error,
     isSettingsOpen,
     isAboutOpen,
+    isUpdateModalOpen,
     viewingHistorySessionId,
     isCommandPaletteOpen,
     previewFilePath,
     previewClipboardItem,
     setIsSettingsOpen,
     setIsAboutOpen,
+    setIsUpdateModalOpen,
     setIsCommandPaletteOpen,
     setViewingHistorySessionId,
     setPreviewFilePath,
@@ -77,6 +81,11 @@ function App() {
   // Initialize tabs from URL/IPC on mount
   useEffect(() => {
     initializeTabs()
+  }, [])
+
+  // Initialize auto-updater subscription
+  useEffect(() => {
+    return useUpdaterStore.getState().init()
   }, [])
 
   // Listen for window reattach tab requests
@@ -190,6 +199,13 @@ function App() {
         uiStore.setIsAboutOpen(false)
         e.preventDefault()
         e.stopPropagation()
+      } else if (e.key === 'Escape' && uiStore.isUpdateModalOpen) {
+        const updaterState = useUpdaterStore.getState()
+        if (updaterState.status !== 'downloading') {
+          uiStore.setIsUpdateModalOpen(false)
+          e.preventDefault()
+          e.stopPropagation()
+        }
       } else if (e.ctrlKey && e.key === ',') {
         e.preventDefault()
         e.stopPropagation()
@@ -378,7 +394,7 @@ function App() {
         ['--app-bg' as any]: themeObj.background,
         ['--app-fg' as any]: themeObj.foreground,
         ['--app-border' as any]: themeObj.selection || 'rgba(255,255,255,0.1)',
-        ['--app-accent' as any]: themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
+        ['--app-accent' as any]: themeObj.accent || themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
         ['--app-red' as any]: themeObj.red || 'var(--app-red)',
         ['--app-green' as any]: themeObj.green || 'var(--app-green)',
         ['--app-yellow' as any]: themeObj.yellow || 'var(--app-yellow)',
@@ -556,6 +572,7 @@ function App() {
       <Suspense fallback={null}>
         {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
         {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
+        {isUpdateModalOpen && <UpdateModal onClose={() => setIsUpdateModalOpen(false)} />}
         {viewingHistorySessionId && (
           <HistoryViewerModal
             sessionId={viewingHistorySessionId}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ModalOverlay } from './ModalOverlay'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
 
@@ -8,11 +8,16 @@ interface AboutModalProps {
 
 const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null)
+  const [version, setVersion] = useState<string>('1.0.2')
 
   useEffect(() => {
     // Focus modal for accessibility
     if (modalRef.current) {
       modalRef.current.focus()
+    }
+
+    if (window.windowApi?.getVersion) {
+      window.windowApi.getVersion().then(setVersion).catch(console.error)
     }
   }, [])
 
@@ -203,7 +208,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ color: 'var(--app-fg-muted)' }}>Version</span>
-            <span style={{ fontWeight: 600, color: 'var(--app-fg)' }}>1.0.0</span>
+            <span style={{ fontWeight: 600, color: 'var(--app-fg)' }}>{version}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ color: 'var(--app-fg-muted)' }}>Architecture</span>
@@ -222,6 +227,32 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
               GitHub Repository
             </a>
           </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'var(--app-fg-muted)' }}>Developer Mode</span>
+              <button
+                onClick={() => {
+                  window.updaterApi.simulateUpdate()
+                  onClose()
+                }}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid var(--app-accent, #10b981)',
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  color: 'var(--app-accent, #10b981)',
+                  cursor: 'pointer',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  transition: 'background-color 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.22)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.12)'}
+              >
+                Simulate Update
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action button */}

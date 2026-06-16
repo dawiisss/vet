@@ -91,3 +91,6 @@ Thumbs.db
 # Vite / bundler cache
 .vite/
 .parcel-cache/
+
+# Local electron-updater dev config
+dev-app-update.yml

@@ -34,6 +34,10 @@ export function registerWindowHandlers() {
     app.quit()
   })
 
+  ipcMain.handle('app:getVersion', () => {
+    return app.getVersion()
+  })
+
   ipcMain.handle('win:is-maximized', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     return win?.isMaximized() ?? false

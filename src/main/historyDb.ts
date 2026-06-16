@@ -300,12 +300,12 @@ function pruneHistory() {
         const oldest = oldestStmt.all() as { id: string }[]
         if (oldest.length === 0) break
 
-        const deleteStmt = db.prepare('DELETE FROM sessions WHERE id = ?')
-        const deleteSearchStmt = db.prepare('DELETE FROM session_search WHERE session_id = ?')
-        for (const row of oldest) {
-          deleteStmt.run(row.id)
-          deleteSearchStmt.run(row.id)
-        }
+        const placeholders = oldest.map(() => '?').join(',')
+        const deleteStmt = db.prepare(`DELETE FROM sessions WHERE id IN (${placeholders})`)
+        const deleteSearchStmt = db.prepare(`DELETE FROM session_search WHERE session_id IN (${placeholders})`)
+        const ids = oldest.map((row) => row.id)
+        deleteStmt.run(...ids)
+        deleteSearchStmt.run(...ids)
 
         sizeMb = getDatabaseSizeMb()
       }

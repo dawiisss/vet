@@ -6,20 +6,26 @@ import '@testing-library/jest-dom'
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import AboutModal from '../renderer/src/shared/components/AboutModal'
+import { setupMockedApis, resetMockedApis } from './rendererHelpers'
 
 describe('AboutModal', () => {
   const onClose = jest.fn()
 
+  setupMockedApis()
+
   beforeEach(() => {
     onClose.mockClear()
+    resetMockedApis()
   })
 
-  it('renders application details correctly', () => {
+  it('renders application details correctly', async () => {
     render(<AboutModal onClose={onClose} />)
 
     expect(screen.getByText('Vet')).toBeInTheDocument()
     expect(screen.getAllByText('Very Easy Terminal')[0]).toBeInTheDocument()
-    expect(screen.getByText('1.0.0')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('1.0.2')).toBeInTheDocument()
+    })
     expect(screen.getByText(/SQLite/)).toBeInTheDocument()
     expect(screen.getByText(/GitHub Repository/)).toBeInTheDocument()
   })
