@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage } from "electron";
 import * as path from "path";
 import * as fs from "fs/promises";
-import chokidar from "chokidar";
+import chokidar, { FSWatcher } from "chokidar";
 import JSON5 from "json5";
 
 function encryptField(value: string): string {
@@ -113,7 +113,7 @@ const DEFAULT_CONFIG: any = {
 };
 
 let currentConfig: any = { ...DEFAULT_CONFIG };
-let watcher: chokidar.FSWatcher | null = null;
+let watcher: FSWatcher | null = null;
 
 export function sanitizeConfig(conf: any): any {
   const sanitized = { ...conf };

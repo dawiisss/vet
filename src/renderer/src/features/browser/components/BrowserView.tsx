@@ -803,7 +803,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
               ref={webviewRef}
               id={browserId}
               partition="persist:browser"
-              allowpopups={true}
+              allowpopups={"true" as any}
               preload={appPreloadPath || undefined}
               style={{
                 width: '100%',
