@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file.
 - **Terminal Write Return Type**: Corrected the `TerminalApi.write` return type from `Promise<void>` to `void` to match the fire-and-forget `ipcRenderer.send()` implementation.
 - **Null Safety in Tab Extraction**: Added explicit null guard for `activeTabId` before passing it to `extractToTab()`, resolving a strict-mode type error.
 - **SSH Host Type Narrowing**: Added a type guard filter on `config.sshHosts` in the command palette to handle the `SshHost | { name: string; command: string }` union, preventing property access errors on command-based SSH entries.
+- **Browser Split Pane Navigation & Loops**: Fixed issues with Electron webview browser panes where splitting a tab resulted in the split pane opening the homepage instead of preserving the current page URL. Resolved double-loading abort errors on mount and resolved navigation loops (spamming back-and-forth between a new URL and the homepage) by removing legacy navigation override checks.
+- **Browser Split Pane Focus & Context Menu**: Captured standard DOM focus and mousedown events inside `<webview>` elements to ensure that clicking inside a webview correctly updates the active focused pane and keeps keyboard input correctly routed. Also added context menu close support for browser panes.
 
 ## [1.0.3] - 2026-06-16
 
