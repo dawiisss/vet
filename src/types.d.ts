@@ -104,7 +104,6 @@ interface WindowApi {
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void
   onWebviewKeydown: (callback: (data: { key: string; code: string; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; metaKey: boolean }) => void) => () => void
-  setWebviewIgnoreMouseEvents: (wcId: number, ignore: boolean) => Promise<void>
   logToTerminal?: (msg: string) => Promise<void>
 }
 

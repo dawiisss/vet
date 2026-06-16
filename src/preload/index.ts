@@ -72,9 +72,7 @@ const windowApi: WindowApi = {
     return () => {
       ipcRenderer.removeListener('webview:keydown', handler)
     }
-  },
-  setWebviewIgnoreMouseEvents: (wcId: number, ignore: boolean) =>
-    ipcRenderer.invoke('webview:set-ignore-mouse-events', wcId, ignore)
+  }
 }
 
 const configChangeHandlers = new Set<(config: Config) => void>()

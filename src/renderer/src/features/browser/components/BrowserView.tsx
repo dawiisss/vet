@@ -138,16 +138,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     setLocalAdblockEnabled(isAdblockEnabled)
   }, [isAdblockEnabled])
 
-  // Let mouse events pass through the webview during tab drag so
-  // the renderer's document receives mousemove/mouseup events
-  useEffect(() => {
-    if (webviewRef.current && window.windowApi) {
-      try {
-        const wcId = webviewRef.current.getWebContentsId()
-        window.windowApi.setWebviewIgnoreMouseEvents(wcId, !!dragState)
-      } catch {}
-    }
-  }, [dragState])
+
 
   // Forward mouse events from webview's guest page to the renderer's document
   // so tab drag-and-drop continues working when the cursor is over this pane.
@@ -809,7 +800,8 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
                 width: '100%',
                 height: '100%',
                 border: 'none',
-                background: 'white'
+                background: 'white',
+                pointerEvents: dragState ? 'none' : 'auto'
               }}
             />
             {/* eslint-enable react/no-unknown-property */}
