@@ -1,8 +1,9 @@
 export const builtinThemes: Record<string, ThemeConfig> = {
+  // Catppuccin Mocha
   'catppuccin-mocha': {
     background: '#1e1e2e',
     foreground: '#cdd6f4',
-    accent: '#cba6f7', // Mauve
+    accent: '#cba6f7',
     cursor: '#f5e0dc',
     cursorAccent: '#1e1e2e',
     selection: '#585b70',
@@ -23,10 +24,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#94e2d5',
     brightWhite: '#a6adc8'
   },
+  // Frost Cyan
   'nord': {
     background: '#2e3440',
     foreground: '#d8dee9',
-    accent: '#88c0d0', // Frost Cyan
+    accent: '#88c0d0',
     cursor: '#d8dee9',
     cursorAccent: '#2e3440',
     selection: '#4c566a',
@@ -47,10 +49,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#8fbcbb',
     brightWhite: '#eceff4'
   },
+  // Dracula Purple
   'dracula': {
     background: '#282a36',
     foreground: '#f8f8f2',
-    accent: '#bd93f9', // Dracula Purple
+    accent: '#bd93f9',
     cursor: '#f8f8f2',
     cursorAccent: '#282a36',
     selection: '#44475a',
@@ -71,10 +74,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#a4ffff',
     brightWhite: '#ffffff'
   },
+  // One Dark Blue
   'onedark': {
     background: '#282c34',
     foreground: '#abb2bf',
-    accent: '#61afef', // One Dark Blue
+    accent: '#61afef',
     cursor: '#528bff',
     cursorAccent: '#282c34',
     selection: '#3e4451',
@@ -95,10 +99,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#56b6c2',
     brightWhite: '#ffffff'
   },
+  // Monokai Pink
   'monokai': {
     background: '#272822',
     foreground: '#f8f8f2',
-    accent: '#f92672', // Monokai Pink
+    accent: '#f92672',
     cursor: '#f8f8f0',
     cursorAccent: '#272822',
     selection: '#49483e',
@@ -119,10 +124,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#a1efe4',
     brightWhite: '#f9f8f5'
   },
+  // Tokyo Night Blue
   'tokyo-night': {
     background: '#1a1b26',
     foreground: '#c0caf5',
-    accent: '#7aa2f7', // Tokyo Night Blue
+    accent: '#7aa2f7',
     cursor: '#c0caf5',
     cursorAccent: '#1a1b26',
     selection: '#283457',
@@ -143,10 +149,11 @@ export const builtinThemes: Record<string, ThemeConfig> = {
     brightCyan: '#7dcfff',
     brightWhite: '#c0caf5'
   },
+  // Solarized Blue
   'solarized-dark': {
     background: '#002b36',
     foreground: '#839496',
-    accent: '#268bd2', // Solarized Blue
+    accent: '#268bd2',
     cursor: '#839496',
     cursorAccent: '#002b36',
     selection: '#073642',

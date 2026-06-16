@@ -24,7 +24,13 @@ import {
   clearHistory,
   deleteSession,
   getHistorySessions,
-  cleanupHistoryDb} from '../main/historyDb'
+  cleanupHistoryDb,
+  addBrowserVisit,
+  getBrowserHistory,
+  searchBrowserHistory,
+  deleteBrowserVisit,
+  clearBrowserHistory
+} from '../main/historyDb'
 
 describe('historyDb', () => {
   beforeAll(() => {
@@ -147,6 +153,70 @@ describe('historyDb', () => {
       logOutput('disabled-test', 'should not be logged')
       const after = getHistorySessions().length
       expect(after).toBe(before)
+    })
+  })
+
+  describe('browser history', () => {
+    beforeEach(() => {
+      clearBrowserHistory()
+    })
+
+    it('can add browser visits and get history', () => {
+      addBrowserVisit('https://google.com', 'Google')
+      addBrowserVisit('https://wikipedia.org', 'Wikipedia')
+
+      const history = getBrowserHistory()
+      expect(history).toHaveLength(2)
+      expect(history[0].url).toBe('https://wikipedia.org')
+      expect(history[0].title).toBe('Wikipedia')
+      expect(history[1].url).toBe('https://google.com')
+      expect(history[1].title).toBe('Google')
+    })
+
+    it('deduplicates rapid consecutive identical URLs', () => {
+      addBrowserVisit('https://google.com', 'Google')
+      addBrowserVisit('https://google.com', 'Google Search')
+
+      const history = getBrowserHistory()
+      expect(history).toHaveLength(1)
+      expect(history[0].title).toBe('Google Search') // updated title
+    })
+
+    it('can search browser history', () => {
+      addBrowserVisit('https://google.com', 'Google')
+      addBrowserVisit('https://wikipedia.org', 'Wikipedia')
+
+      const results = searchBrowserHistory('wiki')
+      expect(results).toHaveLength(1)
+      expect(results[0].url).toBe('https://wikipedia.org')
+
+      const resultsUrl = searchBrowserHistory('google.com')
+      expect(resultsUrl).toHaveLength(1)
+      expect(resultsUrl[0].title).toBe('Google')
+    })
+
+    it('can delete browser visits', () => {
+      addBrowserVisit('https://google.com', 'Google')
+      addBrowserVisit('https://wikipedia.org', 'Wikipedia')
+
+      let history = getBrowserHistory()
+      const toDeleteId = history[0].id
+
+      deleteBrowserVisit(toDeleteId)
+
+      history = getBrowserHistory()
+      expect(history).toHaveLength(1)
+      expect(history[0].url).toBe('https://google.com')
+    })
+
+    it('can clear browser history', () => {
+      addBrowserVisit('https://google.com', 'Google')
+      addBrowserVisit('https://wikipedia.org', 'Wikipedia')
+
+      clearBrowserHistory()
+
+      const history = getBrowserHistory()
+      expect(history).toHaveLength(0)
     })
   })
 })

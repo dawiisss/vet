@@ -63,6 +63,15 @@ export function initHistoryDb() {
       );
     `)
 
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS browser_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL,
+        title TEXT,
+        timestamp INTEGER NOT NULL
+      );
+    `)
+
     // Start flush interval
     flushInterval = setInterval(flushBuffer, 500)
 
@@ -291,6 +300,9 @@ function pruneHistory() {
     const pruneDaysStmt = db.prepare('DELETE FROM sessions WHERE created_at < ?')
     pruneDaysStmt.run(cutoffTime)
 
+    const pruneBrowserStmt = db.prepare('DELETE FROM browser_history WHERE timestamp < ?')
+    pruneBrowserStmt.run(cutoffTime)
+
     // 2. Prune by size (FIFO)
     let sizeMb = getDatabaseSizeMb()
     if (sizeMb > limitMb) {
@@ -323,6 +335,74 @@ export function getHistorySessions(): any[] {
     return stmt.all()
   } catch (err) {
     return []
+  }
+}
+
+export function addBrowserVisit(url: string, title: string) {
+  if (!db) return
+  const config = getConfig()
+  if (config.historyLoggingEnabled === false) return
+
+  try {
+    const lastStmt = db.prepare('SELECT id, url, timestamp FROM browser_history ORDER BY timestamp DESC, id DESC LIMIT 1')
+    const lastVisit = lastStmt.get() as { id: number; url: string; timestamp: number } | undefined
+
+    if (lastVisit && lastVisit.url === url) {
+      const updateStmt = db.prepare('UPDATE browser_history SET timestamp = ?, title = ? WHERE id = ?')
+      updateStmt.run(Date.now(), title || null, lastVisit.id)
+    } else {
+      const insertStmt = db.prepare('INSERT INTO browser_history (url, title, timestamp) VALUES (?, ?, ?)')
+      insertStmt.run(url, title || null, Date.now())
+    }
+  } catch (err) {
+    console.error('DB addBrowserVisit Error:', err)
+  }
+}
+
+export function getBrowserHistory(): any[] {
+  if (!db) return []
+  try {
+    const stmt = db.prepare('SELECT * FROM browser_history ORDER BY timestamp DESC, id DESC LIMIT 100')
+    return stmt.all()
+  } catch (err) {
+    console.error('Get Browser History Error:', err)
+    return []
+  }
+}
+
+export function searchBrowserHistory(query: string): any[] {
+  if (!db) return []
+  try {
+    const stmt = db.prepare(`
+      SELECT * FROM browser_history 
+      WHERE url LIKE ? OR title LIKE ? 
+      ORDER BY timestamp DESC, id DESC LIMIT 100
+    `)
+    const searchPattern = `%${query}%`
+    return stmt.all(searchPattern, searchPattern)
+  } catch (err) {
+    console.error('Search Browser History Error:', err)
+    return []
+  }
+}
+
+export function deleteBrowserVisit(id: number) {
+  if (!db) return
+  try {
+    const stmt = db.prepare('DELETE FROM browser_history WHERE id = ?')
+    stmt.run(id)
+  } catch (err) {
+    console.error('Delete Browser Visit Error:', err)
+  }
+}
+
+export function clearBrowserHistory() {
+  if (!db) return
+  try {
+    db.exec('DELETE FROM browser_history')
+    db.exec('VACUUM')
+  } catch (err) {
+    console.error('Clear Browser History Error:', err)
   }
 }
 

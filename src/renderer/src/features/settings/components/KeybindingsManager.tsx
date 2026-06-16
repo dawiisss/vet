@@ -15,6 +15,7 @@ const AVAILABLE_ACTIONS = [
   { id: 'terminal:copy', label: 'Copy to Clipboard' },
   { id: 'terminal:paste', label: 'Paste from Clipboard' },
   { id: 'terminal:search', label: 'Find / Search' },
+  { id: 'browser:devtools', label: 'Open Browser DevTools' },
   { id: 'sidebar:toggle', label: 'Toggle Sidebar' },
   { id: 'settings:toggle', label: 'Open Settings' },
   { id: 'command-palette:toggle', label: 'Open Command Palette' },

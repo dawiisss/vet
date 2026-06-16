@@ -8,6 +8,11 @@ const defaultConfig: Config = {
   theme: 'catppuccin-mocha',
   cursorStyle: 'block',
   cursorBlink: true,
+  historyLoggingEnabled: true,
+  historyDatabaseLimitMb: 100,
+  historyKeepDays: 30,
+  virtualScrollbackEnabled: true,
+  virtualScrollbackBufferSize: 1000,
   keybindings: {}
 }
 

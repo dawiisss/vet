@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "main": "./out/main/index.js",
@@ -114,19 +114,11 @@
   "overrides": {
     "nan": "^2.22.0",
     "esbuild": "^0.28.1",
-    "cpu-features": "$cpu-features"
+    "cpu-features": "$cpu-features",
+    "js-yaml": "^4.2.0",
+    "form-data": "^4.0.6"
   },
   "allowScripts": {
     "node-pty@1.1.0": true
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "node-pty",
-      "cpu-features",
-      "ssh2",
-      "esbuild",
-      "electron-winstaller",
-      "unrs-resolver"
-    ]
   }
 }
