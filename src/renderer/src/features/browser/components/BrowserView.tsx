@@ -82,17 +82,8 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const searchEngine = config.browserSearchEngine || 'duckduckgo'
   const isAdblockEnabled = config.browserAdblockEnabled !== false
 
-  const [initialUrlResolved, setInitialUrlResolved] = useState(() => initialUrl || homepage)
+  const [initialUrlResolved] = useState(() => initialUrl || homepage)
   const [urlInput, setUrlInput] = useState(initialUrlResolved)
-
-  // Track the URL we want the webview to show. This persists across renders
-  // and is checked in the did-navigate handler to detect if the webview
-  // navigated away from the desired page (e.g. to the homepage).
-  const desiredUrlRef = useRef(initialUrl || homepage)
-  if (initialUrl && initialUrl !== desiredUrlRef.current) {
-    desiredUrlRef.current = initialUrl
-    setInitialUrlResolved(initialUrl)
-  }
   const [isLoading, setIsLoading] = useState(false)
   const [pageTitle, setPageTitle] = useState('Web Browser')
   
@@ -198,15 +189,6 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       updateNavigationButtons()
       updateBrowserUrl(browserId, e.url)
 
-      // If the webview navigated to a URL that doesn't match our desired URL
-      // (e.g. it landed on the homepage after a split remount), navigate it
-      // back to the correct page.
-      const desired = desiredUrlRef.current
-      if (desired && e.url !== desired) {
-        try {
-          webview.src = desired
-        } catch {}
-      }
 
       if (window.historyApi?.addBrowserVisit) {
         let title = ''
