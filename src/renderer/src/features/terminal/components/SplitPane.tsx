@@ -45,6 +45,7 @@ function SplitPane({ node, path, focusedPath, isActive, onFocus, onExit, onResiz
       <div style={{ flex: 1, overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
         <BrowserView
           browserId={node.browserId}
+          initialUrl={node.url}
           isActive={isActive}
           isFocused={focused}
           onFocus={() => onFocus(path)}

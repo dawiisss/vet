@@ -11,6 +11,7 @@
 export interface SplitNode {
   terminalId?: string
   browserId?: string
+  url?: string
   direction?: 'horizontal' | 'vertical'
   children?: SplitNode[]
   sizes?: number[]

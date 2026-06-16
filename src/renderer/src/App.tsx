@@ -107,7 +107,7 @@ function App() {
       const currentConfig = useConfigStore.getState().config
       const action = (currentConfig.keybindings || {})[shortcut]
 
-      if (action && !action.startsWith('terminal:')) {
+      if (action && !action.startsWith('terminal:') && !action.startsWith('browser:')) {
         e.preventDefault()
         e.stopPropagation()
         const store = useTabStore.getState()
@@ -137,7 +137,7 @@ function App() {
           }
           case 'split:extract': {
             const tab = storeTabs.find((t) => t.id === storeActiveTabId)
-            if (tab) {
+            if (tab && storeActiveTabId) {
               store.extractToTab(storeActiveTabId, tab.focusedPath)
             }
             break
@@ -235,7 +235,7 @@ function App() {
         bubbles: true,
         cancelable: true
       }
-      
+
       const fakeEvent = new KeyboardEvent('keydown', eventInit)
       window.dispatchEvent(fakeEvent)
       document.dispatchEvent(fakeEvent)
@@ -268,10 +268,43 @@ function App() {
 
   const tabBarTabs: TabBarTab[] = tabs.map((t) => ({ id: t.id, label: t.label }))
 
+  const themeObj = resolveTheme(config.theme, config.customThemes)
+
+  let appBg = 'transparent'
+  if (themeObj.background && typeof config.opacity === 'number') {
+    const hex = themeObj.background.replace('#', '')
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16)
+      const g = parseInt(hex.substring(2, 4), 16)
+      const b = parseInt(hex.substring(4, 6), 16)
+      appBg = `rgba(${r}, ${g}, ${b}, ${config.opacity})`
+    }
+  }
+
+  const containerStyle: React.CSSProperties = {
+    width: '100vw',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    background: appBg,
+    ['--app-bg' as any]: themeObj.background,
+    ['--app-fg' as any]: themeObj.foreground,
+    ['--app-border' as any]: themeObj.selection || 'rgba(255,255,255,0.1)',
+    ['--app-accent' as any]: themeObj.accent || themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
+    ['--app-red' as any]: themeObj.red || 'var(--app-red)',
+    ['--app-green' as any]: themeObj.green || 'var(--app-green)',
+    ['--app-yellow' as any]: themeObj.yellow || 'var(--app-yellow)',
+    ['--app-blue' as any]: themeObj.blue || 'var(--app-blue)',
+    ['--app-fg-subtle' as any]: 'color-mix(in srgb, var(--app-fg) 70%, transparent)',
+    ['--app-fg-muted' as any]: 'color-mix(in srgb, var(--app-fg) 40%, transparent)',
+    ['--app-panel-bg' as any]: 'rgba(0,0,0,0.15)',
+    ['--app-modal-bg' as any]: 'rgba(0,0,0,0.25)'
+  }
+
   // Detached/popout mode
   if (isDetached) {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={containerStyle}>
         <TitleBar />
         <div
           style={{
@@ -297,10 +330,10 @@ function App() {
               fontFamily: 'system-ui, sans-serif'
             }}
             onMouseEnter={(e) => {
-              ;(e.target as HTMLElement).style.color = 'var(--app-fg)'
+              ; (e.target as HTMLElement).style.color = 'var(--app-fg)'
             }}
             onMouseLeave={(e) => {
-              ;(e.target as HTMLElement).style.color = 'var(--app-fg-muted)'
+              ; (e.target as HTMLElement).style.color = 'var(--app-fg-muted)'
             }}
           >
             reattach
@@ -310,34 +343,35 @@ function App() {
           {tabs.map((tab) => {
             const isHibernated = hibernatedTabIds.includes(tab.id)
             return (
-            <div
-              key={tab.id}
-              style={{
-                visibility: tab.id === activeTabId ? 'visible' : 'hidden',
-                position: tab.id === activeTabId ? 'relative' : 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: tab.id === activeTabId ? 1 : 0,
-                display: 'flex',
-                width: '100%',
-                height: '100%'
-              }}
-            >
-              {!isHibernated && (
-                <SplitPane
-                  node={tab.root}
-                  path={[]}
-                  focusedPath={tab.focusedPath}
-                  isActive={tab.id === activeTabId}
-                  onFocus={(path) => onFocusSplit(tab.id, path)}
-                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-                />
-              )}
-            </div>
-          )})}
+              <div
+                key={tab.id}
+                style={{
+                  visibility: tab.id === activeTabId ? 'visible' : 'hidden',
+                  position: tab.id === activeTabId ? 'relative' : 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: tab.id === activeTabId ? 1 : 0,
+                  display: 'flex',
+                  width: '100%',
+                  height: '100%'
+                }}
+              >
+                {!isHibernated && (
+                  <SplitPane
+                    node={tab.root}
+                    path={[]}
+                    focusedPath={tab.focusedPath}
+                    isActive={tab.id === activeTabId}
+                    onFocus={(path) => onFocusSplit(tab.id, path)}
+                    onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                    onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     )
@@ -358,23 +392,11 @@ function App() {
       const tab = tabs.find((t) => t.id === tabId)
       if (tab) {
         const targetNode = getNode(tab.root, path)
-        if (targetNode?.terminalId) {
-          closeSplit(tabId, targetNode.terminalId)
+        const leafId = targetNode?.terminalId || targetNode?.browserId
+        if (leafId) {
+          closeSplit(tabId, leafId)
         }
       }
-    }
-  }
-
-  const themeObj = resolveTheme(config.theme, config.customThemes)
-
-  let appBg = 'transparent'
-  if (themeObj.background && typeof config.opacity === 'number') {
-    const hex = themeObj.background.replace('#', '')
-    if (hex.length === 6) {
-      const r = parseInt(hex.substring(0, 2), 16)
-      const g = parseInt(hex.substring(2, 4), 16)
-      const b = parseInt(hex.substring(4, 6), 16)
-      appBg = `rgba(${r}, ${g}, ${b}, ${config.opacity})`
     }
   }
 
@@ -384,27 +406,7 @@ function App() {
     : null
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        background: appBg,
-        ['--app-bg' as any]: themeObj.background,
-        ['--app-fg' as any]: themeObj.foreground,
-        ['--app-border' as any]: themeObj.selection || 'rgba(255,255,255,0.1)',
-        ['--app-accent' as any]: themeObj.accent || themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
-        ['--app-red' as any]: themeObj.red || 'var(--app-red)',
-        ['--app-green' as any]: themeObj.green || 'var(--app-green)',
-        ['--app-yellow' as any]: themeObj.yellow || 'var(--app-yellow)',
-        ['--app-blue' as any]: themeObj.blue || 'var(--app-blue)',
-        ['--app-fg-subtle' as any]: 'color-mix(in srgb, var(--app-fg) 70%, transparent)',
-        ['--app-fg-muted' as any]: 'color-mix(in srgb, var(--app-fg) 40%, transparent)',
-        ['--app-panel-bg' as any]: 'rgba(0,0,0,0.15)',
-        ['--app-modal-bg' as any]: 'rgba(0,0,0,0.25)'
-      }}
-    >
+    <div style={containerStyle}>
       <TitleBar onOpenSettings={() => setIsSettingsOpen(true)} onOpenAbout={() => setIsAboutOpen(true)} />
       {(!config.tabBarPosition || config.tabBarPosition === 'top') && (
         <TabBar
@@ -458,45 +460,46 @@ function App() {
           {tabs.map((tab) => {
             const isHibernated = hibernatedTabIds.includes(tab.id)
             return (
-            <div
-              key={tab.id}
-              style={{
-                visibility: tab.id === activeTabId ? 'visible' : 'hidden',
-                position: tab.id === activeTabId ? 'relative' : 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: tab.id === activeTabId ? 1 : 0,
-                display: 'flex',
-                width: '100%',
-                height: '100%'
-              }}
-            >
-              {!isHibernated && (
-              <ErrorBoundary name="Terminal SplitPane">
-                <SplitPane
-                  node={tab.root}
-                  path={[]}
-                  focusedPath={tab.focusedPath}
-                  isActive={tab.id === activeTabId}
-                  leafCount={leafCount(tab.root)}
-                  onExtract={
-                    leafCount(tab.root) > 1
-                      ? (path) => extractToTab(tab.id, path)
-                      : undefined
-                  }
-                  onFocus={(path) => onFocusSplit(tab.id, path)}
-                  onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                  onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
-                  onContextMenuAction={(path, action) =>
-                    handleContextMenuAction(tab.id, path, action)
-                  }
-                />
-              </ErrorBoundary>
-              )}
-            </div>
-          )})}
+              <div
+                key={tab.id}
+                style={{
+                  visibility: tab.id === activeTabId ? 'visible' : 'hidden',
+                  position: tab.id === activeTabId ? 'relative' : 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: tab.id === activeTabId ? 1 : 0,
+                  display: 'flex',
+                  width: '100%',
+                  height: '100%'
+                }}
+              >
+                {!isHibernated && (
+                  <ErrorBoundary name="Terminal SplitPane">
+                    <SplitPane
+                      node={tab.root}
+                      path={[]}
+                      focusedPath={tab.focusedPath}
+                      isActive={tab.id === activeTabId}
+                      leafCount={leafCount(tab.root)}
+                      onExtract={
+                        leafCount(tab.root) > 1
+                          ? (path) => extractToTab(tab.id, path)
+                          : undefined
+                      }
+                      onFocus={(path) => onFocusSplit(tab.id, path)}
+                      onExit={(terminalId) => closeSplit(tab.id, terminalId)}
+                      onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                      onContextMenuAction={(path, action) =>
+                        handleContextMenuAction(tab.id, path, action)
+                      }
+                    />
+                  </ErrorBoundary>
+                )}
+              </div>
+            )
+          })}
           <div
             id="drag-zone-right"
             style={{
@@ -588,71 +591,100 @@ function App() {
             onClose={() => setPreviewClipboardItem(null)}
           />
         )}
-        {isCommandPaletteOpen && (
-          <CommandPalette
-            isOpen={isCommandPaletteOpen}
-            onClose={() => setIsCommandPaletteOpen(false)}
-            actions={[
-              { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
-              { id: 'about', label: 'App: About Vet', onExecute: () => setIsAboutOpen(true) },
+        {isCommandPaletteOpen && (() => {
+          const activeTab = tabs.find((t) => t.id === activeTabId)
+          const activeNode = activeTab ? getNode(activeTab.root, activeTab.focusedPath) : null
+          const isBrowserFocused = activeNode ? !!activeNode.browserId : false
+
+          const paletteActions = [
+            { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
+            { id: 'about', label: 'App: About Vet', onExecute: () => setIsAboutOpen(true) },
+            {
+              id: 'config-file',
+              label: 'Settings: Open config.json5 in Editor',
+              onExecute: openConfig
+            },
+            {
+              id: 'toggle-sidebar',
+              label: 'View: Toggle Sidebar',
+              onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
+            },
+            { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
+            { id: 'new-browser-tab', label: 'View: Open Web Browser Tab', onExecute: newBrowserTab },
+            { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
+            { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
+            { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
+            { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
+            { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
+            { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
+            {
+              id: 'extract',
+              label: 'View: Extract Pane to New Tab',
+              onExecute: () => {
+                if (activeTabId && activeTab) extractToTab(activeTabId, activeTab.focusedPath)
+              }
+            },
+            {
+              id: 'detach-window',
+              label: 'View: Detach Tab to Window',
+              onExecute: () => {
+                if (activeTabId) detachTab(activeTabId)
+              }
+            },
+            { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
+            { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
+            { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
+            ...Object.keys(builtinThemes).map((themeName) => ({
+              id: `theme-${themeName}`,
+              label: `Theme: Set to ${themeName.replace('-', ' ')}`,
+              onExecute: () => updateConfig({ theme: themeName })
+            })),
+            ...Object.keys(config.customThemes || {}).map((themeName) => ({
+              id: `theme-custom-${themeName}`,
+              label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
+              onExecute: () => updateConfig({ theme: themeName })
+            })),
+            ...(config.profiles || []).map((profile) => ({
+              id: `launch-profile-${profile.id}`,
+              label: `Profiles: Launch ${profile.name}`,
+              onExecute: () => newTab(profile.id)
+            })),
+            ...(config.sshHosts || [])
+              .filter((h): h is SshHost => 'host' in h)
+              .map((host) => ({
+              id: `launch-ssh-${host.id}`,
+              label: `SSH: Connect to ${host.name} (${host.host})`,
+              onExecute: () => newTab(undefined, host.id)
+            }))
+          ]
+
+          if (isBrowserFocused) {
+            paletteActions.push(
               {
-                id: 'config-file',
-                label: 'Settings: Open config.json5 in Editor',
-                onExecute: openConfig
-              },
-              {
-                id: 'toggle-sidebar',
-                label: 'View: Toggle Sidebar',
-                onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
-              },
-              { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
-              { id: 'new-browser-tab', label: 'View: Open Web Browser Tab', onExecute: newBrowserTab },
-              { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
-              { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
-              { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
-              { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
-              { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
-              { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
-              {
-                id: 'extract',
-                label: 'View: Extract Pane to New Tab',
+                id: 'browser-devtools',
+                label: 'Browser: Open Developer Tools',
                 onExecute: () => {
-                  if (activeTabId) extractToTab(activeTabId, activeTab!.focusedPath)
+                  window.dispatchEvent(new CustomEvent('browser:action', { detail: { action: 'browser:devtools' } }))
                 }
               },
               {
-                id: 'detach-window',
-                label: 'View: Detach Tab to Window',
+                id: 'browser-search',
+                label: 'Browser: Find in Page',
                 onExecute: () => {
-                  if (activeTabId) detachTab(activeTabId)
+                  window.dispatchEvent(new CustomEvent('browser:action', { detail: { action: 'browser:search' } }))
                 }
-              },
-              { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
-              { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
-              { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
-              ...Object.keys(builtinThemes).map((themeName) => ({
-                id: `theme-${themeName}`,
-                label: `Theme: Set to ${themeName.replace('-', ' ')}`,
-                onExecute: () => updateConfig({ theme: themeName })
-              })),
-              ...Object.keys(config.customThemes || {}).map((themeName) => ({
-                id: `theme-custom-${themeName}`,
-                label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
-                onExecute: () => updateConfig({ theme: themeName })
-              })),
-              ...(config.profiles || []).map((profile) => ({
-                id: `launch-profile-${profile.id}`,
-                label: `Profiles: Launch ${profile.name}`,
-                onExecute: () => newTab(profile.id)
-              })),
-              ...(config.sshHosts || []).map((host) => ({
-                id: `launch-ssh-${host.id}`,
-                label: `SSH: Connect to ${host.name} (${host.host})`,
-                onExecute: () => newTab(undefined, host.id)
-              }))
-            ]}
-          />
-        )}
+              }
+            )
+          }
+
+          return (
+            <CommandPalette
+              isOpen={isCommandPaletteOpen}
+              onClose={() => setIsCommandPaletteOpen(false)}
+              actions={paletteActions}
+            />
+          )
+        })()}
       </Suspense>
     </div>
   )

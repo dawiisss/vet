@@ -28,4 +28,24 @@ export function registerHistoryHandlers() {
   ipcMain.handle('history:delete-session', async (_event, id: string) => {
     historyDb.deleteSession(id)
   })
+
+  ipcMain.handle('history:add-browser-visit', async (_event, url: string, title: string) => {
+    historyDb.addBrowserVisit(url, title)
+  })
+
+  ipcMain.handle('history:get-browser-history', async () => {
+    return historyDb.getBrowserHistory()
+  })
+
+  ipcMain.handle('history:search-browser-history', async (_event, query: string) => {
+    return historyDb.searchBrowserHistory(query)
+  })
+
+  ipcMain.handle('history:delete-browser-visit', async (_event, id: number) => {
+    historyDb.deleteBrowserVisit(id)
+  })
+
+  ipcMain.handle('history:clear-browser-history', async () => {
+    historyDb.clearBrowserHistory()
+  })
 }

@@ -14,14 +14,14 @@ jest.mock('../renderer/src/features/clipboard/useClipboardStore', () => ({
 }))
 
 const mockSetPreviewClipboardItem = jest.fn()
-const mockUseTabStore = jest.fn((selector) => {
+const mockUseUIStore = jest.fn((selector) => {
   if (selector) {
     return selector({ setPreviewClipboardItem: mockSetPreviewClipboardItem })
   }
   return { setPreviewClipboardItem: mockSetPreviewClipboardItem }
 })
-jest.mock('../renderer/src/features/terminal/useTabStore', () => ({
-  useTabStore: mockUseTabStore
+jest.mock('../renderer/src/shared/stores/useUIStore', () => ({
+  useUIStore: mockUseUIStore
 }))
 
 import ClipboardHistoryPanel from '../renderer/src/shared/components/ClipboardHistoryPanel'

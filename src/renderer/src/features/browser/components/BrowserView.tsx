@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
 import { useTabStore } from '@/features/terminal/useTabStore'
 import { leafCount } from '@/features/terminal/splitTree'
+import SearchOverlay from '@/shared/components/SearchOverlay'
+import { buildShortcutString } from '@/shared/utils/keybindings'
 
 interface BrowserViewProps {
   browserId: string
+  initialUrl?: string
   isActive: boolean
   isFocused?: boolean
   onFocus?: () => void
@@ -44,6 +47,7 @@ function resolveUrl(input: string, defaultSearchEngine: 'duckduckgo' | 'google' 
 
 export const BrowserView: React.FC<BrowserViewProps> = ({
   browserId,
+  initialUrl,
   isActive,
   isFocused,
   onFocus,
@@ -54,6 +58,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const webviewRef = useRef<any>(null)
   const { config } = useConfig()
   const renameTab = useTabStore((s) => s.renameTab)
+  const updateBrowserUrl = useTabStore((s) => s.updateBrowserUrl)
   const activeTabId = useTabStore((s) => s.activeTabId)
   const dragState = useTabStore((s) => s.dragState)
   const tabRoot = useTabStore((s) => {
@@ -70,12 +75,24 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   activeTabIdRef.current = activeTabId
   const hasSplitsRef = useRef(hasSplits)
   hasSplitsRef.current = hasSplits
+  const onFocusRef = useRef(onFocus)
+  onFocusRef.current = onFocus
 
   const homepage = config.browserHomepage || 'https://duckduckgo.com'
   const searchEngine = config.browserSearchEngine || 'duckduckgo'
   const isAdblockEnabled = config.browserAdblockEnabled !== false
 
-  const [urlInput, setUrlInput] = useState(homepage)
+  const [initialUrlResolved, setInitialUrlResolved] = useState(() => initialUrl || homepage)
+  const [urlInput, setUrlInput] = useState(initialUrlResolved)
+
+  // Track the URL we want the webview to show. This persists across renders
+  // and is checked in the did-navigate handler to detect if the webview
+  // navigated away from the desired page (e.g. to the homepage).
+  const desiredUrlRef = useRef(initialUrl || homepage)
+  if (initialUrl && initialUrl !== desiredUrlRef.current) {
+    desiredUrlRef.current = initialUrl
+    setInitialUrlResolved(initialUrl)
+  }
   const [isLoading, setIsLoading] = useState(false)
   const [pageTitle, setPageTitle] = useState('Web Browser')
   
@@ -85,6 +102,27 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const [blockedCount, setBlockedCount] = useState(0)
   const [localAdblockEnabled, setLocalAdblockEnabled] = useState(isAdblockEnabled)
   const [appPreloadPath, setAppPreloadPath] = useState<string | undefined>(undefined)
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeMatch, setActiveMatch] = useState(0)
+  const [totalMatches, setTotalMatches] = useState(0)
+
+  const searchShortcut = Object.entries(config.keybindings || {}).find(
+    ([_, val]) => val === 'terminal:search'
+  )?.[0] || 'ctrl+f'
+  const searchShortcutLabel = searchShortcut
+    .split('+')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('+')
+
+  const devtoolsShortcut = Object.entries(config.keybindings || {}).find(
+    ([_, val]) => val === 'browser:devtools'
+  )?.[0] || 'f12'
+  const devtoolsShortcutLabel = devtoolsShortcut
+    .split('+')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('+')
 
   useEffect(() => {
     if (window.adblockerApi) {
@@ -167,12 +205,52 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     const onNavigate = (e: any) => {
       setUrlInput(e.url)
       updateNavigationButtons()
+      updateBrowserUrl(browserId, e.url)
+
+      // If the webview navigated to a URL that doesn't match our desired URL
+      // (e.g. it landed on the homepage after a split remount), navigate it
+      // back to the correct page.
+      const desired = desiredUrlRef.current
+      if (desired && e.url !== desired) {
+        try {
+          webview.src = desired
+        } catch {}
+      }
+
+      if (window.historyApi?.addBrowserVisit) {
+        let title = ''
+        try {
+          title = webview.getTitle()
+        } catch {}
+        window.historyApi.addBrowserVisit(e.url, title)
+      }
     }
     const onTitleUpdate = (e: any) => {
       const title = e.title || 'Web Browser'
-      setPageTitle(title)
       if (!hasSplitsRef.current && isActiveRef.current && isFocusedRef.current && activeTabIdRef.current) {
         renameTab(activeTabIdRef.current, title)
+      }
+      if (window.historyApi?.addBrowserVisit) {
+        try {
+          const currentUrl = webview.getURL()
+          if (currentUrl) {
+            window.historyApi.addBrowserVisit(currentUrl, title)
+          }
+        } catch {}
+      }
+    }
+
+    const onFoundInPage = (ev: any) => {
+      const result = ev.result
+      if (result) {
+        setTotalMatches(result.matches || 0)
+        setActiveMatch(result.activeMatchOrdinal || 0)
+      }
+    }
+
+    const handleFocus = () => {
+      if (onFocusRef.current) {
+        onFocusRef.current()
       }
     }
 
@@ -182,9 +260,12 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     webview.addEventListener('did-navigate', onNavigate)
     webview.addEventListener('did-navigate-in-page', onNavigate)
     webview.addEventListener('page-title-updated', onTitleUpdate)
+    webview.addEventListener('found-in-page', onFoundInPage)
+    webview.addEventListener('focus', handleFocus)
+    webview.addEventListener('mousedown', handleFocus)
 
-    // Set initial src now that webview is attached
-    webview.src = homepage
+    // Set initial src now that webview is attached and listeners are registered
+    webview.src = initialUrlResolved
 
     return () => {
       try { webview.removeEventListener('did-start-loading', onStartLoading) } catch {}
@@ -193,6 +274,9 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       try { webview.removeEventListener('did-navigate', onNavigate) } catch {}
       try { webview.removeEventListener('did-navigate-in-page', onNavigate) } catch {}
       try { webview.removeEventListener('page-title-updated', onTitleUpdate) } catch {}
+      try { webview.removeEventListener('found-in-page', onFoundInPage) } catch {}
+      try { webview.removeEventListener('focus', handleFocus) } catch {}
+      try { webview.removeEventListener('mousedown', handleFocus) } catch {}
     }
   }, [appPreloadPath])
 
@@ -215,6 +299,29 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       unsubscribe()
     }
   }, [])
+
+  // Focus webview when isFocused changes to true
+  useEffect(() => {
+    if (isFocused && webviewRef.current) {
+      try {
+        webviewRef.current.focus()
+      } catch {}
+    }
+  }, [isFocused])
+
+  // When the webview becomes available (appPreloadPath resolves), check if
+  // its current URL matches the desired URL and navigate if needed.
+  useEffect(() => {
+    if (initialUrl && webviewRef.current) {
+      try {
+        const currentUrl = webviewRef.current.getURL()
+        if (currentUrl && currentUrl !== initialUrl) {
+          setUrlInput(initialUrl)
+          webviewRef.current.src = initialUrl
+        }
+      } catch {}
+    }
+  }, [appPreloadPath])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -262,6 +369,83 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     }
   }
 
+  // Handle configurable keybindings for search overlay and developer tools
+  useEffect(() => {
+    if (!isActive || !isFocused) return
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const shortcut = buildShortcutString(e)
+      if (!shortcut) return
+
+      const action = (config.keybindings || {})[shortcut]
+      if (action === 'terminal:search') {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsSearchOpen(true)
+      } else if (action === 'browser:devtools') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (webviewRef.current) {
+          webviewRef.current.openDevTools()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true)
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true)
+    }
+  }, [isActive, isFocused, config.keybindings])
+
+  // Handle custom window events for command palette actions
+  useEffect(() => {
+    if (!isActive || !isFocused) return
+
+    const handleBrowserAction = (e: Event) => {
+      const customEvent = e as CustomEvent
+      if (customEvent.detail?.action === 'browser:devtools') {
+        if (webviewRef.current) {
+          webviewRef.current.openDevTools()
+        }
+      } else if (customEvent.detail?.action === 'browser:search') {
+        setIsSearchOpen(true)
+      }
+    }
+
+    window.addEventListener('browser:action', handleBrowserAction)
+    return () => {
+      window.removeEventListener('browser:action', handleBrowserAction)
+    }
+  }, [isActive, isFocused])
+
+  const handleSearch = (text: string, options: { caseSensitive: boolean; useRegex: boolean; wholeWord: boolean; backwards?: boolean }) => {
+    setSearchQuery(text)
+    if (webviewRef.current) {
+      if (text) {
+        webviewRef.current.findInPage(text, {
+          findNext: options.backwards !== undefined,
+          forward: !options.backwards,
+          matchCase: options.caseSensitive
+        })
+      } else {
+        webviewRef.current.stopFindInPage('clearSelection')
+        setTotalMatches(0)
+        setActiveMatch(0)
+      }
+    }
+  }
+
+  const closeSearch = () => {
+    setIsSearchOpen(false)
+    setSearchQuery('')
+    setTotalMatches(0)
+    setActiveMatch(0)
+    if (webviewRef.current) {
+      webviewRef.current.stopFindInPage('clearSelection')
+      webviewRef.current.focus()
+    }
+  }
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
   }
@@ -278,7 +462,8 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
         background: 'var(--app-bg)',
         border: isFocused ? '1px solid var(--app-accent)' : '1px solid var(--app-border)',
         boxSizing: 'border-box',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}
     >
       {/* Browser Nav Bar */}
@@ -422,6 +607,72 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           </svg>
         </button>
 
+        <button
+          onClick={() => {
+            if (isSearchOpen) {
+              closeSearch()
+            } else {
+              setIsSearchOpen(true)
+            }
+          }}
+          title={`Find in Page (${searchShortcutLabel})`}
+          style={{
+            background: isSearchOpen ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+            border: 'none',
+            color: 'var(--app-fg)',
+            cursor: 'pointer',
+            padding: 6,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            if (!isSearchOpen) (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.1)'
+          }}
+          onMouseLeave={(e) => {
+            if (!isSearchOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <button
+          onClick={() => {
+            if (webviewRef.current) {
+              webviewRef.current.openDevTools()
+            }
+          }}
+          title={`Developer Tools (${devtoolsShortcutLabel})`}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--app-fg)',
+            cursor: 'pointer',
+            padding: 6,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.1)'
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = 'transparent'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+        </button>
+
         {/* Address Input */}
         <input
           type="text"
@@ -550,10 +801,10 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
             {/* eslint-disable react/no-unknown-property */}
             <webview
               ref={webviewRef}
+              id={browserId}
               partition="persist:browser"
-              allowpopups="true"
+              allowpopups={true}
               preload={appPreloadPath || undefined}
-              src={homepage}
               style={{
                 width: '100%',
                 height: '100%',
@@ -565,6 +816,17 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           </>
         )}
       </div>
+
+      {/* Search Overlay */}
+      {isSearchOpen && (
+        <SearchOverlay
+          onSearch={handleSearch}
+          onClose={closeSearch}
+          matchesInfo={{ active: activeMatch, total: totalMatches }}
+          hideRegex={true}
+          hideWholeWord={true}
+        />
+      )}
 
       {/* Spinner animation stylesheet */}
       <style>{`

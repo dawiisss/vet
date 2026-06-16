@@ -13,6 +13,7 @@
   "include": [
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
+    "src/types.d.ts",
     "electron.vite.config.ts"
   ]
 }
