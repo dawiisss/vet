@@ -129,7 +129,7 @@ export function registerAdblockerIpcHandlers() {
         resourceType: 'xhr',
         referrer: url,
         webContentsId: 0
-      })
+      } as any)
       const htmlFilters = blocker.getHtmlFilters(request)
       const pruneKeys: string[] = []
       const replaceRules: Array<{ regex: string; flags: string; replacement: string }> = []
