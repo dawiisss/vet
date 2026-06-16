@@ -195,3 +195,8 @@ interface Window {
     onBlockedEvent: (callback: (event: any, data: { webContentsId: number; url: string; count: number }) => void) => () => void
   }
 }
+
+declare module '*?asset' {
+  const content: string
+  export default content
+}
