@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useClipboardStore } from '@/features/clipboard/useClipboardStore'
-import { useTabStore } from '@/features/terminal/useTabStore'
+import { useUIStore } from '@/shared/stores/useUIStore'
 
 export default function ClipboardHistoryPanel({
   isActive,
@@ -10,7 +10,7 @@ export default function ClipboardHistoryPanel({
   onInjectSnippet: (snippet: string) => void
 }) {
   const { history, remove, clear } = useClipboardStore()
-  const setPreviewClipboardItem = useTabStore((state) => state.setPreviewClipboardItem)
+  const setPreviewClipboardItem = useUIStore((state) => state.setPreviewClipboardItem)
   const [keyboardIndex, setKeyboardIndex] = useState(0)
 
   const containerRef = useRef<HTMLDivElement>(null)

@@ -9,6 +9,7 @@ import { getConfig } from './config'
 const execFileAsync = promisify(execFile)
 
 export interface ConnectionInfo {
+  id?: string
   name: string
   command: string
   source: 'docker' | 'ssh_global' | 'ssh_app'

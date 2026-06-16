@@ -184,14 +184,7 @@ function registerIpcHandlers(): void {
   registerAdblockerIpcHandlers()
   registerUpdaterHandlers(() => mainWindow)
 
-  ipcMain.handle('webview:set-ignore-mouse-events', (_, wcId: number, ignore: boolean) => {
-    try {
-      const wc = webContents.fromId(wcId)
-      if (wc && !wc.isDestroyed()) {
-        wc.setIgnoreMouseEvents(ignore)
-      }
-    } catch {}
-  })
+
 }
 
 import { initConfigManager, getConfig } from './config'

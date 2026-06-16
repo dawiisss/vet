@@ -72,9 +72,7 @@ const windowApi: WindowApi = {
     return () => {
       ipcRenderer.removeListener('webview:keydown', handler)
     }
-  },
-  setWebviewIgnoreMouseEvents: (wcId: number, ignore: boolean) =>
-    ipcRenderer.invoke('webview:set-ignore-mouse-events', wcId, ignore)
+  }
 }
 
 const configChangeHandlers = new Set<(config: Config) => void>()
@@ -143,7 +141,12 @@ const historyApi: HistoryApi = {
   getSessionTranscript: (id: string) => ipcRenderer.invoke('history:get-session-transcript', id),
   getScrollbackChunk: (id: string, beforeTimestamp: number) => ipcRenderer.invoke('history:get-scrollback-chunk', id, beforeTimestamp),
   clear: () => ipcRenderer.invoke('history:clear'),
-  deleteSession: (id: string) => ipcRenderer.invoke('history:delete-session', id)
+  deleteSession: (id: string) => ipcRenderer.invoke('history:delete-session', id),
+  addBrowserVisit: (url: string, title: string) => ipcRenderer.invoke('history:add-browser-visit', url, title),
+  getBrowserHistory: () => ipcRenderer.invoke('history:get-browser-history'),
+  searchBrowserHistory: (query: string) => ipcRenderer.invoke('history:search-browser-history', query),
+  deleteBrowserVisit: (id: number) => ipcRenderer.invoke('history:delete-browser-visit', id),
+  clearBrowserHistory: () => ipcRenderer.invoke('history:clear-browser-history')
 }
 
 interface ClipboardItem {

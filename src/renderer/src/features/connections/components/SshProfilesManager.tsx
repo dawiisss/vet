@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
 
+const isSshHost = (h: SshHost | { name: string; command: string }): h is SshHost => 'host' in h
+
 export const SshProfilesManager: React.FC = () => {
   const { config, updateConfig } = useConfig()
+  const sshHosts = (config.sshHosts || []).filter(isSshHost)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   
   const [editName, setEditName] = useState('')
@@ -43,10 +46,10 @@ export const SshProfilesManager: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!selectedId && config.sshHosts && config.sshHosts.length > 0) {
-      selectHost(config.sshHosts[0])
+    if (!selectedId && sshHosts.length > 0) {
+      selectHost(sshHosts[0])
     }
-  }, [config.sshHosts])
+  }, [sshHosts])
 
   const saveHost = () => {
     if (!editName.trim() || !editHost.trim() || !editUser.trim()) {
@@ -54,8 +57,7 @@ export const SshProfilesManager: React.FC = () => {
       return
     }
 
-    const currentHosts = config.sshHosts || []
-    let updated = [...currentHosts]
+    let updated: SshHost[] = [...sshHosts]
     
     const hostData = {
       name: editName.trim(),
@@ -83,7 +85,7 @@ export const SshProfilesManager: React.FC = () => {
   const deleteHost = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     if (window.confirm('Are you sure you want to delete this SSH host?')) {
-      const updated = (config.sshHosts || []).filter(h => h.id !== id)
+      const updated = sshHosts.filter(h => h.id !== id)
       updateConfig({ sshHosts: updated })
       if (selectedId === id) {
         if (updated.length > 0) selectHost(updated[0])
@@ -121,7 +123,7 @@ export const SshProfilesManager: React.FC = () => {
           + Add SSH Host
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(config.sshHosts || []).map((h) => {
+          {sshHosts.map((h) => {
             const isSel = h.id === selectedId && !isEditingNew
             return (
               <div

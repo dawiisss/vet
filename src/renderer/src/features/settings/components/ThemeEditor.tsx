@@ -44,7 +44,7 @@ export const ThemeEditor: React.FC = () => {
     
     const updatedCustom = { ...(config.customThemes || {}) }
     
-    if (editingThemeId !== 'new' && themeId !== editingThemeId) {
+    if (editingThemeId && editingThemeId !== 'new' && themeId !== editingThemeId) {
       delete updatedCustom[editingThemeId]
     }
     

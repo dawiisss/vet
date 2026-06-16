@@ -5,9 +5,12 @@ import { buildShortcutString } from '@/shared/utils/keybindings'
 interface SearchOverlayProps {
   onSearch: (text: string, options: { caseSensitive: boolean; useRegex: boolean; wholeWord: boolean; backwards?: boolean }) => void
   onClose: () => void
+  matchesInfo?: { active: number; total: number }
+  hideRegex?: boolean
+  hideWholeWord?: boolean
 }
 
-const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
+const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose, matchesInfo, hideRegex, hideWholeWord }) => {
   const [searchText, setSearchText] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
   const [useRegex, setUseRegex] = useState(false)
@@ -111,27 +114,37 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onSearch, onClose }) => {
         >
           Aa
         </button>
-        <button 
-          title="Match Whole Word"
-          style={btnStyle(wholeWord)} 
-          onClick={() => {
-            setWholeWord(!wholeWord)
-            onSearch(searchText, { caseSensitive, useRegex, wholeWord: !wholeWord })
-          }}
-        >
-          _
-        </button>
-        <button 
-          title="Use Regular Expression"
-          style={btnStyle(useRegex)} 
-          onClick={() => {
-            setUseRegex(!useRegex)
-            onSearch(searchText, { caseSensitive, useRegex: !useRegex, wholeWord })
-          }}
-        >
-          .*
-        </button>
+        {!hideWholeWord && (
+          <button 
+            title="Match Whole Word"
+            style={btnStyle(wholeWord)} 
+            onClick={() => {
+              setWholeWord(!wholeWord)
+              onSearch(searchText, { caseSensitive, useRegex, wholeWord: !wholeWord })
+            }}
+          >
+            _
+          </button>
+        )}
+        {!hideRegex && (
+          <button 
+            title="Use Regular Expression"
+            style={btnStyle(useRegex)} 
+            onClick={() => {
+              setUseRegex(!useRegex)
+              onSearch(searchText, { caseSensitive, useRegex: !useRegex, wholeWord })
+            }}
+          >
+            .*
+          </button>
+        )}
       </div>
+
+      {matchesInfo && (
+        <span style={{ fontSize: 11, color: 'var(--app-fg-muted)', minWidth: 40, textAlign: 'center', fontFamily: 'monospace', padding: '0 4px' }}>
+          {matchesInfo.total > 0 ? `${matchesInfo.active}/${matchesInfo.total}` : '0/0'}
+        </span>
+      )}
 
       <div style={{ width: 1, height: 16, background: 'var(--app-border)', margin: '0 4px' }} />
 

@@ -78,7 +78,7 @@ interface Config {
 interface TerminalApi {
   create: (opts?: { cwd?: string; profileId?: string; sshHostId?: string }) => Promise<{ id: string }>
   enableForwarding: (id: string) => Promise<void>
-  write: (id: string, data: string) => Promise<void>
+  write: (id: string, data: string) => void
   resize: (id: string, cols: number, rows: number) => Promise<void>
   getHistory: (id: string) => Promise<string>
   destroy: (id: string) => Promise<void>
@@ -104,7 +104,7 @@ interface WindowApi {
   openExternal: (url: string) => Promise<void>
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void
   onWebviewKeydown: (callback: (data: { key: string; code: string; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; metaKey: boolean }) => void) => () => void
-  setWebviewIgnoreMouseEvents: (wcId: number, ignore: boolean) => Promise<void>
+  logToTerminal?: (msg: string) => Promise<void>
 }
 
 interface ConfigApi {
@@ -121,6 +121,11 @@ interface HistoryApi {
   getScrollbackChunk: (id: string, beforeTimestamp: number) => Promise<{ data: string, timestamp: number }[]>
   clear: () => Promise<void>
   deleteSession: (id: string) => Promise<void>
+  addBrowserVisit: (url: string, title: string) => Promise<void>
+  getBrowserHistory: () => Promise<any[]>
+  searchBrowserHistory: (query: string) => Promise<any[]>
+  deleteBrowserVisit: (id: number) => Promise<void>
+  clearBrowserHistory: () => Promise<void>
 }
 
 interface ClipboardApi {
@@ -189,4 +194,9 @@ interface Window {
     getAppPreloadPath: () => Promise<string>
     onBlockedEvent: (callback: (event: any, data: { webContentsId: number; url: string; count: number }) => void) => () => void
   }
+}
+
+declare module '*?asset' {
+  const content: string
+  export default content
 }
