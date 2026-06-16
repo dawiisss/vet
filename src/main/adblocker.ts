@@ -171,8 +171,8 @@ export async function initAdblocker(userDataPath: string) {
   try {
     const buffer = await fs.readFile(cachePath)
     blocker = ElectronBlocker.deserialize(buffer)
-    blocker.config.enableHtmlFiltering = true
-    blocker.config.guessRequestTypeFromUrl = true
+    ;(blocker.config as any).enableHtmlFiltering = true
+    ;(blocker.config as any).guessRequestTypeFromUrl = true
     patchScriptletsForYouTube(blocker)
     console.log('[adblocker] Loaded uBlock Origin and EasyList filters from local cache')
   } catch (e) {
