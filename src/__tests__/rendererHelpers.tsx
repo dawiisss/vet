@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import "../types";
+import "../types.d.ts";
 
 import "@testing-library/jest-dom";
 import { jest } from "@jest/globals";

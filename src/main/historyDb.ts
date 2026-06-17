@@ -448,4 +448,12 @@ export function cleanupHistoryDb() {
     clearInterval(flushInterval);
     flushInterval = null;
   }
+  if (db) {
+    try {
+      db.close();
+    } catch (err) {
+      console.error("Error closing database:", err);
+    }
+    db = null;
+  }
 }

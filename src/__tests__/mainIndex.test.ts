@@ -129,8 +129,13 @@ jest.mock("../main/clipboardHistory", () => ({
 
 describe("main process index", () => {
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ["setImmediate"] });
     jest.clearAllMocks();
     jest.resetModules();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("registers all expected IPC handlers on app ready", async () => {
