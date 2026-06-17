@@ -44,6 +44,7 @@ interface TabStore {
   dragState: DragState | null;
   tabActivationOrder: string[];
   hibernatedTabIds: string[];
+  error: string | null;
 
   // UI state setters
   setDragState: (
@@ -135,6 +136,7 @@ export const useTabStore = create<TabStore>((set, get) => {
     dragState: null,
     tabActivationOrder: [],
     hibernatedTabIds: [],
+    error: null,
 
     setDragState: (dragState) =>
       set((state) => ({
@@ -869,12 +871,11 @@ export const useTabStore = create<TabStore>((set, get) => {
         return;
       }
 
+      const root = result.root;
       let newFocusedPath = result.newPath;
-      const remaining = leafPaths(result.root).map((p) =>
-        getNode(result.root, p),
-      );
+      const remaining = leafPaths(root).map((p) => getNode(root, p));
       if (remaining.length > 0) {
-        const paths = leafPaths(result.root);
+        const paths = leafPaths(root);
         if (
           paths.length > 0 &&
           !paths.some((p) => pathsEqual(p, result.newPath))
@@ -885,7 +886,7 @@ export const useTabStore = create<TabStore>((set, get) => {
 
       next[tabIdx] = {
         ...tab,
-        root: result.root,
+        root,
         focusedPath: newFocusedPath,
       };
       set({ tabs: next });

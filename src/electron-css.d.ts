@@ -1,7 +1,7 @@
-import 'react'
+import "react";
 
-declare module 'react' {
+declare module "react" {
   interface CSSProperties {
-    WebkitAppRegion?: 'drag' | 'no-drag'
+    WebkitAppRegion?: "drag" | "no-drag";
   }
 }

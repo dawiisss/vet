@@ -1,18 +1,18 @@
-import { create } from 'zustand'
+import { create } from "zustand";
 
 export interface ClipboardItem {
-  id: string
-  text: string
-  timestamp: number
+  id: string;
+  text: string;
+  timestamp: number;
 }
 
 interface ClipboardStore {
-  history: ClipboardItem[]
-  maxItems: number
-  add: (text: string) => void
-  remove: (id: string) => void
-  clear: () => void
-  initialize: () => Promise<void>
+  history: ClipboardItem[];
+  maxItems: number;
+  add: (text: string) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+  initialize: () => Promise<void>;
 }
 
 export const useClipboardStore = create<ClipboardStore>((set, get) => ({
@@ -20,54 +20,54 @@ export const useClipboardStore = create<ClipboardStore>((set, get) => ({
   maxItems: 50,
 
   add: (text: string) => {
-    if (!text || text.trim() === '') return
+    if (!text || text.trim() === "") return;
 
-    const { history, maxItems } = get()
+    const { history, maxItems } = get();
 
     // Don't add duplicate consecutively
-    if (history.length > 0 && history[0].text === text) return
+    if (history.length > 0 && history[0].text === text) return;
 
     const newItem: ClipboardItem = {
       id: Date.now().toString(),
       text,
-      timestamp: Date.now()
-    }
+      timestamp: Date.now(),
+    };
 
-    const newHistory = [newItem, ...history].slice(0, maxItems)
+    const newHistory = [newItem, ...history].slice(0, maxItems);
 
-    set({ history: newHistory })
+    set({ history: newHistory });
 
     if (window.clipboardApi) {
-      window.clipboardApi.setHistory(newHistory).catch(() => {})
+      window.clipboardApi.setHistory(newHistory).catch(() => {});
     }
   },
 
   remove: (id: string) => {
-    const newHistory = get().history.filter(item => item.id !== id)
-    set({ history: newHistory })
+    const newHistory = get().history.filter((item) => item.id !== id);
+    set({ history: newHistory });
 
     if (window.clipboardApi) {
-      window.clipboardApi.setHistory(newHistory).catch(() => {})
+      window.clipboardApi.setHistory(newHistory).catch(() => {});
     }
   },
 
   clear: () => {
-    set({ history: [] })
+    set({ history: [] });
 
     if (window.clipboardApi) {
-      window.clipboardApi.setHistory([]).catch(() => {})
+      window.clipboardApi.setHistory([]).catch(() => {});
     }
   },
 
   initialize: async () => {
-    if (!window.clipboardApi) return
+    if (!window.clipboardApi) return;
     try {
-      const items = await window.clipboardApi.getHistory()
+      const items = await window.clipboardApi.getHistory();
       if (Array.isArray(items)) {
-        set({ history: items })
+        set({ history: items });
       }
     } catch {
       // ignore
     }
-  }
-}))
+  },
+}));

@@ -1,69 +1,81 @@
-import { useState, useEffect, useRef } from 'react'
-import { useClipboardStore } from '@/features/clipboard/useClipboardStore'
-import { useUIStore } from '@/shared/stores/useUIStore'
+import { useState, useEffect, useRef } from "react";
+import { useClipboardStore } from "@/features/clipboard/useClipboardStore";
+import { useUIStore } from "@/shared/stores/useUIStore";
 
 export default function ClipboardHistoryPanel({
   isActive,
-  onInjectSnippet
+  onInjectSnippet,
 }: {
-  isActive: boolean
-  onInjectSnippet: (snippet: string) => void
+  isActive: boolean;
+  onInjectSnippet: (snippet: string) => void;
 }) {
-  const { history, remove, clear } = useClipboardStore()
-  const setPreviewClipboardItem = useUIStore((state) => state.setPreviewClipboardItem)
-  const [keyboardIndex, setKeyboardIndex] = useState(0)
+  const { history, remove, clear } = useClipboardStore();
+  const setPreviewClipboardItem = useUIStore(
+    (state) => state.setPreviewClipboardItem,
+  );
+  const [keyboardIndex, setKeyboardIndex] = useState(0);
 
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Focus container when tab becomes active
   useEffect(() => {
     if (isActive && containerRef.current) {
-      containerRef.current.focus()
-      setKeyboardIndex(0)
+      containerRef.current.focus();
+      setKeyboardIndex(0);
     }
-  }, [isActive])
+  }, [isActive]);
 
   // Scroll active item into view
   useEffect(() => {
     if (keyboardIndex >= 0 && containerRef.current) {
-      const activeEl = containerRef.current.querySelector('[data-active="true"]')
-      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
-        activeEl.scrollIntoView({ block: 'nearest' })
+      const activeEl = containerRef.current.querySelector(
+        '[data-active="true"]',
+      );
+      if (activeEl && typeof activeEl.scrollIntoView === "function") {
+        activeEl.scrollIntoView({ block: "nearest" });
       }
     }
-  }, [keyboardIndex])
+  }, [keyboardIndex]);
 
   // Format timestamp nicely
   const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  }
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (history.length === 0) return
+    if (history.length === 0) return;
 
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setKeyboardIndex((prev) => Math.min(prev + 1, history.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setKeyboardIndex((prev) => Math.max(prev - 1, 0))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      const item = history[keyboardIndex]
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setKeyboardIndex((prev) => Math.min(prev + 1, history.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setKeyboardIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const item = history[keyboardIndex];
       if (item) {
-        setPreviewClipboardItem(item)
+        setPreviewClipboardItem(item);
       }
-    } else if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+    } else if (e.ctrlKey && (e.key === "c" || e.key === "C")) {
       // Only intercept when panel is focused and not inside an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      e.preventDefault()
-      const item = history[keyboardIndex]
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      e.preventDefault();
+      const item = history[keyboardIndex];
       if (item) {
-        navigator.clipboard.writeText(item.text).catch(() => {})
+        navigator.clipboard.writeText(item.text).catch(() => {});
       }
     }
-  }
+  };
 
   return (
     <div
@@ -72,23 +84,38 @@ export default function ClipboardHistoryPanel({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       style={{
-        outline: 'none',
+        outline: "none",
         padding: 12,
-        color: 'var(--app-fg)',
+        color: "var(--app-fg)",
         fontSize: 13,
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        boxSizing: 'border-box'
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 14, color: '#bac2de' }}>Clipboard</h3>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          alignItems: "center",
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: 14, color: "#bac2de" }}>Clipboard</h3>
         {history.length > 0 && (
           <button
             onClick={clear}
             aria-label="Clear all clipboard history"
-            style={{ background: 'none', border: 'none', color: 'var(--app-red)', cursor: 'pointer', fontSize: 12, fontWeight: 'bold', outlineColor: 'var(--app-red)' }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--app-red)",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: "bold",
+              outlineColor: "var(--app-red)",
+            }}
             title="Clear All"
           >
             Clear All
@@ -96,28 +123,50 @@ export default function ClipboardHistoryPanel({
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: "auto" }}>
         {history.length === 0 && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: 'var(--app-fg-muted)',
-            textAlign: 'center',
-            padding: 20
-          }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "var(--app-fg-muted)",
+              textAlign: "center",
+              padding: 20,
+            }}
+          >
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ opacity: 0.3, marginBottom: 16 }}
+            >
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
               <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
             </svg>
-            <p style={{ margin: '0 0 4px 0', fontSize: 14, color: 'var(--app-fg)' }}>Clipboard is empty</p>
-            <p style={{ margin: 0, fontSize: 12 }}>Copied text will appear here</p>
+            <p
+              style={{
+                margin: "0 0 4px 0",
+                fontSize: 14,
+                color: "var(--app-fg)",
+              }}
+            >
+              Clipboard is empty
+            </p>
+            <p style={{ margin: 0, fontSize: 12 }}>
+              Copied text will appear here
+            </p>
           </div>
         )}
         {history.map((item, index) => {
-          const isSel = keyboardIndex === index
+          const isSel = keyboardIndex === index;
           return (
             <div
               key={item.id}
@@ -125,57 +174,112 @@ export default function ClipboardHistoryPanel({
               onMouseEnter={() => setKeyboardIndex(index)}
               onClick={() => setKeyboardIndex(index)}
               style={{
-                background: isSel ? 'color-mix(in srgb, var(--app-blue) 20%, transparent)' : 'var(--app-border)',
-                border: '1px solid #45475a',
+                background: isSel
+                  ? "color-mix(in srgb, var(--app-blue) 20%, transparent)"
+                  : "var(--app-border)",
+                border: "1px solid #45475a",
                 borderRadius: 6,
                 marginBottom: 8,
-                overflow: 'hidden',
-                borderLeft: isSel ? '2px solid var(--app-blue)' : '2px solid transparent',
-                transition: 'background 0.2s'
+                overflow: "hidden",
+                borderLeft: isSel
+                  ? "2px solid var(--app-blue)"
+                  : "2px solid transparent",
+                transition: "background 0.2s",
               }}
             >
-              <div style={{ padding: '6px 10px', background: 'var(--app-panel-bg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: 'var(--app-fg-muted)' }}>{formatTime(item.timestamp)}</span>
+              <div
+                style={{
+                  padding: "6px 10px",
+                  background: "var(--app-panel-bg)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, color: "var(--app-fg-muted)" }}>
+                  {formatTime(item.timestamp)}
+                </span>
                 <div>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onInjectSnippet(item.text)
+                      e.stopPropagation();
+                      onInjectSnippet(item.text);
                     }}
                     aria-label="Paste clipboard entry"
-                    style={{ background: 'var(--app-green)', color: 'var(--app-modal-bg)', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-green)' }}
+                    style={{
+                      background: "var(--app-green)",
+                      color: "var(--app-modal-bg)",
+                      border: "none",
+                      borderRadius: 4,
+                      padding: "2px 8px",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      marginRight: 6,
+                      fontWeight: "bold",
+                      outlineColor: "var(--app-green)",
+                    }}
                   >
                     Paste
                   </button>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      setPreviewClipboardItem(item)
+                      e.stopPropagation();
+                      setPreviewClipboardItem(item);
                     }}
                     aria-label="Preview clipboard entry"
-                    style={{ background: 'color-mix(in srgb, var(--app-blue) 15%, transparent)', color: 'var(--app-blue)', border: '1px solid var(--app-blue)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, marginRight: 6, fontWeight: 'bold', outlineColor: 'var(--app-blue)' }}
+                    style={{
+                      background:
+                        "color-mix(in srgb, var(--app-blue) 15%, transparent)",
+                      color: "var(--app-blue)",
+                      border: "1px solid var(--app-blue)",
+                      borderRadius: 4,
+                      padding: "2px 8px",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      marginRight: 6,
+                      fontWeight: "bold",
+                      outlineColor: "var(--app-blue)",
+                    }}
                   >
                     Preview
                   </button>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      remove(item.id)
+                      e.stopPropagation();
+                      remove(item.id);
                     }}
                     aria-label="Delete clipboard entry"
-                    style={{ background: 'none', color: 'var(--app-red)', border: 'none', cursor: 'pointer', fontSize: 14, outlineColor: 'var(--app-red)' }}
+                    style={{
+                      background: "none",
+                      color: "var(--app-red)",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      outlineColor: "var(--app-red)",
+                    }}
                   >
                     ×
                   </button>
                 </div>
               </div>
-              <div style={{ padding: '6px 10px', fontSize: 11, color: 'var(--app-fg-subtle)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 80, overflowY: 'auto', wordBreak: 'break-all' }}>
+              <div
+                style={{
+                  padding: "6px 10px",
+                  fontSize: 11,
+                  color: "var(--app-fg-subtle)",
+                  fontFamily: "monospace",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 80,
+                  overflowY: "auto",
+                  wordBreak: "break-all",
+                }}
+              >
                 {item.text}
               </div>
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

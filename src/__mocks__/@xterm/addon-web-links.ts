@@ -1,4 +1,4 @@
 export class WebLinksAddon {
-  activate = jest.fn()
-  dispose = jest.fn()
+  activate = jest.fn();
+  dispose = jest.fn();
 }

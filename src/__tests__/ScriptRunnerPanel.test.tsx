@@ -2,134 +2,175 @@
  * @jest-environment jsdom
  */
 
-import '@testing-library/jest-dom'
-import React from 'react'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import ScriptRunnerPanel from '../renderer/src/shared/components/ScriptRunnerPanel'
-import { setupMockedApis, resetMockedApis, workspaceApi } from './rendererHelpers'
+import "@testing-library/jest-dom";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import ScriptRunnerPanel from "../renderer/src/shared/components/ScriptRunnerPanel";
+import {
+  setupMockedApis,
+  resetMockedApis,
+  workspaceApi,
+} from "./rendererHelpers";
 
-setupMockedApis()
+setupMockedApis();
 
 // Mock Element.prototype.scrollIntoView to prevent errors during testing
-Element.prototype.scrollIntoView = jest.fn()
+Element.prototype.scrollIntoView = jest.fn();
 
-describe('ScriptRunnerPanel', () => {
-  const onRunScript = jest.fn()
+describe("ScriptRunnerPanel", () => {
+  const onRunScript = jest.fn();
 
   beforeEach(() => {
-    resetMockedApis()
-    onRunScript.mockClear()
-    jest.clearAllMocks()
-  })
+    resetMockedApis();
+    onRunScript.mockClear();
+    jest.clearAllMocks();
+  });
 
-  it('does not fetch scripts if inactive', async () => {
-    render(<ScriptRunnerPanel isActive={false} onRunScript={onRunScript} />)
-    expect(workspaceApi.getScripts).not.toHaveBeenCalled()
-  })
+  it("does not fetch scripts if inactive", async () => {
+    render(<ScriptRunnerPanel isActive={false} onRunScript={onRunScript} />);
+    expect(workspaceApi.getScripts).not.toHaveBeenCalled();
+  });
 
-  it('shows no scripts message when api throws an error', async () => {
+  it("shows no scripts message when api throws an error", async () => {
     let rejectPromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise((resolve, reject) => { rejectPromise = reject; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectPromise = reject;
+      }),
+    );
 
     // Suppress console.error expected for this test
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
-      rejectPromise(new Error('Network error'));
+      rejectPromise(new Error("Network error"));
     });
 
-    expect(screen.getByText('No scripts found')).toBeInTheDocument();
+    expect(screen.getByText("No scripts found")).toBeInTheDocument();
     consoleSpy.mockRestore();
-  })
+  });
 
-  it('shows no scripts message when api returns null', async () => {
+  it("shows no scripts message when api returns null", async () => {
     let resolvePromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    );
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
       resolvePromise(null);
     });
 
-    expect(screen.getByText('No scripts found')).toBeInTheDocument()
-  })
+    expect(screen.getByText("No scripts found")).toBeInTheDocument();
+  });
 
-  it('renders scripts when api returns data', async () => {
+  it("renders scripts when api returns data", async () => {
     let resolvePromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    );
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
-      resolvePromise({ scripts: { start: 'node index.js', test: 'jest' }, cwd: '/app/project' });
+      resolvePromise({
+        scripts: { start: "node index.js", test: "jest" },
+        cwd: "/app/project",
+      });
     });
 
-    expect(screen.getByText('Workspace: /app/project')).toBeInTheDocument()
-    expect(screen.getByText('start')).toBeInTheDocument()
-    expect(screen.getByText('test')).toBeInTheDocument()
-  })
+    expect(screen.getByText("Workspace: /app/project")).toBeInTheDocument();
+    expect(screen.getByText("start")).toBeInTheDocument();
+    expect(screen.getByText("test")).toBeInTheDocument();
+  });
 
-  it('runs script on click', async () => {
+  it("runs script on click", async () => {
     let resolvePromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    );
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
-      resolvePromise({ scripts: { start: 'node index.js', test: 'jest' }, cwd: '/app/project' });
+      resolvePromise({
+        scripts: { start: "node index.js", test: "jest" },
+        cwd: "/app/project",
+      });
     });
 
-    const startBtn = screen.getByText('start').closest('button')
-    fireEvent.click(startBtn!)
+    const startBtn = screen.getByText("start").closest("button");
+    fireEvent.click(startBtn!);
 
-    expect(onRunScript).toHaveBeenCalledWith('npm run start', '/app/project')
-  })
+    expect(onRunScript).toHaveBeenCalledWith("npm run start", "/app/project");
+  });
 
-  it('navigates with keyboard and runs script on enter', async () => {
+  it("navigates with keyboard and runs script on enter", async () => {
     let resolvePromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    );
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
-      resolvePromise({ scripts: { start: 'node index.js', test: 'jest', build: 'tsc' }, cwd: '/app/project' });
+      resolvePromise({
+        scripts: { start: "node index.js", test: "jest", build: "tsc" },
+        cwd: "/app/project",
+      });
     });
 
-    const container = screen.getByText('Project Scripts').parentElement!
+    const container = screen.getByText("Project Scripts").parentElement!;
 
     // Test ArrowDown
-    fireEvent.keyDown(container, { key: 'ArrowDown' })
-    fireEvent.keyDown(container, { key: 'ArrowDown' })
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    fireEvent.keyDown(container, { key: "ArrowDown" });
 
     // Test ArrowUp
-    fireEvent.keyDown(container, { key: 'ArrowUp' })
+    fireEvent.keyDown(container, { key: "ArrowUp" });
 
     // Test Enter on 'test'
-    fireEvent.keyDown(container, { key: 'Enter' })
+    fireEvent.keyDown(container, { key: "Enter" });
 
-    expect(onRunScript).toHaveBeenCalledWith('npm run test', '/app/project')
-  })
+    expect(onRunScript).toHaveBeenCalledWith("npm run test", "/app/project");
+  });
 
-  it('updates selection on mouse enter', async () => {
+  it("updates selection on mouse enter", async () => {
     let resolvePromise: any;
-    workspaceApi.getScripts.mockReturnValue(new Promise(resolve => { resolvePromise = resolve; }));
+    workspaceApi.getScripts.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }),
+    );
 
-    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />)
+    render(<ScriptRunnerPanel isActive={true} onRunScript={onRunScript} />);
 
     await act(async () => {
-      resolvePromise({ scripts: { start: 'node index.js', test: 'jest' }, cwd: '/app/project' });
+      resolvePromise({
+        scripts: { start: "node index.js", test: "jest" },
+        cwd: "/app/project",
+      });
     });
 
-    const testBtn = screen.getByText('test').closest('button')
+    const testBtn = screen.getByText("test").closest("button");
 
-    fireEvent.mouseEnter(testBtn!)
+    fireEvent.mouseEnter(testBtn!);
 
-    const container = screen.getByText('Project Scripts').parentElement!
-    fireEvent.keyDown(container, { key: 'Enter' })
+    const container = screen.getByText("Project Scripts").parentElement!;
+    fireEvent.keyDown(container, { key: "Enter" });
 
-    expect(onRunScript).toHaveBeenCalledWith('npm run test', '/app/project')
-  })
-})
+    expect(onRunScript).toHaveBeenCalledWith("npm run test", "/app/project");
+  });
+});

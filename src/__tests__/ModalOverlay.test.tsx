@@ -2,72 +2,80 @@
  * @jest-environment jsdom
  */
 
-import '@testing-library/jest-dom'
-import React, { createRef } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ModalOverlay } from '../renderer/src/shared/components/ModalOverlay'
+import "@testing-library/jest-dom";
+import React, { createRef } from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { ModalOverlay } from "../renderer/src/shared/components/ModalOverlay";
 
-describe('ModalOverlay', () => {
-  it('renders children correctly', () => {
+describe("ModalOverlay", () => {
+  it("renders children correctly", () => {
     render(
       <ModalOverlay>
         <div data-testid="child-element">Test Child</div>
-      </ModalOverlay>
-    )
+      </ModalOverlay>,
+    );
 
-    expect(screen.getByTestId('child-element')).toBeInTheDocument()
-    expect(screen.getByText('Test Child')).toBeInTheDocument()
-  })
+    expect(screen.getByTestId("child-element")).toBeInTheDocument();
+    expect(screen.getByText("Test Child")).toBeInTheDocument();
+  });
 
-  it('calls onClick handler when clicked', () => {
-    const handleClick = jest.fn()
+  it("calls onClick handler when clicked", () => {
+    const handleClick = jest.fn();
     render(
       <ModalOverlay onClick={handleClick} data-testid="overlay">
         <div>Child</div>
-      </ModalOverlay>
-    )
+      </ModalOverlay>,
+    );
 
-    const overlay = screen.getByTestId('overlay')
-    fireEvent.click(overlay)
+    const overlay = screen.getByTestId("overlay");
+    fireEvent.click(overlay);
 
-    expect(handleClick).toHaveBeenCalledTimes(1)
-  })
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
 
-  it('applies custom styles correctly', () => {
+  it("applies custom styles correctly", () => {
     render(
-      <ModalOverlay style={{ backgroundColor: 'red', zIndex: 100 }} data-testid="overlay">
+      <ModalOverlay
+        style={{ backgroundColor: "red", zIndex: 100 }}
+        data-testid="overlay"
+      >
         <div>Child</div>
-      </ModalOverlay>
-    )
+      </ModalOverlay>,
+    );
 
-    const overlay = screen.getByTestId('overlay')
+    const overlay = screen.getByTestId("overlay");
     // toHaveStyle parses it to CSS string representations, so zIndex 100 becomes z-index: 100.
-    expect(overlay).toHaveStyle('background-color: rgb(255, 0, 0)')
-    expect(overlay).toHaveStyle('z-index: 100')
-  })
+    expect(overlay).toHaveStyle("background-color: rgb(255, 0, 0)");
+    expect(overlay).toHaveStyle("z-index: 100");
+  });
 
-  it('forwards containerRef correctly', () => {
-    const ref = createRef<HTMLDivElement>()
+  it("forwards containerRef correctly", () => {
+    const ref = createRef<HTMLDivElement>();
     render(
       <ModalOverlay containerRef={ref} data-testid="overlay">
         <div>Child</div>
-      </ModalOverlay>
-    )
+      </ModalOverlay>,
+    );
 
-    const overlay = screen.getByTestId('overlay')
-    expect(ref.current).toBe(overlay)
-  })
+    const overlay = screen.getByTestId("overlay");
+    expect(ref.current).toBe(overlay);
+  });
 
-  it('passes additional HTML attributes correctly', () => {
+  it("passes additional HTML attributes correctly", () => {
     render(
-      <ModalOverlay id="test-overlay-id" aria-label="Modal Backdrop" data-custom="value" data-testid="overlay">
+      <ModalOverlay
+        id="test-overlay-id"
+        aria-label="Modal Backdrop"
+        data-custom="value"
+        data-testid="overlay"
+      >
         <div>Child</div>
-      </ModalOverlay>
-    )
+      </ModalOverlay>,
+    );
 
-    const overlay = screen.getByTestId('overlay')
-    expect(overlay).toHaveAttribute('id', 'test-overlay-id')
-    expect(overlay).toHaveAttribute('aria-label', 'Modal Backdrop')
-    expect(overlay).toHaveAttribute('data-custom', 'value')
-  })
-})
+    const overlay = screen.getByTestId("overlay");
+    expect(overlay).toHaveAttribute("id", "test-overlay-id");
+    expect(overlay).toHaveAttribute("aria-label", "Modal Backdrop");
+    expect(overlay).toHaveAttribute("data-custom", "value");
+  });
+});
