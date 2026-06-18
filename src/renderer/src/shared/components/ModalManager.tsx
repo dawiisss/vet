@@ -20,6 +20,7 @@ const FilePreviewModal = lazy(
 const ClipboardPreviewModal = lazy(
   () => import("@/shared/components/ClipboardPreviewModal"),
 );
+const IntroModal = lazy(() => import("@/shared/components/IntroModal"));
 
 /**
  * Component to orchestrate all lazy-loaded overlay modals and the command palette.
@@ -28,6 +29,7 @@ export default function ModalManager() {
   const isSettingsOpen = useUIStore((s) => s.isSettingsOpen);
   const isAboutOpen = useUIStore((s) => s.isAboutOpen);
   const isUpdateModalOpen = useUIStore((s) => s.isUpdateModalOpen);
+  const isIntroOpen = useUIStore((s) => s.isIntroOpen);
   const viewingHistorySessionId = useUIStore((s) => s.viewingHistorySessionId);
   const isCommandPaletteOpen = useUIStore((s) => s.isCommandPaletteOpen);
   const previewFilePath = useUIStore((s) => s.previewFilePath);
@@ -35,6 +37,7 @@ export default function ModalManager() {
   const setIsSettingsOpen = useUIStore((s) => s.setIsSettingsOpen);
   const setIsAboutOpen = useUIStore((s) => s.setIsAboutOpen);
   const setIsUpdateModalOpen = useUIStore((s) => s.setIsUpdateModalOpen);
+  const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
   const setIsCommandPaletteOpen = useUIStore((s) => s.setIsCommandPaletteOpen);
   const setViewingHistorySessionId = useUIStore((s) => s.setViewingHistorySessionId);
   const setPreviewFilePath = useUIStore((s) => s.setPreviewFilePath);
@@ -62,6 +65,11 @@ export default function ModalManager() {
       id: "settings",
       label: "Settings: Open",
       onExecute: () => setIsSettingsOpen(true),
+    },
+    {
+      id: "welcome-guide",
+      label: "Help: Show Welcome Guide",
+      onExecute: () => setIsIntroOpen(true),
     },
     {
       id: "about",
@@ -202,6 +210,9 @@ export default function ModalManager() {
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
       {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
+      {isIntroOpen && (
+        <IntroModal onClose={() => setIsIntroOpen(false)} />
+      )}
       {isUpdateModalOpen && (
         <UpdateModal onClose={() => setIsUpdateModalOpen(false)} />
       )}

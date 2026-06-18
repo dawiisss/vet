@@ -33,6 +33,7 @@ function App() {
   const setDbError = useUIStore((s) => s.setDbError);
   const setIsSettingsOpen = useUIStore((s) => s.setIsSettingsOpen);
   const setIsAboutOpen = useUIStore((s) => s.setIsAboutOpen);
+  const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
   const setViewingHistorySessionId = useUIStore((s) => s.setViewingHistorySessionId);
   const setPreviewFilePath = useUIStore((s) => s.setPreviewFilePath);
 
@@ -60,6 +61,15 @@ function App() {
     useTabDrag();
 
   const terminalAreaRef = useRef<HTMLDivElement>(null);
+  const hasTriggeredIntro = useRef(false);
+
+  // Trigger onboarding welcome guide if configured
+  useEffect(() => {
+    if (config && config.showIntroOnStartup !== false && !hasTriggeredIntro.current) {
+      hasTriggeredIntro.current = true;
+      setIsIntroOpen(true);
+    }
+  }, [config.showIntroOnStartup]);
 
   // Initialize global keyboard shortcuts and webview key-forwarding
   useKeybindings();

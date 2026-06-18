@@ -3,7 +3,7 @@ import { spawn } from "node-pty";
 /**
  * Spawns a PTY process connected via SSH.
  */
-export function createSshPty(host: SshHost, cleanEnv: Record<string, string>) {
+export function createSshPty(host: SshHost, cleanEnv: Record<string, string>, cols?: number, rows?: number) {
   const shell = "ssh";
   const args: string[] = [];
   if (host.port) {
@@ -20,8 +20,8 @@ export function createSshPty(host: SshHost, cleanEnv: Record<string, string>) {
 
   return spawn(shell, args, {
     name: "xterm-256color",
-    cols: 80,
-    rows: 24,
+    cols: cols || 80,
+    rows: rows || 24,
     cwd: process.env.HOME || process.cwd(),
     env: cleanEnv,
   });

@@ -271,6 +271,7 @@ export function useTerminal({
       });
 
       term.onResize(({ cols, rows }) => {
+        console.log(`[xterm] Terminal ${terminalId} resized to ${cols}x${rows}`);
         api.resize(terminalId, cols, rows);
       });
 
@@ -363,8 +364,19 @@ export function useTerminal({
     });
 
     let resizeTimeout: ReturnType<typeof setTimeout>;
+    let isFirstFit = true;
 
     function doFit() {
+      if (isFirstFit) {
+        isFirstFit = false;
+        try {
+          fitAddon.fit();
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         try {

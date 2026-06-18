@@ -50,6 +50,8 @@ interface TabStore {
   tabActivationOrder: string[];
   hibernatedTabIds: string[];
   error: string | null;
+  nextTabId: number;
+  tabCounter: number;
 
   // Basic helpers accessible inside actions
   generateTabId: () => string;
@@ -98,9 +100,6 @@ interface TabStore {
   handleInjectSnippet: (snippet: string) => void;
 }
 
-let tabCounter = 1;
-let nextTabId = 1;
-
 export const useTabStore = create<TabStore>((set, get) => {
   const initializedRef = { current: false };
 
@@ -114,12 +113,18 @@ export const useTabStore = create<TabStore>((set, get) => {
     tabActivationOrder: [],
     hibernatedTabIds: [],
     error: null,
+    nextTabId: 1,
+    tabCounter: 1,
 
     // Helper implementations
-    generateTabId: () => `tab-${nextTabId++}`,
+    generateTabId: () => {
+      const currentId = get().nextTabId;
+      set({ nextTabId: currentId + 1 });
+      return `tab-${currentId}`;
+    },
     newTabState: (tabId: string, terminalId: string, label?: string) => ({
       id: tabId,
-      label: label || `shell ${tabCounter++}`,
+      label: label || `shell ${get().getTabCounter()}`,
       root: leafNode(terminalId),
       focusedPath: [],
     }),
@@ -129,7 +134,11 @@ export const useTabStore = create<TabStore>((set, get) => {
       root: browserLeafNode(browserId),
       focusedPath: [],
     }),
-    getTabCounter: () => tabCounter,
+    getTabCounter: () => {
+      const current = get().tabCounter;
+      set({ tabCounter: current + 1 });
+      return current;
+    },
 
     setDragState: (dragState) =>
       set((state) => ({

@@ -9,6 +9,7 @@ import {
   getHistory,
   setForegroundTerminals,
 } from "../pty";
+import { getConfig } from "../config";
 
 interface TerminalHandlersOptions {
   windowTerminals: Map<number, Set<string>>;
@@ -32,12 +33,35 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
   registerHandlers({
     "terminal:create": (event, { cwd, profileId, sshHostId }: { cwd?: string; profileId?: string; sshHostId?: string }) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      let cols = 80;
+      let rows = 24;
+      if (win) {
+        try {
+          const config = getConfig();
+          const fontSize = config.fontSize || 13;
+          const [width, height] = win.getSize();
+
+          const charWidth = Math.max(5, fontSize * 0.6);
+          const charHeight = Math.max(10, fontSize * 1.35);
+
+          const sidebarWidth = config.sidebarOpen ? (config.sidebarWidth || 250) : 0;
+          const usableWidth = width - sidebarWidth - 40;
+          const usableHeight = height - 100;
+
+          cols = Math.max(40, Math.floor(usableWidth / charWidth));
+          rows = Math.max(10, Math.floor(usableHeight / charHeight));
+        } catch {}
+      }
+
       const id = createTerminal({
         cwd: cwd || process.cwd(),
         profileId,
         sshHostId,
+        cols,
+        rows,
       });
-      const win = BrowserWindow.fromWebContents(event.sender);
+
       if (win) {
         registerForwardTarget(id, win);
         if (!windowTerminals.has(win.id)) {

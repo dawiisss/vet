@@ -121,23 +121,117 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
     return;
   }
 
-  api
-    .create()
-    .then(async ({ id }) => {
-      const tabId = get().generateTabId();
-      let label: string | undefined;
+  // Helper to recursively recreate terminal sessions for leaf nodes
+  async function recreateTerminalNodes(node: any): Promise<any> {
+    if (node.terminalId) {
       try {
-        const info = await api.getTerminalInfo(id);
-        if (info.title) label = info.title;
-      } catch {}
-      set({
-        tabs: [get().newTabState(tabId, id, label)],
-        activeTabId: tabId,
-        tabActivationOrder: [tabId],
-      });
+        const { id: newId } = await api.create();
+        return { terminalId: newId };
+      } catch (err) {
+        console.error("Failed to recreate terminal node", err);
+        return node;
+      }
+    } else if (node.browserId) {
+      return { browserId: node.browserId, url: node.url };
+    } else if (node.children) {
+      const newChildren = await Promise.all(
+        node.children.map((child: any) => recreateTerminalNodes(child))
+      );
+      return {
+        direction: node.direction,
+        children: newChildren,
+        sizes: node.sizes,
+      };
+    }
+    return node;
+  }
+
+  api.getSession()
+    .then(async (session: any) => {
+      if (session && session.tabs && session.tabs.length > 0) {
+        try {
+          const restoredTabs = await Promise.all(
+            session.tabs.map(async (tab: any) => {
+              const restoredRoot = await recreateTerminalNodes(tab.root);
+              return {
+                id: tab.id,
+                label: tab.label,
+                root: restoredRoot,
+                focusedPath: tab.focusedPath || [],
+              };
+            })
+          );
+          
+          const restoredActiveId = session.activeTabId && restoredTabs.some(t => t.id === session.activeTabId)
+            ? session.activeTabId
+            : restoredTabs[0].id;
+
+          // Find max tab ID number and shell counter to avoid collision on new tab creation
+          let maxTabNum = 0;
+          let maxShellNum = 0;
+          for (const tab of restoredTabs) {
+            const tabMatch = tab.id.match(/^tab-(\d+)$/);
+            if (tabMatch) {
+              const num = parseInt(tabMatch[1], 10);
+              if (num > maxTabNum) maxTabNum = num;
+            }
+            const labelMatch = tab.label.match(/^shell (\d+)$/);
+            if (labelMatch) {
+              const num = parseInt(labelMatch[1], 10);
+              if (num > maxShellNum) maxShellNum = num;
+            }
+          }
+
+          set({
+            tabs: restoredTabs,
+            activeTabId: restoredActiveId,
+            tabActivationOrder: restoredTabs.map(t => t.id),
+            nextTabId: maxTabNum + 1,
+            tabCounter: maxShellNum + 1,
+          });
+          return;
+        } catch (err) {
+          console.error("Error restoring session, falling back to default tab", err);
+        }
+      }
+
+      // Default fallback if no session exists
+      api
+        .create()
+        .then(async ({ id }) => {
+          const tabId = get().generateTabId();
+          let label: string | undefined;
+          try {
+            const info = await api.getTerminalInfo(id);
+            if (info.title) label = info.title;
+          } catch {}
+          set({
+            tabs: [get().newTabState(tabId, id, label)],
+            activeTabId: tabId,
+            tabActivationOrder: [tabId],
+          });
+        })
+        .catch((err: any) => {
+          useUIStore.getState().addToast(`Failed to create terminal: ${err.message || err}`, "error");
+        });
     })
-    .catch((err: any) => {
-      useUIStore.getState().addToast(`Failed to create terminal: ${err.message || err}`, "error");
+    .catch(() => {
+      // Fallback
+      api
+        .create()
+        .then(async ({ id }) => {
+          const tabId = get().generateTabId();
+          let label: string | undefined;
+          try {
+            const info = await api.getTerminalInfo(id);
+            if (info.title) label = info.title;
+          } catch {}
+          set({
+            tabs: [get().newTabState(tabId, id, label)],
+            activeTabId: tabId,
+            tabActivationOrder: [tabId],
+          });
+        });
     });
 }
 

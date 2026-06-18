@@ -140,6 +140,8 @@ export function createTerminal(options: {
   cwd?: string;
   profileId?: string | undefined;
   sshHostId?: string | undefined;
+  cols?: number;
+  rows?: number;
 }): string {
   const id = uuidv4();
   if (options.sshHostId) {
@@ -168,7 +170,7 @@ export function createTerminal(options: {
     if (sshHost) {
       connectionType = "ssh";
       connectionTarget = `${sshHost.username}@${sshHost.host}`;
-      pty = createSshPty(sshHost, cleanEnv);
+      pty = createSshPty(sshHost, cleanEnv, options.cols, options.rows);
     } else {
       let shell = process.env["SHELL"] || "/bin/bash";
       let args: string[] = [];
@@ -232,8 +234,8 @@ export function createTerminal(options: {
 
       pty = spawn(shell, args, {
         name: "xterm-256color",
-        cols: 80,
-        rows: 24,
+        cols: options.cols || 80,
+        rows: options.rows || 24,
         cwd: resolvedCwd,
         env: cleanEnvLocal,
       });
@@ -347,6 +349,7 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
   const terminal = terminals.get(id);
   if (terminal) {
     try {
+      console.log(`[pty] Resizing PTY ${id} to ${cols}x${rows}`);
       terminal.pty.resize(cols, rows);
     } catch (e) {
       console.error(`Failed to resize terminal ${id}:`, e);

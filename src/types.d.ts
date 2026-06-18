@@ -73,6 +73,7 @@ interface Config {
   browserHomepage?: string;
   browserSearchEngine?: "duckduckgo" | "google" | "bing";
   browserAdblockEnabled?: boolean;
+  showIntroOnStartup?: boolean;
 }
 
 interface TerminalApi {

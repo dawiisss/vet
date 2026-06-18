@@ -194,4 +194,39 @@ describe("useTabStore", () => {
     };
     expect(newTab.root).toEqual(expectedNode);
   });
+
+  it("initializeTabs restores saved session tabs and splits correctly", async () => {
+    const api = window.terminalApi as any;
+    api.getSession.mockResolvedValueOnce({
+      activeTabId: "tab-saved-1",
+      tabs: [
+        {
+          id: "tab-saved-1",
+          label: "saved shell",
+          root: { terminalId: "term-old" },
+          focusedPath: [],
+        },
+      ],
+    });
+    api.create.mockResolvedValueOnce({ id: "term-new" });
+
+    await new Promise<void>((resolve) => {
+      jest.isolateModules(async () => {
+        const { useTabStore: freshUseTabStore } =
+          require("../renderer/src/features/terminal/useTabStore") as any;
+        
+        freshUseTabStore.getState().initializeTabs();
+
+        // Allow microtasks/promises to resolve
+        await new Promise((r) => setTimeout(r, 10));
+
+        const updatedStore = freshUseTabStore.getState();
+        expect(updatedStore.tabs.length).toBe(1);
+        expect(updatedStore.tabs[0].id).toBe("tab-saved-1");
+        expect(updatedStore.tabs[0].root).toEqual({ terminalId: "term-new" });
+        expect(updatedStore.activeTabId).toBe("tab-saved-1");
+        resolve();
+      });
+    });
+  });
 });

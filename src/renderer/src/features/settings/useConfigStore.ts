@@ -15,6 +15,7 @@ const defaultConfig: Config = {
   virtualScrollbackEnabled: true,
   virtualScrollbackBufferSize: 1000,
   keybindings: {},
+  showIntroOnStartup: true,
 };
 
 interface ConfigState {

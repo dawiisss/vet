@@ -87,6 +87,7 @@ const DEFAULT_CONFIG: any = {
   browserHomepage: "https://duckduckgo.com",
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
+  showIntroOnStartup: true,
   profiles: [
     {
       id: "default",

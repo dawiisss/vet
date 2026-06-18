@@ -14,6 +14,7 @@ interface UIStore {
   isSettingsOpen: boolean;
   isAboutOpen: boolean;
   isUpdateModalOpen: boolean;
+  isIntroOpen: boolean;
   viewingHistorySessionId: string | null;
   isCommandPaletteOpen: boolean;
   previewFilePath: string | null;
@@ -27,6 +28,9 @@ interface UIStore {
   setIsSettingsOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void;
   setIsAboutOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void;
   setIsUpdateModalOpen: (
+    isOpen: boolean | ((prev: boolean) => boolean),
+  ) => void;
+  setIsIntroOpen: (
     isOpen: boolean | ((prev: boolean) => boolean),
   ) => void;
   setIsCommandPaletteOpen: (
@@ -51,6 +55,7 @@ export const useUIStore = create<UIStore>((set) => ({
   isSettingsOpen: false,
   isAboutOpen: false,
   isUpdateModalOpen: false,
+  isIntroOpen: false,
   viewingHistorySessionId: null,
   isCommandPaletteOpen: false,
   previewFilePath: null,
@@ -89,6 +94,11 @@ export const useUIStore = create<UIStore>((set) => ({
     set((state) => ({
       isUpdateModalOpen:
         typeof isOpen === "function" ? isOpen(state.isUpdateModalOpen) : isOpen,
+    })),
+  setIsIntroOpen: (isOpen) =>
+    set((state) => ({
+      isIntroOpen:
+        typeof isOpen === "function" ? isOpen(state.isIntroOpen) : isOpen,
     })),
   setIsCommandPaletteOpen: (isOpen) =>
     set((state) => ({

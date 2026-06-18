@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.5] - 2026-06-18
 
+### Added
+- **User Onboarding Welcome Guide**: Designed and implemented an interactive, multi-slide onboarding welcome guide (`IntroModal`) to showcase key features on startup (Multi-Pane Splits, Web Browser, Sidebar panels, Command Palette, SQLite History, and Keyboard Shortcuts).
+- **Live Theme Customizer**: Added a live theme selector on the final onboarding slide to let users preview and select built-in application themes (Dracula, Nord, Catppuccin, One Dark) in real time.
+- **Onboarding Config Persistence**: Saved the onboarding state (`showIntroOnStartup`) to `config.json5` so the welcome guide won't reappear on launch once skipped or completed, but remains replayable via the About Modal and Command Palette.
+
+### Fixed
+- **Session Layout Persistence**: Wired up window terminal API session saving and loading to automatically persist and restore complex tab and split-pane layouts across app restarts.
+- **React Key Collision & Tab Counters**: Fixed duplicate tab key warnings (e.g. duplicate `tab-2` keys) on session restoration by migrating tab ID and shell counters to Zustand state, resolving circular dependency initialization issues between `useTabStore.ts` and `tabActions.ts`.
+- **Fastfetch/Startup Size Persistence**: Fixed rendering layout artifacts and horizontal clipping on startup commands (like `fastfetch`) in narrow/midsize terminals by calculating estimated dimensions from Electron window bounds on spawn and executing initial ResizeObserver layouts instantly (without 50ms debounces).
+
 ### Changed
 - **Major Refactoring and Architecture Improvements**:
   - **Preload Isolation & Dry IPC**: Reduced preload code by 150+ lines using declarative factory helpers (`invoke`, `send`, `on`).
