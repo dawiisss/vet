@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ModalOverlay } from "./ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
 import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
 
 interface UpdateModalProps {
@@ -32,14 +31,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
     }
   }, []);
 
-  useEscapeKey(onClose);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && status !== "downloading") {
-      onClose();
-    }
-  };
-
   // Format bytes helper
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -51,7 +42,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
 
   return (
     <ModalOverlay
-      onClick={handleOverlayClick}
+      onClose={onClose}
+      closeOnOverlayClick={status !== "downloading"}
+      closeOnEsc={status !== "downloading"}
       containerRef={modalRef}
       role="dialog"
       aria-modal="true"

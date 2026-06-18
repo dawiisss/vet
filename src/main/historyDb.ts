@@ -8,6 +8,11 @@ const DB_DIR = path.join(app.getPath("home"), ".config", "vet");
 const DB_FILE = path.join(DB_DIR, "vet_history.db");
 
 let db: DatabaseSync | null = null;
+let dbInitError: string | null = null;
+
+export function getDbInitError(): string | null {
+  return dbInitError;
+}
 
 interface OutputChunk {
   sessionId: string;
@@ -77,8 +82,10 @@ export function initHistoryDb() {
 
     // Run initial prune
     pruneHistory();
-  } catch (err) {
+    dbInitError = null;
+  } catch (err: any) {
     console.error("Failed to initialize history DB:", err);
+    dbInitError = err instanceof Error ? err.message : String(err);
   }
 }
 

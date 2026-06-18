@@ -9,12 +9,12 @@
  * occupies, ensuring UI layouts remain consistent when resized.
  */
 export interface SplitNode {
-  terminalId?: string;
-  browserId?: string;
-  url?: string;
-  direction?: "horizontal" | "vertical";
-  children?: SplitNode[];
-  sizes?: number[];
+  terminalId?: string | undefined;
+  browserId?: string | undefined;
+  url?: string | undefined;
+  direction?: "horizontal" | "vertical" | undefined;
+  children?: SplitNode[] | undefined;
+  sizes?: number[] | undefined;
 }
 
 /**
@@ -72,7 +72,7 @@ export function splitNode(
 export function getNode(root: SplitNode, path: number[]): SplitNode {
   let node = root;
   for (const i of path) {
-    node = node.children![i];
+    node = node.children![i]!;
   }
   return node;
 }
@@ -95,16 +95,17 @@ export function setNode(
   replacement: SplitNode,
 ): SplitNode {
   if (path.length === 0) return replacement;
-  const [i, ...rest] = path;
+  const i = path[0]!;
+  const rest = path.slice(1);
   const newChildren = [...root.children!];
-  newChildren[i] = setNode(newChildren[i], rest, replacement);
+  newChildren[i] = setNode(newChildren[i]!, rest, replacement);
   return { ...root, children: newChildren };
 }
 
 export function firstLeafId(root: SplitNode): string {
   let node = root;
   while (node.children && node.children.length > 0) {
-    node = node.children[0];
+    node = node.children[0]!;
   }
   return node.terminalId || node.browserId || "";
 }
@@ -176,8 +177,8 @@ export function navigatePath(
   const paths = leafPaths(root);
   if (paths.length === 0) return currentPath;
   const idx = pathIndex(root, currentPath);
-  if (idx === -1) return paths[0];
-  return paths[(idx + delta + paths.length) % paths.length];
+  if (idx === -1) return paths[0]!;
+  return paths[(idx + delta + paths.length) % paths.length]!;
 }
 
 export function insertLeaves(
@@ -197,7 +198,7 @@ export function insertLeaves(
   }
 
   const parentPath = path.slice(0, -1);
-  const leafIndex = path[path.length - 1];
+  const leafIndex = path[path.length - 1]!;
   const parent = getNode(root, parentPath);
   const newLeaves = newTerminalIds.map(toNode);
 
@@ -234,7 +235,7 @@ export function removeLeaf(
   if (path.length === 0) return { root: null, newPath: [] };
 
   const parentPath = path.slice(0, -1);
-  const leafIndex = path[path.length - 1];
+  const leafIndex = path[path.length - 1]!;
 
   // Removing from a split node
   const parent = getNode(root, parentPath);
@@ -245,7 +246,7 @@ export function removeLeaf(
   if (newChildren.length === 1) {
     // Collapse — only one child left, promote it up
     return {
-      root: setNode(root, parentPath, newChildren[0]),
+      root: setNode(root, parentPath, newChildren[0]!),
       newPath: parentPath,
     };
   }

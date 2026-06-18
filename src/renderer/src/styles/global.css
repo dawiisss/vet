@@ -1,3 +1,63 @@
+:root {
+  /* Font size scale */
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+
+  /* Spacing scale */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  /* Border radius scale */
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+
+  /* Shadow scale */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+
+  /* Transition scale */
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
+
+.app-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--app-modal-bg, rgba(0, 0, 0, 0.4));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  outline: none;
+}
+
+.app-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.app-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: var(--border-radius-sm);
+}
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--app-accent);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -79,4 +139,130 @@ div:hover > .extract-btn {
 :focus-visible {
   outline: 2px solid var(--app-accent);
   outline-offset: 2px;
+}
+
+/* Warning Banner Component */
+.app-warning-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: color-mix(in srgb, #e64553 15%, var(--app-bg));
+  border-bottom: 1px solid color-mix(in srgb, #e64553 30%, var(--app-border));
+  color: #e64553;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 100;
+  animation: slide-down 0.2s ease-out;
+}
+
+.app-warning-banner-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-warning-banner-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.app-warning-banner-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Toast Notification Overlay */
+.app-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.app-toast {
+  pointer-events: auto;
+  min-width: 280px;
+  max-width: 400px;
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-border);
+  border-left: 4px solid var(--app-accent);
+  border-radius: 6px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  animation: slide-in 0.2s ease-out;
+}
+
+.app-toast-error {
+  border-left-color: #e64553;
+}
+
+.app-toast-warning {
+  border-left-color: #df8e1d;
+}
+
+.app-toast-info {
+  border-left-color: #1e66f5;
+}
+
+.app-toast-content {
+  flex: 1;
+  color: var(--app-fg);
+  font-size: 13px;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.4;
+}
+
+.app-toast-close {
+  background: transparent;
+  border: none;
+  color: var(--app-fg-muted);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.app-toast-close:hover {
+  color: var(--app-fg);
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }

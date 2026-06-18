@@ -27,8 +27,8 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
     let host = target;
     if (target.includes("@")) {
       const parts = target.split("@");
-      user = parts[0];
-      host = parts[1];
+      user = parts[0]!;
+      host = parts[1]!;
     }
 
     // Workaround 1: Profile matching

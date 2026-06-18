@@ -7,13 +7,13 @@ import { buildShortcutString } from "@/shared/utils/keybindings";
 
 interface BrowserViewProps {
   browserId: string;
-  initialUrl?: string;
+  initialUrl?: string | undefined;
   isActive: boolean;
-  isFocused?: boolean;
-  onFocus?: () => void;
-  onExit?: (browserId: string) => void;
-  onExtract?: () => void;
-  onContextMenuAction?: (action: "split-h" | "split-v" | "close") => void;
+  isFocused?: boolean | undefined;
+  onFocus?: (() => void) | undefined;
+  onExit?: ((browserId: string) => void) | undefined;
+  onExtract?: (() => void) | undefined;
+  onContextMenuAction?: ((action: "split-h" | "split-v" | "close") => void) | undefined;
 }
 
 function resolveUrl(

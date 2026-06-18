@@ -62,6 +62,8 @@ const configApi = {
   set: jest.fn(() => Promise.resolve()),
   openInEditor: jest.fn(() => Promise.resolve()),
   onChanged: jest.fn(() => jest.fn()),
+  getError: jest.fn(() => Promise.resolve(null as string | null)),
+  onError: jest.fn(() => jest.fn()),
 };
 
 const historyApi = {
@@ -71,6 +73,7 @@ const historyApi = {
   getScrollbackChunk: jest.fn(() => Promise.resolve([])),
   clear: jest.fn(() => Promise.resolve()),
   deleteSession: jest.fn(() => Promise.resolve()),
+  getDbError: jest.fn(() => Promise.resolve(null as string | null)),
 };
 
 const workspaceApi = {

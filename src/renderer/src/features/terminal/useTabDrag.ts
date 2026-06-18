@@ -65,7 +65,7 @@ export function useTabDrag() {
           const targetIndex = newTabs.findIndex((t) => t.id === targetTabId);
           if (sourceIndex > -1 && targetIndex > -1) {
             const [moved] = newTabs.splice(sourceIndex, 1);
-            newTabs.splice(targetIndex, 0, moved);
+            newTabs.splice(targetIndex, 0, moved!);
           }
           return newTabs;
         });

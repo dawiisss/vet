@@ -12,12 +12,11 @@ interface SplitPaneProps {
   onFocus: (path: number[]) => void;
   onExit: (terminalId: string) => void;
   onResize: (path: number[], newSizes: number[]) => void;
-  onExtract?: (path: number[]) => void;
+  onExtract?: ((path: number[]) => void) | undefined;
   onContextMenuAction?: (
-    path: number[],
-    action: "split-h" | "split-v" | "close",
-  ) => void;
-  leafCount?: number;
+    (path: number[], action: "split-h" | "split-v" | "close") => void
+  ) | undefined;
+  leafCount?: number | undefined;
 }
 
 function pathsEqual(a: number[], b: number[]): boolean {
@@ -112,12 +111,11 @@ interface SplitContainerProps {
   onFocus: (path: number[]) => void;
   onExit: (terminalId: string) => void;
   onResize: (path: number[], newSizes: number[]) => void;
-  onExtract?: (path: number[]) => void;
+  onExtract?: ((path: number[]) => void) | undefined;
   onContextMenuAction?: (
-    path: number[],
-    action: "split-h" | "split-v" | "close",
-  ) => void;
-  leafCount?: number;
+    (path: number[], action: "split-h" | "split-v" | "close") => void
+  ) | undefined;
+  leafCount?: number | undefined;
 }
 
 function SplitContainer({
@@ -162,17 +160,20 @@ function SplitContainer({
         const deltaRatio = (currentPos - drag.startPos) / containerSize;
 
         const newSizes = [...drag.startSizes];
-        const totalSize = newSizes[drag.index] + newSizes[drag.index + 1];
+        const idx = drag.index;
+        const startSizeIdx = drag.startSizes[idx]!;
+        const startSizeNext = drag.startSizes[idx + 1]!;
+        const totalSize = startSizeIdx + startSizeNext;
         const minSize = 0.05;
 
-        newSizes[drag.index] = Math.max(
+        newSizes[idx] = Math.max(
           minSize,
           Math.min(
-            drag.startSizes[drag.index] + deltaRatio,
+            startSizeIdx + deltaRatio,
             totalSize - minSize,
           ),
         );
-        newSizes[drag.index + 1] = totalSize - newSizes[drag.index];
+        newSizes[idx + 1] = totalSize - newSizes[idx]!;
 
         onResize(parentPath, newSizes);
       };

@@ -25,10 +25,10 @@ export const useClipboardStore = create<ClipboardStore>((set, get) => ({
     const { history, maxItems } = get();
 
     // Don't add duplicate consecutively
-    if (history.length > 0 && history[0].text === text) return;
+    if (history.length > 0 && history[0]!.text === text) return;
 
     const newItem: ClipboardItem = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       text,
       timestamp: Date.now(),
     };

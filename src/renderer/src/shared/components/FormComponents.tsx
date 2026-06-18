@@ -15,8 +15,8 @@ export const FormLabel: React.FC<LabelHTMLAttributes<HTMLLabelElement>> = ({
   return (
     <label
       style={{
-        fontSize: 12,
-        color: "#bac2de",
+        fontSize: "var(--font-size-sm)",
+        color: "var(--app-fg-subtle)",
         display: "inline-block",
         ...style,
       }}
@@ -38,11 +38,11 @@ export const FormInput: React.FC<InputHTMLAttributes<HTMLInputElement>> = ({
     <input
       style={{
         background: "rgba(0, 0, 0, 0.2)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        padding: "6px 10px",
-        borderRadius: 6,
+        border: "1px solid var(--app-border)",
+        padding: "var(--spacing-xs) var(--spacing-sm)",
+        borderRadius: "var(--border-radius-md)",
         color: "var(--app-fg)",
-        fontSize: 13,
+        fontSize: "var(--font-size-sm)",
         outline: "none",
         ...style,
       }}
@@ -63,11 +63,11 @@ export const FormSelect: React.FC<SelectHTMLAttributes<HTMLSelectElement>> = ({
     <select
       style={{
         background: "rgba(0, 0, 0, 0.2)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        padding: "6px 10px",
-        borderRadius: 6,
+        border: "1px solid var(--app-border)",
+        padding: "var(--spacing-xs) var(--spacing-sm)",
+        borderRadius: "var(--border-radius-md)",
         color: "var(--app-fg)",
-        fontSize: 13,
+        fontSize: "var(--font-size-sm)",
         outline: "none",
         ...style,
       }}

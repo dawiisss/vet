@@ -181,11 +181,13 @@ export function resolveTheme(
   customThemes?: Record<string, ThemeConfig>,
 ): ThemeConfig {
   if (typeof theme === "string") {
-    if (builtinThemes[theme]) return builtinThemes[theme];
-    if (customThemes?.[theme]) return customThemes[theme];
-    return builtinThemes["catppuccin-mocha"];
+    const builtin = builtinThemes[theme];
+    if (builtin) return builtin;
+    const custom = customThemes?.[theme];
+    if (custom) return custom;
+    return builtinThemes["catppuccin-mocha"]!;
   }
-  return theme || builtinThemes["catppuccin-mocha"];
+  return theme || builtinThemes["catppuccin-mocha"]!;
 }
 
 export function toXtermTheme(
@@ -194,16 +196,16 @@ export function toXtermTheme(
 ): Record<string, string> {
   const t: Record<string, string> = { ...theme };
 
-  if (t.selection) {
-    t.selectionBackground = t.selection;
+  if (theme.selection) {
+    t.selectionBackground = theme.selection;
   }
 
-  if (t.cursor && !t.cursorAccent) {
-    t.cursorAccent = t.background;
+  if (theme.cursor && !theme.cursorAccent) {
+    t.cursorAccent = theme.background;
   }
 
-  if (opacity !== undefined && t.background) {
-    const hex = t.background.replace("#", "");
+  if (opacity !== undefined && theme.background) {
+    const hex = theme.background.replace("#", "");
     if (hex.length === 6) {
       const alphaHex = Math.round(opacity * 255)
         .toString(16)

@@ -1,5 +1,6 @@
-import { ipcMain, BrowserWindow, app } from "electron";
+import { BrowserWindow, app } from "electron";
 import { autoUpdater } from "electron-updater";
+import { registerHandlers } from "./ipcUtils";
 
 export function registerUpdaterHandlers(
   getMainWindow: () => BrowserWindow | null,
@@ -87,85 +88,68 @@ export function registerUpdaterHandlers(
 
   let isSimulationActive = false;
 
-  ipcMain.handle("updater:simulate", () => {
-    isSimulationActive = true;
-    sendStatus("checking");
+  registerHandlers({
+    "updater:simulate": () => {
+      isSimulationActive = true;
+      sendStatus("checking");
 
-    setTimeout(() => {
-      sendStatus("available", {
-        version: "1.2.5-simulated",
-        releaseDate: new Date().toISOString(),
-        releaseNotes:
-          "### Vet v1.2.5 (Simulated)\n\n* **Added simulation mode** for auto-updater checks\n* **High-fidelity animation** of progress bar\n* **Speed and transfer counters** fully working\n* Double check closing behavior on Escape",
-      });
-    }, 1500);
-  });
-
-  // Register IPC handle calls from renderer
-  ipcMain.handle("updater:check", async () => {
-    try {
+      setTimeout(() => {
+        sendStatus("available", {
+          version: "1.2.5-simulated",
+          releaseDate: new Date().toISOString(),
+          releaseNotes:
+            "### Vet v1.2.5 (Simulated)\n\n* **Added simulation mode** for auto-updater checks\n* **High-fidelity animation** of progress bar\n* **Speed and transfer counters** fully working\n* Double check closing behavior on Escape",
+        });
+      }, 1500);
+    },
+    "updater:check": async () => {
       const result = await autoUpdater.checkForUpdates();
       return { success: true, result };
-    } catch (err: any) {
-      console.error("Error in updater:check IPC handler:", err);
-      return { success: false, error: err.message || String(err) };
-    }
-  });
+    },
+    "updater:download": async () => {
+      if (isSimulationActive) {
+        let percent = 0;
+        const totalBytes = 1024 * 1024 * 18.5; // 18.5 MB
+        const interval = setInterval(() => {
+          percent += 4;
+          if (percent >= 100) {
+            percent = 100;
+            clearInterval(interval);
+            sendStatus("downloaded", {
+              version: "1.2.5-simulated",
+              releaseDate: new Date().toISOString(),
+              releaseNotes:
+                "### Vet v1.2.5 (Simulated)\n\n* **Added simulation mode** for auto-updater checks\n* **High-fidelity animation** of progress bar\n* **Speed and transfer counters** fully working\n* Double check closing behavior on Escape",
+            });
+          } else {
+            sendProgress({
+              percent,
+              bytesPerSecond: 1024 * 1024 * 2.3, // 2.3 MB/s
+              transferred: totalBytes * (percent / 100),
+              total: totalBytes,
+            });
+          }
+        }, 150);
+        return { success: true };
+      }
 
-  ipcMain.handle("updater:download", async () => {
-    if (isSimulationActive) {
-      let percent = 0;
-      const totalBytes = 1024 * 1024 * 18.5; // 18.5 MB
-      const interval = setInterval(() => {
-        percent += 4;
-        if (percent >= 100) {
-          percent = 100;
-          clearInterval(interval);
-          sendStatus("downloaded", {
-            version: "1.2.5-simulated",
-            releaseDate: new Date().toISOString(),
-            releaseNotes:
-              "### Vet v1.2.5 (Simulated)\n\n* **Added simulation mode** for auto-updater checks\n* **High-fidelity animation** of progress bar\n* **Speed and transfer counters** fully working\n* Double check closing behavior on Escape",
-          });
-        } else {
-          sendProgress({
-            percent,
-            bytesPerSecond: 1024 * 1024 * 2.3, // 2.3 MB/s
-            transferred: totalBytes * (percent / 100),
-            total: totalBytes,
-          });
-        }
-      }, 150);
-      return { success: true };
-    }
-
-    try {
       await autoUpdater.downloadUpdate();
       return { success: true };
-    } catch (err: any) {
-      console.error("Error in updater:download IPC handler:", err);
-      return { success: false, error: err.message || String(err) };
-    }
-  });
+    },
+    "updater:install": async () => {
+      if (isSimulationActive) {
+        console.log(
+          "Simulated install called! Restarting app in simulation mode.",
+        );
+        isSimulationActive = false;
+        sendStatus("idle");
+        app.relaunch();
+        app.exit(0);
+        return { success: true };
+      }
 
-  ipcMain.handle("updater:install", async () => {
-    if (isSimulationActive) {
-      console.log(
-        "Simulated install called! Restarting app in simulation mode.",
-      );
-      isSimulationActive = false;
-      sendStatus("idle");
-      app.relaunch();
-      app.exit(0);
-      return { success: true };
-    }
-
-    try {
       autoUpdater.quitAndInstall();
       return { success: true };
-    } catch (err: any) {
-      console.error("Error in updater:install IPC handler:", err);
-      return { success: false, error: err.message || String(err) };
-    }
+    },
   });
 }

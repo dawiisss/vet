@@ -7,6 +7,8 @@ import { promisify } from "util";
 import { platform } from "os";
 import { getConfig } from "./config";
 import * as historyDb from "./historyDb";
+import { createSshPty } from "./sshPty";
+
 const execFileAsync = promisify(execFile);
 
 interface PtyProcess {
@@ -24,6 +26,51 @@ const outputTimeouts: Map<string, NodeJS.Timeout> = new Map();
 const foregroundTerminalIds: Set<string> = new Set();
 const terminalHistoryOrder: string[] = [];
 const MAX_BACKGROUND_TERMINAL_HISTORIES = 4;
+
+const SAFE_COMMANDS = new Set([
+  "bash",
+  "sh",
+  "zsh",
+  "fish",
+  "dash",
+  "ksh",
+  "csh",
+  "tcsh",
+  "node",
+  "python",
+  "python3",
+  "python2",
+  "ssh",
+  "docker",
+  "kubectl",
+  "cmd.exe",
+  "cmd",
+  "powershell.exe",
+  "powershell",
+  "pwsh.exe",
+  "pwsh",
+  "wsl.exe",
+  "wsl",
+]);
+
+function isValidShell(shellPath: string): boolean {
+  if (!shellPath) return false;
+  const baseName = path.basename(shellPath).toLowerCase();
+  if (SAFE_COMMANDS.has(baseName)) {
+    return true;
+  }
+  try {
+    if (existsSync(shellPath)) {
+      const stat = statSync(shellPath);
+      if (stat.isFile()) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return false;
+}
 
 export function setForwardTarget(
   terminalId: string,
@@ -53,7 +100,7 @@ export function getHistory(id: string): {
     }
     return {
       data: chunks.map((c) => c.data).join(""),
-      oldestTimestamp: chunks[0].timestamp,
+      oldestTimestamp: chunks[0]!.timestamp,
     };
   }
 }
@@ -91,8 +138,8 @@ export function setForegroundTerminals(ids: string[]): void {
 
 export function createTerminal(options: {
   cwd?: string;
-  profileId?: string;
-  sshHostId?: string;
+  profileId?: string | undefined;
+  sshHostId?: string | undefined;
 }): string {
   const id = uuidv4();
   if (options.sshHostId) {
@@ -100,163 +147,120 @@ export function createTerminal(options: {
   }
   const config = getConfig();
 
-  let shell = process.env["SHELL"] || "/bin/bash";
-  let args: string[] = [];
-  let env = { ...process.env } as Record<string, string>;
-  let cwd = options.cwd || process.cwd();
+  let pty: ReturnType<typeof spawn>;
+  let connectionType = "local";
+  let connectionTarget = "localhost";
+  let resolvedCwd = options.cwd || process.cwd();
 
-  if (options.sshHostId) {
-    const host = (config.sshHosts || []).find(
-      (h: any) => h.id === options.sshHostId,
-    );
-    if (host) {
-      shell = "ssh";
-      args = [];
-      if (host.port) args.push("-p", String(host.port));
-      if (host.authType === "key" && host.privateKeyPath) {
-        let keyPath = host.privateKeyPath;
-        if (keyPath.startsWith("~") && process.env.HOME) {
-          keyPath = keyPath.replace(/^~/, process.env.HOME);
-        }
-        args.push("-i", keyPath);
-      }
-      args.push(`${host.username}@${host.host}`);
-    }
-  } else if (
-    config.profiles &&
-    Array.isArray(config.profiles) &&
-    config.profiles.length > 0
-  ) {
-    const profile =
-      config.profiles.find((p: any) => p.id === options.profileId) ||
-      config.profiles[0];
-    if (profile) {
-      if (profile.shell) shell = profile.shell;
-      if (profile.args) args = profile.args;
-      if (profile.env) env = { ...env, ...profile.env };
-      if (profile.cwd && !options.cwd) cwd = profile.cwd;
-    }
-  }
-
-  // Safe list of standard shell/repl executable names (without path)
-  function isValidShell(shellPath: string): boolean {
-    if (!shellPath) return false;
-    const safeCommands = new Set([
-      "bash",
-      "sh",
-      "zsh",
-      "fish",
-      "dash",
-      "ksh",
-      "csh",
-      "tcsh",
-      "node",
-      "python",
-      "python3",
-      "python2",
-      "ssh",
-      "docker",
-      "kubectl",
-      "cmd.exe",
-      "cmd",
-      "powershell.exe",
-      "powershell",
-      "pwsh.exe",
-      "pwsh",
-      "wsl.exe",
-      "wsl",
-    ]);
-    const baseName = path.basename(shellPath).toLowerCase();
-    if (safeCommands.has(baseName)) {
-      return true;
-    }
-    try {
-      if (existsSync(shellPath)) {
-        const stat = statSync(shellPath);
-        if (stat.isFile()) {
-          return true;
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-    return false;
-  }
-
-  // Validate and sanitize shell
-  if (!isValidShell(shell)) {
-    console.warn(
-      `Blocked attempt to launch invalid shell: ${shell}. Falling back to default shell.`,
-    );
-    shell =
-      process.platform === "win32"
-        ? "cmd.exe"
-        : process.env["SHELL"] || "/bin/bash";
-  }
-
-  // Handle ~ in cwd manually
-  if (cwd.startsWith("~") && process.env.HOME) {
-    cwd = cwd.replace(/^~/, process.env.HOME);
-  }
-
-  // Validate cwd exists and is a directory
-  if (cwd) {
-    try {
-      if (existsSync(cwd)) {
-        const stat = statSync(cwd);
-        if (!stat.isDirectory()) {
-          cwd = process.env.HOME || process.cwd();
-        }
-      } else {
-        cwd = process.env.HOME || process.cwd();
-      }
-    } catch {
-      cwd = process.env.HOME || process.cwd();
-    }
-  } else {
-    cwd = process.env.HOME || process.cwd();
-  }
-
-  // Sanitize environment variables to prevent injection
   const cleanEnv: Record<string, string> = { ...process.env } as Record<
     string,
     string
   >;
-  if (env && typeof env === "object") {
-    for (const [key, value] of Object.entries(env)) {
-      if (typeof key === "string" && typeof value === "string") {
-        if (key.length < 256 && value.length < 8192) {
-          cleanEnv[key] = value;
+
+  let sshHost: any = null;
+  if (options.sshHostId) {
+    sshHost = (config.sshHosts || []).find(
+      (h: any) => h.id === options.sshHostId,
+    );
+  }
+
+  try {
+    if (sshHost) {
+      connectionType = "ssh";
+      connectionTarget = `${sshHost.username}@${sshHost.host}`;
+      pty = createSshPty(sshHost, cleanEnv);
+    } else {
+      let shell = process.env["SHELL"] || "/bin/bash";
+      let args: string[] = [];
+      let env = { ...process.env } as Record<string, string>;
+
+      if (
+        config.profiles &&
+        Array.isArray(config.profiles) &&
+        config.profiles.length > 0
+      ) {
+        const profile =
+          config.profiles.find((p: any) => p.id === options.profileId) ||
+          config.profiles[0];
+        if (profile) {
+          if (profile.shell) shell = profile.shell;
+          if (profile.args) args = profile.args;
+          if (profile.env) env = { ...env, ...profile.env };
+          if (profile.cwd && !options.cwd) resolvedCwd = profile.cwd;
         }
       }
+
+      if (!isValidShell(shell)) {
+        console.warn(
+          `Blocked attempt to launch invalid shell: ${shell}. Falling back to default shell.`,
+        );
+        shell =
+          process.platform === "win32"
+            ? "cmd.exe"
+            : process.env["SHELL"] || "/bin/bash";
+      }
+
+      // Handle ~ in resolvedCwd manually
+      if (resolvedCwd.startsWith("~") && process.env.HOME) {
+        resolvedCwd = resolvedCwd.replace(/^~/, process.env.HOME);
+      }
+
+      // Validate resolvedCwd exists and is a directory
+      try {
+        if (existsSync(resolvedCwd)) {
+          const stat = statSync(resolvedCwd);
+          if (!stat.isDirectory()) {
+            resolvedCwd = process.env.HOME || process.cwd();
+          }
+        } else {
+          resolvedCwd = process.env.HOME || process.cwd();
+        }
+      } catch {
+        resolvedCwd = process.env.HOME || process.cwd();
+      }
+
+      const cleanEnvLocal = { ...cleanEnv };
+      if (env && typeof env === "object") {
+        for (const [key, value] of Object.entries(env)) {
+          if (typeof key === "string" && typeof value === "string") {
+            if (key.length < 256 && value.length < 8192) {
+              cleanEnvLocal[key] = value;
+            }
+          }
+        }
+      }
+
+      pty = spawn(shell, args, {
+        name: "xterm-256color",
+        cols: 80,
+        rows: 24,
+        cwd: resolvedCwd,
+        env: cleanEnvLocal,
+      });
+
+      if (shell.endsWith("ssh")) {
+        connectionType = "ssh";
+        connectionTarget = args[0] || "remote";
+      } else if (shell.endsWith("docker") && args[0] === "exec") {
+        connectionType = "docker";
+        connectionTarget = args[args.indexOf("-it") + 1] || "container";
+      }
     }
+  } catch (err: any) {
+    console.error("Failed to spawn PTY process:", err);
+    throw new Error(`Failed to spawn terminal process: ${err?.message || err}`);
   }
 
-  const pty = spawn(shell, args, {
-    name: "xterm-256color",
-    cols: 80,
-    rows: 24,
-    cwd,
-    env: cleanEnv,
-  });
-
-  let connectionType = "local";
-  let connectionTarget = "localhost";
-
-  if (shell.endsWith("ssh")) {
-    connectionType = "ssh";
-    connectionTarget = args[0] || "remote";
-  } else if (shell.endsWith("docker") && args[0] === "exec") {
-    connectionType = "docker";
-    connectionTarget = args[args.indexOf("-it") + 1] || "container";
+  try {
+    historyDb.startSession(
+      id,
+      `${path.basename(resolvedCwd || "unknown")} : ${path.basename(pty.process || "unknown")}`,
+      connectionType,
+      connectionTarget,
+    );
+  } catch (e) {
+    console.error("Failed to start database session for terminal:", e);
   }
-
-  historyDb.startSession(
-    id,
-    `${path.basename(cwd)} : ${path.basename(shell)}`,
-    connectionType,
-    connectionTarget,
-  );
 
   pty.onData((data: string) => {
     outputBuffers.set(id, (outputBuffers.get(id) || "") + data);
@@ -268,7 +272,11 @@ export function createTerminal(options: {
           if (bufferedData) {
             const history = terminalHistories.get(id) || "";
             terminalHistories.set(id, (history + bufferedData).slice(-100000));
-            historyDb.logOutput(id, bufferedData);
+            try {
+              historyDb.logOutput(id, bufferedData);
+            } catch (e) {
+              console.error("Failed to log terminal output:", e);
+            }
 
             const target = forwardTargets.get(id);
             if (target) {
@@ -283,28 +291,41 @@ export function createTerminal(options: {
   });
 
   pty.onExit(({ exitCode }: { exitCode: number }) => {
-    const timeout = outputTimeouts.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      outputTimeouts.delete(id);
-    }
-    const bufferedData = outputBuffers.get(id);
-    if (bufferedData) {
+    try {
+      const timeout = outputTimeouts.get(id);
+      if (timeout) {
+        clearTimeout(timeout);
+        outputTimeouts.delete(id);
+      }
+      const bufferedData = outputBuffers.get(id);
+      if (bufferedData) {
+        const target = forwardTargets.get(id);
+        if (target) {
+          target("terminal:data", { id, data: bufferedData });
+        }
+        try {
+          historyDb.logOutput(id, bufferedData);
+        } catch (e) {
+          console.error("Failed to log terminal output on exit:", e);
+        }
+      }
+      outputBuffers.delete(id);
+
       const target = forwardTargets.get(id);
       if (target) {
-        target("terminal:data", { id, data: bufferedData });
+        target("terminal:exit", { id, exitCode });
       }
-      historyDb.logOutput(id, bufferedData);
+      try {
+        historyDb.closeSession(id);
+      } catch (e) {
+        console.error("Failed to close database session on exit:", e);
+      }
+    } finally {
+      terminals.delete(id);
+      forwardTargets.delete(id);
+      terminalHistories.delete(id);
+      terminalSshHosts.delete(id);
     }
-    outputBuffers.delete(id);
-
-    const target = forwardTargets.get(id);
-    if (target) {
-      target("terminal:exit", { id, exitCode });
-    }
-    historyDb.closeSession(id);
-    terminals.delete(id);
-    forwardTargets.delete(id);
   });
 
   terminals.set(id, { pty, id });
@@ -314,14 +335,22 @@ export function createTerminal(options: {
 export function writeToTerminal(id: string, data: string): void {
   const terminal = terminals.get(id);
   if (terminal) {
-    terminal.pty.write(data);
+    try {
+      terminal.pty.write(data);
+    } catch (e) {
+      console.error(`Failed to write to terminal ${id}:`, e);
+    }
   }
 }
 
 export function resizeTerminal(id: string, cols: number, rows: number): void {
   const terminal = terminals.get(id);
   if (terminal) {
-    terminal.pty.resize(cols, rows);
+    try {
+      terminal.pty.resize(cols, rows);
+    } catch (e) {
+      console.error(`Failed to resize terminal ${id}:`, e);
+    }
   }
 }
 
@@ -335,8 +364,16 @@ export function destroyTerminal(id: string): void {
     }
     outputBuffers.delete(id);
 
-    terminal.pty.kill();
-    historyDb.closeSession(id);
+    try {
+      terminal.pty.kill();
+    } catch (e) {
+      console.error(`Failed to kill terminal PTY process ${id}:`, e);
+    }
+    try {
+      historyDb.closeSession(id);
+    } catch (e) {
+      console.error(`Failed to close database session for terminal ${id}:`, e);
+    }
     terminals.delete(id);
     forwardTargets.delete(id);
     terminalHistories.delete(id);
@@ -346,7 +383,7 @@ export function destroyTerminal(id: string): void {
 
 export async function getTerminalInfo(
   id: string,
-): Promise<{ title: string; cwd: string; sshHostId?: string }> {
+): Promise<{ title: string; cwd: string; sshHostId?: string | undefined }> {
   const terminal = terminals.get(id);
   const sshHostId = terminalSshHosts.get(id);
   if (!terminal) return { title: "Terminal", cwd: "", sshHostId };
@@ -385,12 +422,13 @@ export async function getTerminalInfo(
             if (!cmd) continue;
             const parts = cmd.split(/\s+/);
             const comm = parts[0];
-            if (comm === "ssh" || comm.endsWith("/ssh")) {
+            if (comm && (comm === "ssh" || comm.endsWith("/ssh"))) {
               finalProcName = "ssh";
               const args = cmd.substring(comm.length).trim().split(/\s+/);
               for (let i = args.length - 1; i >= 0; i--) {
-                if (!args[i].startsWith("-")) {
-                  dynamicSshTarget = args[i];
+                const arg = args[i];
+                if (arg && !arg.startsWith("-")) {
+                  dynamicSshTarget = arg;
                   break;
                 }
               }

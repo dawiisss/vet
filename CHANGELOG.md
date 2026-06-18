@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-06-18
+
+### Changed
+- **Major Refactoring and Architecture Improvements**:
+  - **Preload Isolation & Dry IPC**: Reduced preload code by 150+ lines using declarative factory helpers (`invoke`, `send`, `on`).
+  - **God Component Decompositions**: Split the giant 800+ lines `App.tsx` into clean components: `AppShell` container, `ThemeProvider` CSS injector, `ModalManager`, and a `useKeybindings` hook.
+  - **useTabStore Split**: Decomposed `useTabStore.ts` by extracting action files for tab CRUD, split pane layout, and window detaching, fixing tab hibernation bugs.
+  - **Terminal Lifecycle Extraction**: Moved all xterm and fit/webgl/links/image addon lifecycle/mounting logic into a reusable `useTerminal` hook.
+  - **Local/SSH PTY Isolation**: Separated local PTY spawning from SSH PTY spawning in `pty.ts` and `sshPty.ts`, fixing memory leaks on exit.
+  - **Standardized UI Components**: Created reusable shared `<Panel>`, `<SettingsField>`, and `<ModalOverlay>` components, consolidating backdrop/ESC/focus-trap behaviors.
+  - **Custom useSearchableList Hook**: Extracted list filtering and keyboard selection/scrolling logic into a custom hook consumed by the Command Palette and Clipboard.
+  - **Declarative Sidebar Mapping**: Replaced duplicate JSX blocks in `Sidebar.tsx` with a mapped array configuration.
+  - **Runtime Config Validation**: Implemented settings sanitization/clamping and syntax error broadcasting (`config:error`) via IPC, rendering warnings on a non-disruptive banner.
+  - **Stricter Type Safety**: Enabled strict TypeScript flags (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) in all config files and resolved all compiler issues.
+  - **CSS Design Tokens**: Added font-size, spacing, border-radius, shadows, and transitions scales to `global.css` and replaced hardcoded values.
+  - **ESLint React Config**: Configured `react: { version: "detect" }` in the flat ESLint configuration to enable hooks lint checks.
+
 ## [1.0.4] - 2026-06-17
 
 ### Added

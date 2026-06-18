@@ -429,7 +429,7 @@ export const ThemeEditor: React.FC = () => {
       {Object.keys(allThemes).map((themeName) => {
         const isActive = config.theme === themeName;
         const isCustom = !!config.customThemes?.[themeName];
-        const t = allThemes[themeName];
+        const t = allThemes[themeName]!;
 
         return (
           <div

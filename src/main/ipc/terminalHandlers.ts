@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
+import { registerHandlers } from "./ipcUtils";
 import {
   createTerminal,
   destroyTerminal,
@@ -29,16 +30,8 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
     registerForwardTarget,
   } = options;
 
-  ipcMain.handle(
-    "terminal:create",
-    async (
-      event,
-      {
-        cwd,
-        profileId,
-        sshHostId,
-      }: { cwd?: string; profileId?: string; sshHostId?: string },
-    ) => {
+  registerHandlers({
+    "terminal:create": (event, { cwd, profileId, sshHostId }: { cwd?: string; profileId?: string; sshHostId?: string }) => {
       const id = createTerminal({
         cwd: cwd || process.cwd(),
         profileId,
@@ -54,56 +47,26 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       }
       return { id };
     },
-  );
-
-  ipcMain.handle(
-    "terminal:enable-forwarding",
-    async (event, { id }: { id: string }) => {
+    "terminal:enable-forwarding": (event, { id }: { id: string }) => {
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win) {
         registerForwardTarget(id, win);
       }
     },
-  );
-
-  ipcMain.on(
-    "terminal:write",
-    (_event, { id, data }: { id: string; data: string }) => {
-      writeToTerminal(id, data);
-    },
-  );
-
-  ipcMain.handle(
-    "terminal:resize",
-    async (
-      _event,
-      { id, cols, rows }: { id: string; cols: number; rows: number },
-    ) => {
+    "terminal:resize": (_event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
       resizeTerminal(id, cols, rows);
     },
-  );
-
-  ipcMain.handle("terminal:destroy", async (event, { id }: { id: string }) => {
-    destroyTerminal(id);
-    const win = BrowserWindow.fromWebContents(event.sender);
-    if (win && windowTerminals.has(win.id)) {
-      windowTerminals.get(win.id)!.delete(id);
-    }
-  });
-
-  ipcMain.handle(
-    "terminal:get-history",
-    async (_event, { id }: { id: string }) => {
+    "terminal:destroy": (event, { id }: { id: string }) => {
+      destroyTerminal(id);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win && windowTerminals.has(win.id)) {
+        windowTerminals.get(win.id)!.delete(id);
+      }
+    },
+    "terminal:get-history": (_event, { id }: { id: string }) => {
       return getHistory(id);
     },
-  );
-
-  ipcMain.handle(
-    "terminal:detach-tab",
-    async (
-      event,
-      { tabId, terminalIds }: { tabId: string; terminalIds: string[] },
-    ) => {
+    "terminal:detach-tab": (event, { tabId, terminalIds }: { tabId: string; terminalIds: string[] }) => {
       const senderWin = BrowserWindow.fromWebContents(event.sender);
       const detachedWin = createWindow();
 
@@ -126,11 +89,7 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
       return { success: true };
     },
-  );
-
-  ipcMain.handle(
-    "terminal:reattach-tab",
-    async (event, { terminalIds }: { terminalIds: string[] }) => {
+    "terminal:reattach-tab": (event, { terminalIds }: { terminalIds: string[] }) => {
       const mainWindow = getMainWindow();
       if (mainWindow) {
         if (!windowTerminals.has(mainWindow.id)) {
@@ -156,19 +115,18 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
       return { success: true };
     },
-  );
-
-  ipcMain.handle(
-    "terminal:get-info",
-    async (_event, { id }: { id: string }) => {
+    "terminal:get-info": async (_event, { id }: { id: string }) => {
       return await getTerminalInfo(id);
     },
-  );
-
-  ipcMain.handle(
-    "terminal:set-foreground",
-    async (_event, { ids }: { ids: string[] }) => {
+    "terminal:set-foreground": (_event, { ids }: { ids: string[] }) => {
       setForegroundTerminals(ids);
+    },
+  });
+
+  ipcMain.on(
+    "terminal:write",
+    (_event, { id, data }: { id: string; data: string }) => {
+      writeToTerminal(id, data);
     },
   );
 }

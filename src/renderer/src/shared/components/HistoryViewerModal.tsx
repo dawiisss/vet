@@ -5,8 +5,6 @@ import { SearchAddon } from "@xterm/addon-search";
 import { useConfig } from "@/features/settings/useConfigStore";
 import { resolveTheme, toXtermTheme } from "@/themes";
 import { ModalOverlay } from "./ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
-import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import "@xterm/xterm/css/xterm.css";
 
 interface HistoryViewerModalProps {
@@ -24,9 +22,6 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const { config } = useConfig();
-
-  useEscapeKey(onClose);
-  useFocusTrap(modalRef);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -90,12 +85,6 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
     };
   }, [sessionId]);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleCopy = () => {
     const sel = terminalRef.current?.getSelection();
     if (sel) {
@@ -106,7 +95,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
   return (
     <ModalOverlay
       containerRef={modalRef}
-      onClick={handleOverlayClick}
+      onClose={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="History Viewer"

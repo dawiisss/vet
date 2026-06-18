@@ -24,10 +24,10 @@ export function initPortsManager() {
         for (const line of lines) {
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 5) {
-            const localAddress = parts[1];
+            const localAddress = parts[1]!;
             const portMatch = localAddress.match(/:(\d+)$/);
-            const port = portMatch ? parseInt(portMatch[1]) : null;
-            const pid = parseInt(parts[4]);
+            const port = portMatch ? parseInt(portMatch[1]!) : null;
+            const pid = parseInt(parts[4]!);
             if (port && pid && !isNaN(pid)) {
               ports.push({ port, pid, process: "Unknown (Win)" });
             }
@@ -49,12 +49,12 @@ export function initPortsManager() {
         for (const line of lines) {
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 9) {
-            const command = parts[0];
-            const pid = parseInt(parts[1]);
+            const command = parts[0]!;
+            const pid = parseInt(parts[1]!);
             const nameField = parts.slice(8).join(" ");
             const portMatch = nameField.match(/:(\d+)\s*\(LISTEN\)/);
             if (portMatch) {
-              const port = parseInt(portMatch[1]);
+              const port = parseInt(portMatch[1]!);
               ports.push({ port, pid, process: command });
             }
           }
@@ -78,7 +78,7 @@ export function initPortsManager() {
           if (!line.includes("LISTENING")) continue;
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 5) {
-            const pid = parseInt(parts[4]);
+            const pid = parseInt(parts[4]!);
             if (pid && !isNaN(pid)) {
               pids.add(pid);
             }
@@ -98,7 +98,7 @@ export function initPortsManager() {
         for (const line of lines) {
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 9) {
-            const pid = parseInt(parts[1]);
+            const pid = parseInt(parts[1]!);
             if (pid && !isNaN(pid)) {
               pids.add(pid);
             }

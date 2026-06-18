@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import Panel from "./Panel";
 
 export default function ScriptRunnerPanel({
   isActive,
@@ -67,24 +68,13 @@ export default function ScriptRunnerPanel({
   }, [keyboardIndex]);
 
   return (
-    <div
+    <Panel
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      style={{
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        outline: "none",
-      }}
+      title="Project Scripts"
+      hasScrollableBody={false}
     >
-      <h3 style={{ margin: "0 0 12px 0", fontSize: 14, color: "#bac2de" }}>
-        Project Scripts
-      </h3>
-
       {!scripts && (
         <div
           style={{
@@ -178,6 +168,7 @@ export default function ScriptRunnerPanel({
           })}
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
+

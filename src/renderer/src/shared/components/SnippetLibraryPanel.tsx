@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Panel from "./Panel";
 
 export default function SnippetLibraryPanel({
   isActive,
@@ -46,42 +47,31 @@ export default function SnippetLibraryPanel({
     saveSnippets(snippets.filter((s) => s.id !== id));
   };
 
-  return (
-    <div
+  const headerActions = (
+    <button
+      onClick={() => setIsAdding(!isAdding)}
+      aria-label={isAdding ? "Cancel adding snippet" : "Add new snippet"}
       style={{
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
+        background: "none",
+        border: "none",
+        color: "var(--app-green)",
+        cursor: "pointer",
+        fontSize: 16,
+        fontWeight: "bold",
+        outlineColor: "var(--app-green)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 12,
-          alignItems: "center",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 14, color: "#bac2de" }}>Snippets</h3>
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          aria-label={isAdding ? "Cancel adding snippet" : "Add new snippet"}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--app-green)",
-            cursor: "pointer",
-            fontSize: 16,
-            fontWeight: "bold",
-            outlineColor: "var(--app-green)",
-          }}
-        >
-          {isAdding ? "×" : "+"}
-        </button>
-      </div>
+      {isAdding ? "×" : "+"}
+    </button>
+  );
+
+  return (
+    <Panel
+      title="Snippets"
+      headerActions={headerActions}
+      hasScrollableBody={false}
+    >
+
 
       {isAdding && (
         <div
@@ -282,6 +272,6 @@ export default function SnippetLibraryPanel({
           </div>
         ))}
       </div>
-    </div>
+    </Panel>
   );
 }

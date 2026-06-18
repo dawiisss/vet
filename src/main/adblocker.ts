@@ -152,7 +152,7 @@ export function registerAdblockerIpcHandlers() {
           const src = regex.source;
           const keyMatch = src.match(/^"(\w+)"$/);
           if (keyMatch) {
-            pruneKeys.push(keyMatch[1]);
+            pruneKeys.push(keyMatch[1]!);
           } else {
             replaceRules.push({
               regex: src,

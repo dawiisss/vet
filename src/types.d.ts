@@ -77,9 +77,11 @@ interface Config {
 
 interface TerminalApi {
   create: (opts?: {
-    cwd?: string;
-    profileId?: string;
-    sshHostId?: string;
+    cwd?: string | undefined;
+    forward?: boolean | undefined;
+    isRestore?: boolean | undefined;
+    profileId?: string | undefined;
+    sshHostId?: string | undefined;
   }) => Promise<{ id: string }>;
   enableForwarding: (id: string) => Promise<void>;
   write: (id: string, data: string) => void;
@@ -130,6 +132,8 @@ interface ConfigApi {
   set: (partialConfig: Partial<Config>) => Promise<void>;
   openInEditor: () => Promise<void>;
   onChanged: (callback: (config: Config) => void) => () => void;
+  getError: () => Promise<string | null>;
+  onError: (callback: (err: string | null) => void) => () => void;
 }
 
 interface HistoryApi {
@@ -147,6 +151,7 @@ interface HistoryApi {
   searchBrowserHistory: (query: string) => Promise<any[]>;
   deleteBrowserVisit: (id: number) => Promise<void>;
   clearBrowserHistory: () => Promise<void>;
+  getDbError: () => Promise<string | null>;
 }
 
 interface ClipboardApi {
@@ -213,6 +218,22 @@ interface UpdaterApi {
   ) => () => void;
 }
 
+interface SysinfoApi {
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+  onUpdate: (callback: (data: any) => void) => () => void;
+}
+
+interface PortsApi {
+  list: () => Promise<any[]>;
+  kill: (pid: number) => Promise<void>;
+}
+
+interface ConnectionsApi {
+  getSshHosts: () => Promise<any[]>;
+  getDockerContainers: () => Promise<any[]>;
+}
+
 interface Window {
   terminalApi: TerminalApi;
   windowApi: WindowApi;
@@ -222,6 +243,9 @@ interface Window {
   sftpApi: SftpApi;
   clipboardApi: ClipboardApi;
   updaterApi: UpdaterApi;
+  sysinfoApi: SysinfoApi;
+  portsApi: PortsApi;
+  connectionsApi: ConnectionsApi;
   serializeAddons: Map<string, any>;
   adblockerApi: {
     toggle: (enabled: boolean) => Promise<boolean>;

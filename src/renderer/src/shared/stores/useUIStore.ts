@@ -1,7 +1,16 @@
 import { create } from "zustand";
 
+export interface ToastNotification {
+  id: string;
+  message: string;
+  type: "error" | "warning" | "info";
+}
+
 interface UIStore {
   error: string | null;
+  configError: string | null;
+  dbError: string | null;
+  toasts: ToastNotification[];
   isSettingsOpen: boolean;
   isAboutOpen: boolean;
   isUpdateModalOpen: boolean;
@@ -11,6 +20,10 @@ interface UIStore {
   previewClipboardItem: { id: string; text: string; timestamp: number } | null;
 
   setError: (err: string | null) => void;
+  setConfigError: (err: string | null) => void;
+  setDbError: (err: string | null) => void;
+  addToast: (message: string, type?: "error" | "warning" | "info") => void;
+  removeToast: (id: string) => void;
   setIsSettingsOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void;
   setIsAboutOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void;
   setIsUpdateModalOpen: (
@@ -32,6 +45,9 @@ interface UIStore {
  */
 export const useUIStore = create<UIStore>((set) => ({
   error: null,
+  configError: null,
+  dbError: null,
+  toasts: [],
   isSettingsOpen: false,
   isAboutOpen: false,
   isUpdateModalOpen: false,
@@ -41,6 +57,24 @@ export const useUIStore = create<UIStore>((set) => ({
   previewClipboardItem: null,
 
   setError: (err) => set({ error: err }),
+  setConfigError: (err) => set({ configError: err }),
+  setDbError: (err) => set({ dbError: err }),
+  addToast: (message, type = "error") => {
+    const id = Math.random().toString(36).substring(2, 9);
+    set((state) => ({
+      toasts: [...state.toasts, { id, message, type }],
+    }));
+    // Auto-remove toast after 5 seconds
+    setTimeout(() => {
+      set((state) => ({
+        toasts: state.toasts.filter((t) => t.id !== id),
+      }));
+    }, 5000);
+  },
+  removeToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
   setIsSettingsOpen: (isOpen) =>
     set((state) => ({
       isSettingsOpen:

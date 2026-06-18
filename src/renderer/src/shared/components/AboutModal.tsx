@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ModalOverlay } from "./ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
 
 interface AboutModalProps {
   onClose: () => void;
@@ -21,14 +20,6 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
     }
   }, []);
 
-  useEscapeKey(onClose);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     e.preventDefault();
     window.windowApi?.openExternal?.(url);
@@ -36,7 +27,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
 
   return (
     <ModalOverlay
-      onClick={handleOverlayClick}
+      onClose={onClose}
       containerRef={modalRef}
       role="dialog"
       aria-modal="true"

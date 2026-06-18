@@ -1,7 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import { ModalOverlay } from "./ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
-import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 interface ClipboardPreviewModalProps {
   item: { id: string; text: string; timestamp: number };
@@ -24,9 +22,6 @@ export default function ClipboardPreviewModal({
     });
   };
 
-  useEscapeKey(onClose);
-  useFocusTrap(modalRef);
-
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.focus();
@@ -42,12 +37,6 @@ export default function ClipboardPreviewModal({
     };
   }, []);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleCopyAll = async () => {
     try {
       await navigator.clipboard.writeText(item.text);
@@ -61,7 +50,7 @@ export default function ClipboardPreviewModal({
   return (
     <ModalOverlay
       containerRef={modalRef}
-      onClick={handleOverlayClick}
+      onClose={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Clipboard Preview"

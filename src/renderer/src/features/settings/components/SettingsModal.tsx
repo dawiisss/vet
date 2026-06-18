@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
-import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { ThemeEditor } from "./ThemeEditor";
 import { KeybindingsManager } from "./KeybindingsManager";
 import { SshProfilesManager } from "@/features/connections/components/SshProfilesManager";
@@ -34,19 +32,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     }
   }, []);
 
-  useEscapeKey(onClose);
-  useFocusTrap(modalRef);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return (
     <ModalOverlay
       containerRef={modalRef}
-      onClick={handleOverlayClick}
+      onClose={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
