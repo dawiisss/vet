@@ -21,25 +21,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Install system dependencies (Linux)
         if: matrix.target == 'linux'
         run: sudo apt-get update && sudo apt-get install -y python3 make gcc g++
 
-      - name: Install npm dependencies
-        run: npm ci
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Type check & Test
         run: |
-          npm run typecheck
-          npm run test
+          pnpm typecheck
+          pnpm test
 
       - name: Build & Package
-        run: npm run dist:${{ matrix.target }} -- --publish never
+        run: pnpm dist:${{ matrix.target }} -- --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
