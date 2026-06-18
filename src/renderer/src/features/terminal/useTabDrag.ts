@@ -1,99 +1,108 @@
-import { useTabStore } from './useTabStore'
-import type { DropZone } from './useTabStore'
+import { useTabStore } from "./useTabStore";
+import type { DropZone } from "./useTabStore";
 
 /**
  * React hook to handle tab dragging operations.
  * Manages dragging states, drop zones, tab reordering, and window detaching.
  */
 export function useTabDrag() {
-  const dragState = useTabStore(s => s.dragState)
-  const setDragState = useTabStore(s => s.setDragState)
-  const setTabs = useTabStore(s => s.setTabs)
-  const activeTabId = useTabStore(s => s.activeTabId)
-  const detachTab = useTabStore(s => s.detachTab)
-  const mergeTabAsSplit = useTabStore(s => s.mergeTabAsSplit)
+  const dragState = useTabStore((s) => s.dragState);
+  const setDragState = useTabStore((s) => s.setDragState);
+  const setTabs = useTabStore((s) => s.setTabs);
+  const activeTabId = useTabStore((s) => s.activeTabId);
+  const detachTab = useTabStore((s) => s.detachTab);
+  const mergeTabAsSplit = useTabStore((s) => s.mergeTabAsSplit);
 
   const handleDragStart = (tabId: string) => {
-    setDragState({ tabId, zone: 'none' })
-  }
+    setDragState({ tabId, zone: "none" });
+  };
 
-  const handleDragMove = (x: number, y: number, terminalArea: HTMLDivElement | null) => {
+  const handleDragMove = (
+    x: number,
+    y: number,
+    terminalArea: HTMLDivElement | null,
+  ) => {
     if (!terminalArea) {
-      setDragState(prev => prev ? { ...prev, zone: 'none' } : null)
-      return
+      setDragState((prev) => (prev ? { ...prev, zone: "none" } : null));
+      return;
     }
 
-    const r = terminalArea.getBoundingClientRect()
-    const relX = x - r.left
-    const relY = y - r.top
-    const rightPct = relX / r.width
-    const bottomPct = relY / r.height
+    const r = terminalArea.getBoundingClientRect();
+    const relX = x - r.left;
+    const relY = y - r.top;
+    const rightPct = relX / r.width;
+    const bottomPct = relY / r.height;
 
-    let zone: DropZone = 'none'
+    let zone: DropZone = "none";
     if (relX >= 0 && relX <= r.width && relY >= 0 && relY <= r.height) {
-      if (rightPct > 0.8) zone = 'right'
-      else if (bottomPct > 0.8) zone = 'bottom'
+      if (rightPct > 0.8) zone = "right";
+      else if (bottomPct > 0.8) zone = "bottom";
     } else {
-      zone = 'outside'
+      zone = "outside";
     }
 
-    setDragState(prev => prev ? { ...prev, zone } : null)
-  }
+    setDragState((prev) => (prev ? { ...prev, zone } : null));
+  };
 
-  const handleDragEnd = (tabId: string, x: number, y: number, terminalArea: HTMLDivElement | null) => {
-    setDragState(null)
+  const handleDragEnd = (
+    tabId: string,
+    x: number,
+    y: number,
+    terminalArea: HTMLDivElement | null,
+  ) => {
+    setDragState(null);
 
     // Check if dropped onto another tab for reordering
-    const elements = document.elementsFromPoint(x, y)
-    const tabItem = elements.find(el => el.classList.contains('tab-item'))
-    
+    const elements = document.elementsFromPoint(x, y);
+    const tabItem = elements.find((el) => el.classList.contains("tab-item"));
+
     if (tabItem) {
-      const targetTabId = (tabItem as HTMLElement).dataset.tabid
+      const targetTabId = (tabItem as HTMLElement).dataset.tabid;
       if (targetTabId && targetTabId !== tabId) {
-        setTabs(prevTabs => {
-          const newTabs = [...prevTabs]
-          const sourceIndex = newTabs.findIndex(t => t.id === tabId)
-          const targetIndex = newTabs.findIndex(t => t.id === targetTabId)
+        setTabs((prevTabs) => {
+          const newTabs = [...prevTabs];
+          const sourceIndex = newTabs.findIndex((t) => t.id === tabId);
+          const targetIndex = newTabs.findIndex((t) => t.id === targetTabId);
           if (sourceIndex > -1 && targetIndex > -1) {
-            const [moved] = newTabs.splice(sourceIndex, 1)
-            newTabs.splice(targetIndex, 0, moved)
+            const [moved] = newTabs.splice(sourceIndex, 1);
+            newTabs.splice(targetIndex, 0, moved!);
           }
-          return newTabs
-        })
+          return newTabs;
+        });
       }
-      return
+      return;
     }
 
-    if (!terminalArea) return
+    if (!terminalArea) return;
 
-    const r = terminalArea.getBoundingClientRect()
-    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+    const r = terminalArea.getBoundingClientRect();
+    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
     if (!inside) {
-      detachTab(tabId)
-      return
+      detachTab(tabId);
+      return;
     }
 
-    const relX = x - r.left
-    const relY = y - r.top
-    const rightPct = relX / r.width
-    const bottomPct = relY / r.height
+    const relX = x - r.left;
+    const relY = y - r.top;
+    const rightPct = relX / r.width;
+    const bottomPct = relY / r.height;
 
     if (tabId === activeTabId) {
-      return
+      return;
     }
 
     if (rightPct > 0.8) {
-      mergeTabAsSplit(tabId, 'horizontal')
+      mergeTabAsSplit(tabId, "horizontal");
     } else if (bottomPct > 0.8) {
-      mergeTabAsSplit(tabId, 'vertical')
+      mergeTabAsSplit(tabId, "vertical");
     }
-  }
+  };
 
   return {
     dragState,
     handleDragStart,
     handleDragMove,
-    handleDragEnd
-  }
+    handleDragEnd,
+  };
 }

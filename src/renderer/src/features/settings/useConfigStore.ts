@@ -1,27 +1,29 @@
-import { create } from 'zustand'
+import { create } from "zustand";
+import { useUIStore } from "../../shared/stores/useUIStore";
 
 const defaultConfig: Config = {
-  shell: '/bin/bash',
-  fontFamily: 'monospace',
+  shell: "/bin/bash",
+  fontFamily: "monospace",
   fontSize: 14,
   opacity: 1.0,
-  theme: 'catppuccin-mocha',
-  cursorStyle: 'block',
+  theme: "catppuccin-mocha",
+  cursorStyle: "block",
   cursorBlink: true,
   historyLoggingEnabled: true,
   historyDatabaseLimitMb: 100,
   historyKeepDays: 30,
   virtualScrollbackEnabled: true,
   virtualScrollbackBufferSize: 1000,
-  keybindings: {}
-}
+  keybindings: {},
+  showIntroOnStartup: true,
+};
 
 interface ConfigState {
-  config: Config
-  isInitialized: boolean
-  updateConfig: (partial: Partial<Config>) => Promise<void>
-  openConfig: () => Promise<void>
-  initialize: () => void
+  config: Config;
+  isInitialized: boolean;
+  updateConfig: (partial: Partial<Config>) => Promise<void>;
+  openConfig: () => Promise<void>;
+  initialize: () => void;
 }
 
 export const useConfigStore = create<ConfigState>((set, get) => {
@@ -30,33 +32,41 @@ export const useConfigStore = create<ConfigState>((set, get) => {
     isInitialized: false,
     updateConfig: async (partial) => {
       if (window.configApi) {
-        await window.configApi.set(partial)
+        await window.configApi.set(partial);
       }
     },
     openConfig: async () => {
       if (window.configApi) {
-        await window.configApi.openInEditor()
+        await window.configApi.openInEditor();
       }
     },
     initialize: () => {
-      if (get().isInitialized || !window.configApi) return
-      set({ isInitialized: true })
+      if (get().isInitialized || !window.configApi) return;
+      set({ isInitialized: true });
 
       window.configApi.get().then((cfg) => {
-        set({ config: cfg })
-      })
+        set({ config: cfg });
+      });
 
       window.configApi.onChanged((newConfig) => {
-        set({ config: newConfig })
-      })
-    }
-  }
-})
+        set({ config: newConfig });
+      });
+
+      window.configApi.getError().then((err) => {
+        useUIStore.getState().setConfigError(err);
+      });
+
+      window.configApi.onError((err) => {
+        useUIStore.getState().setConfigError(err);
+      });
+    },
+  };
+});
 
 // Seamless compatibility wrapper hook
 export const useConfig = () => {
-  const config = useConfigStore((state) => state.config)
-  const updateConfig = useConfigStore((state) => state.updateConfig)
-  const openConfig = useConfigStore((state) => state.openConfig)
-  return { config, updateConfig, openConfig }
-}
+  const config = useConfigStore((state) => state.config);
+  const updateConfig = useConfigStore((state) => state.updateConfig);
+  const openConfig = useConfigStore((state) => state.openConfig);
+  return { config, updateConfig, openConfig };
+};

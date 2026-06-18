@@ -1,361 +1,194 @@
-import { useEffect, useRef } from 'react'
-import TitleBar from '@/shared/components/TitleBar'
-import { buildShortcutString } from '@/shared/utils/keybindings'
-import TabBar from '@/features/terminal/components/TabBar'
-import type { TabBarTab } from '@/features/terminal/components/TabBar'
-import SplitPane from '@/features/terminal/components/SplitPane'
-import React, { lazy, Suspense } from 'react'
-import { getNode, collectTerminalIds, leafCount } from '@/features/terminal/splitTree'
-import { useConfig, useConfigStore } from '@/features/settings/useConfigStore'
-import { useTabStore } from '@/features/terminal/useTabStore'
-import { useTabDrag } from '@/features/terminal/useTabDrag'
-import { useUIStore } from '@/shared/stores/useUIStore'
-import { builtinThemes, resolveTheme } from '@/themes'
-import Sidebar from '@/shared/components/Sidebar'
-import ErrorBoundary from '@/shared/components/ErrorBoundary'
-import { useUpdaterStore } from '@/shared/stores/useUpdaterStore'
+import { useEffect, useRef } from "react";
+import TitleBar from "@/shared/components/TitleBar";
+import TabBar from "@/features/terminal/components/TabBar";
+import type { TabBarTab } from "@/features/terminal/components/TabBar";
+import SplitPane from "@/features/terminal/components/SplitPane";
+import {
+  getNode,
+  leafCount,
+} from "@/features/terminal/splitTree";
+import { useConfig } from "@/features/settings/useConfigStore";
+import { useTabStore } from "@/features/terminal/useTabStore";
+import { useTabDrag } from "@/features/terminal/useTabDrag";
+import { useUIStore } from "@/shared/stores/useUIStore";
+import Sidebar from "@/shared/components/Sidebar";
+import ErrorBoundary from "@/shared/components/ErrorBoundary";
+import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
+import ThemeProvider from "@/shared/components/ThemeProvider";
+import ModalManager from "@/shared/components/ModalManager";
+import { useKeybindings } from "@/shared/hooks/useKeybindings";
 
-const SettingsModal = lazy(() => import('@/features/settings/components/SettingsModal'))
-const AboutModal = lazy(() => import('@/shared/components/AboutModal'))
-const UpdateModal = lazy(() => import('@/shared/components/UpdateModal'))
-const HistoryViewerModal = lazy(() => import('@/shared/components/HistoryViewerModal'))
-const CommandPalette = lazy(() => import('@/shared/components/CommandPalette'))
-const FilePreviewModal = lazy(() => import('@/features/workspace/components/FilePreviewModal'))
-const ClipboardPreviewModal = lazy(() => import('@/shared/components/ClipboardPreviewModal'))
-
+/**
+ * Main application scaffold component (AppShell).
+ * Manages layout structuring, sidebar panels, split layout terminal container,
+ * and delegates themes, modals, and hotkeys to custom hooks and providers.
+ */
 function App() {
-  const { config, updateConfig, openConfig } = useConfig()
-  const {
-    error,
-    isSettingsOpen,
-    isAboutOpen,
-    isUpdateModalOpen,
-    viewingHistorySessionId,
-    isCommandPaletteOpen,
-    previewFilePath,
-    previewClipboardItem,
-    setIsSettingsOpen,
-    setIsAboutOpen,
-    setIsUpdateModalOpen,
-    setIsCommandPaletteOpen,
-    setViewingHistorySessionId,
-    setPreviewFilePath,
-    setPreviewClipboardItem
-  } = useUIStore()
+  const { config } = useConfig();
+  const error = useUIStore((s) => s.error);
+  const configError = useUIStore((s) => s.configError);
+  const dbError = useUIStore((s) => s.dbError);
+  const toasts = useUIStore((s) => s.toasts);
+  const removeToast = useUIStore((s) => s.removeToast);
+  const setDbError = useUIStore((s) => s.setDbError);
+  const setIsSettingsOpen = useUIStore((s) => s.setIsSettingsOpen);
+  const setIsAboutOpen = useUIStore((s) => s.setIsAboutOpen);
+  const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
+  const setViewingHistorySessionId = useUIStore((s) => s.setViewingHistorySessionId);
+  const setPreviewFilePath = useUIStore((s) => s.setPreviewFilePath);
 
-  const {
-    tabs,
-    activeTabId,
-    isDetached,
-    hibernatedTabIds,
-    initializeTabs,
-    onReattachTab,
-    pollTabLabels,
-    newTab,
-    newBrowserTab,
-    closeTab,
-    selectTab,
-    splitTab,
-    unsplitTab,
-    closeSplit,
-    extractToTab,
-    detachTab,
-    onResize,
-    onFocusSplit,
-    renameTab,
-    handleRunScript,
-    handleInjectSnippet,
-    navigateSplit,
-    reattachMe
-  } = useTabStore()
+  const tabs = useTabStore((s) => s.tabs);
+  const activeTabId = useTabStore((s) => s.activeTabId);
+  const isDetached = useTabStore((s) => s.isDetached);
+  const hibernatedTabIds = useTabStore((s) => s.hibernatedTabIds);
+  const initializeTabs = useTabStore((s) => s.initializeTabs);
+  const onReattachTab = useTabStore((s) => s.onReattachTab);
+  const pollTabLabels = useTabStore((s) => s.pollTabLabels);
+  const newTab = useTabStore((s) => s.newTab);
+  const closeTab = useTabStore((s) => s.closeTab);
+  const selectTab = useTabStore((s) => s.selectTab);
+  const splitTab = useTabStore((s) => s.splitTab);
+  const closeSplit = useTabStore((s) => s.closeSplit);
+  const extractToTab = useTabStore((s) => s.extractToTab);
+  const onResize = useTabStore((s) => s.onResize);
+  const onFocusSplit = useTabStore((s) => s.onFocusSplit);
+  const renameTab = useTabStore((s) => s.renameTab);
+  const handleRunScript = useTabStore((s) => s.handleRunScript);
+  const handleInjectSnippet = useTabStore((s) => s.handleInjectSnippet);
+  const reattachMe = useTabStore((s) => s.reattachMe);
 
-  const {
-    dragState,
-    handleDragStart,
-    handleDragMove,
-    handleDragEnd
-  } = useTabDrag()
+  const { dragState, handleDragStart, handleDragMove, handleDragEnd } =
+    useTabDrag();
 
-  const terminalAreaRef = useRef<HTMLDivElement>(null)
+  const terminalAreaRef = useRef<HTMLDivElement>(null);
+  const hasTriggeredIntro = useRef(false);
+
+  // Trigger onboarding welcome guide if configured
+  useEffect(() => {
+    if (config && config.showIntroOnStartup !== false && !hasTriggeredIntro.current) {
+      hasTriggeredIntro.current = true;
+      setIsIntroOpen(true);
+    }
+  }, [config.showIntroOnStartup]);
+
+  // Initialize global keyboard shortcuts and webview key-forwarding
+  useKeybindings();
+
+  // Fetch initial history db error status
+  useEffect(() => {
+    if (window.historyApi) {
+      window.historyApi.getDbError().then((err) => {
+        setDbError(err);
+      });
+    }
+  }, []);
 
   // Initialize tabs from URL/IPC on mount
   useEffect(() => {
-    initializeTabs()
-  }, [])
+    initializeTabs();
+  }, []);
 
   // Initialize auto-updater subscription
   useEffect(() => {
-    return useUpdaterStore.getState().init()
-  }, [])
+    return useUpdaterStore.getState().init();
+  }, []);
 
   // Listen for window reattach tab requests
   useEffect(() => {
-    return onReattachTab()
-  }, [])
+    return onReattachTab();
+  }, []);
 
   // Poll foreground process names periodically to keep tab labels in sync
   useEffect(() => {
-    return pollTabLabels()
-  }, [])
-
-  // Keyboard shortcut listener utilizing Zustand direct state fetching to prevent duplicate event bindings
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const shortcut = buildShortcutString(e)
-      if (!shortcut) return
-
-      const currentConfig = useConfigStore.getState().config
-      const action = (currentConfig.keybindings || {})[shortcut]
-
-      if (action && !action.startsWith('terminal:') && !action.startsWith('browser:')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const store = useTabStore.getState()
-        const { tabs: storeTabs, activeTabId: storeActiveTabId } = store
-
-        switch (action) {
-          case 'sidebar:toggle':
-            useConfigStore.getState().updateConfig({ sidebarOpen: !currentConfig.sidebarOpen })
-            break
-          case 'tab:new':
-            store.newTab()
-            break
-          case 'tab:close':
-            if (storeActiveTabId) store.closeTab(storeActiveTabId)
-            break
-          case 'tab:next': {
-            if (storeTabs.length < 2) break
-            const idx = storeTabs.findIndex((t) => t.id === storeActiveTabId)
-            store.setActiveTabId(storeTabs[(idx + 1) % storeTabs.length].id)
-            break
-          }
-          case 'tab:prev': {
-            if (storeTabs.length < 2) break
-            const idx = storeTabs.findIndex((t) => t.id === storeActiveTabId)
-            store.setActiveTabId(storeTabs[(idx - 1 + storeTabs.length) % storeTabs.length].id)
-            break
-          }
-          case 'split:extract': {
-            const tab = storeTabs.find((t) => t.id === storeActiveTabId)
-            if (tab && storeActiveTabId) {
-              store.extractToTab(storeActiveTabId, tab.focusedPath)
-            }
-            break
-          }
-          case 'split:horizontal':
-            store.splitTab('horizontal')
-            break
-          case 'split:vertical':
-            store.splitTab('vertical')
-            break
-          case 'pane:focus-next':
-            store.navigateSplit(1)
-            break
-          case 'pane:focus-prev':
-            store.navigateSplit(-1)
-            break
-          case 'settings:toggle':
-            useUIStore.getState().setIsSettingsOpen((prev) => !prev)
-            break
-          case 'command-palette:toggle':
-            useUIStore.getState().setIsCommandPaletteOpen((prev) => !prev)
-            break
-          case 'tabbar:toggle-position': {
-            const currentPos = currentConfig.tabBarPosition || 'top'
-            const nextPos = currentPos === 'top' ? 'left' : currentPos === 'left' ? 'right' : 'top'
-            useConfigStore.getState().updateConfig({ tabBarPosition: nextPos })
-            break
-          }
-          case 'split:unsplit':
-            store.unsplitTab()
-            break
-          case 'app:toggle-fullscreen':
-            window.windowApi?.toggleFullscreen()
-            break
-          case 'app:maximize':
-            window.windowApi?.maximize()
-            break
-          case 'app:quit':
-            window.windowApi?.quit()
-            break
-        }
-        return
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown, true)
-    return () => document.removeEventListener('keydown', handleKeyDown, true)
-  }, [])
-
-  // Escape Settings / Command Palette shortcut handling
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const uiStore = useUIStore.getState()
-      if (e.key === 'Escape' && uiStore.isCommandPaletteOpen) {
-        uiStore.setIsCommandPaletteOpen(false)
-        e.preventDefault()
-        e.stopPropagation()
-      } else if (e.key === 'Escape' && uiStore.isAboutOpen) {
-        uiStore.setIsAboutOpen(false)
-        e.preventDefault()
-        e.stopPropagation()
-      } else if (e.key === 'Escape' && uiStore.isUpdateModalOpen) {
-        const updaterState = useUpdaterStore.getState()
-        if (updaterState.status !== 'downloading') {
-          uiStore.setIsUpdateModalOpen(false)
-          e.preventDefault()
-          e.stopPropagation()
-        }
-      } else if (e.ctrlKey && e.key === ',') {
-        e.preventDefault()
-        e.stopPropagation()
-        uiStore.setIsSettingsOpen((prev) => !prev)
-      } else if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
-        e.preventDefault()
-        e.stopPropagation()
-        uiStore.setIsCommandPaletteOpen((prev) => !prev)
-      }
-    }
-    window.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
-  }, [])
-
-  // Handle key events forwarded from webviews
-  useEffect(() => {
-    if (!window.windowApi?.onWebviewKeydown) return
-
-    const unsubscribe = window.windowApi.onWebviewKeydown((data) => {
-      const eventInit: KeyboardEventInit = {
-        key: data.key,
-        code: data.code,
-        ctrlKey: data.ctrlKey,
-        shiftKey: data.shiftKey,
-        altKey: data.altKey,
-        metaKey: data.metaKey,
-        bubbles: true,
-        cancelable: true
-      }
-
-      const fakeEvent = new KeyboardEvent('keydown', eventInit)
-      window.dispatchEvent(fakeEvent)
-      document.dispatchEvent(fakeEvent)
-    })
-
-    return () => {
-      unsubscribe()
-    }
-  }, [])
+    return pollTabLabels();
+  }, []);
 
   if (error) {
     return (
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100vw',
-          height: '100vh',
-          background: 'var(--app-bg)',
-          color: 'var(--app-fg)',
-          fontFamily: 'monospace',
-          fontSize: 14
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100vw",
+          height: "100vh",
+          background: "var(--app-bg)",
+          color: "var(--app-fg)",
+          fontFamily: "monospace",
+          fontSize: 14,
         }}
       >
         {error}
       </div>
-    )
+    );
   }
 
-  const tabBarTabs: TabBarTab[] = tabs.map((t) => ({ id: t.id, label: t.label }))
-
-  const themeObj = resolveTheme(config.theme, config.customThemes)
-
-  let appBg = 'transparent'
-  if (themeObj.background && typeof config.opacity === 'number') {
-    const hex = themeObj.background.replace('#', '')
-    if (hex.length === 6) {
-      const r = parseInt(hex.substring(0, 2), 16)
-      const g = parseInt(hex.substring(2, 4), 16)
-      const b = parseInt(hex.substring(4, 6), 16)
-      appBg = `rgba(${r}, ${g}, ${b}, ${config.opacity})`
-    }
-  }
-
-  const containerStyle: React.CSSProperties = {
-    width: '100vw',
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    background: appBg,
-    ['--app-bg' as any]: themeObj.background,
-    ['--app-fg' as any]: themeObj.foreground,
-    ['--app-border' as any]: themeObj.selection || 'rgba(255,255,255,0.1)',
-    ['--app-accent' as any]: themeObj.accent || themeObj.magenta || themeObj.cursor || 'var(--app-accent)',
-    ['--app-red' as any]: themeObj.red || 'var(--app-red)',
-    ['--app-green' as any]: themeObj.green || 'var(--app-green)',
-    ['--app-yellow' as any]: themeObj.yellow || 'var(--app-yellow)',
-    ['--app-blue' as any]: themeObj.blue || 'var(--app-blue)',
-    ['--app-fg-subtle' as any]: 'color-mix(in srgb, var(--app-fg) 70%, transparent)',
-    ['--app-fg-muted' as any]: 'color-mix(in srgb, var(--app-fg) 40%, transparent)',
-    ['--app-panel-bg' as any]: 'rgba(0,0,0,0.15)',
-    ['--app-modal-bg' as any]: 'rgba(0,0,0,0.25)'
-  }
+  const tabBarTabs: TabBarTab[] = tabs.map((t) => ({
+    id: t.id,
+    label: t.label,
+  }));
 
   // Detached/popout mode
   if (isDetached) {
     return (
-      <div style={containerStyle}>
+      <ThemeProvider>
         <TitleBar />
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--app-panel-bg)',
-            borderBottom: '1px solid var(--app-border)',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--app-panel-bg)",
+            borderBottom: "1px solid var(--app-border)",
             height: 28,
-            padding: '0 12px',
-            userSelect: 'none'
+            padding: "0 12px",
+            userSelect: "none",
           }}
         >
-          <span style={{ color: 'var(--app-fg-subtle)', fontSize: 12, fontFamily: 'system-ui, sans-serif' }}>
+          <span
+            style={{
+              color: "var(--app-fg-subtle)",
+              fontSize: 12,
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
             detached
           </span>
           <span
             onClick={reattachMe}
             style={{
-              color: 'var(--app-fg-muted)',
-              cursor: 'pointer',
+              color: "var(--app-fg-muted)",
+              cursor: "pointer",
               fontSize: 12,
-              fontFamily: 'system-ui, sans-serif'
+              fontFamily: "system-ui, sans-serif",
             }}
             onMouseEnter={(e) => {
-              ; (e.target as HTMLElement).style.color = 'var(--app-fg)'
+              (e.target as HTMLElement).style.color = "var(--app-fg)";
             }}
             onMouseLeave={(e) => {
-              ; (e.target as HTMLElement).style.color = 'var(--app-fg-muted)'
+              (e.target as HTMLElement).style.color = "var(--app-fg-muted)";
             }}
           >
             reattach
           </span>
         </div>
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflow: "hidden" }}>
           {tabs.map((tab) => {
-            const isHibernated = hibernatedTabIds.includes(tab.id)
+            const isHibernated = hibernatedTabIds.includes(tab.id);
             return (
               <div
                 key={tab.id}
                 style={{
-                  visibility: tab.id === activeTabId ? 'visible' : 'hidden',
-                  position: tab.id === activeTabId ? 'relative' : 'absolute',
+                  visibility: tab.id === activeTabId ? "visible" : "hidden",
+                  position: tab.id === activeTabId ? "relative" : "absolute",
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
                   zIndex: tab.id === activeTabId ? 1 : 0,
-                  display: 'flex',
-                  width: '100%',
-                  height: '100%'
+                  display: "flex",
+                  width: "100%",
+                  height: "100%",
                 }}
               >
                 {!isHibernated && (
@@ -366,49 +199,82 @@ function App() {
                     isActive={tab.id === activeTabId}
                     onFocus={(path) => onFocusSplit(tab.id, path)}
                     onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                    onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                    onResize={(path, newSizes) =>
+                      onResize(tab.id, path, newSizes)
+                    }
                   />
                 )}
               </div>
-            )
+            );
           })}
         </div>
-      </div>
-    )
+      </ThemeProvider>
+    );
   }
 
   const handleContextMenuAction = (
     tabId: string,
     path: number[],
-    action: 'split-h' | 'split-v' | 'close'
+    action: "split-h" | "split-v" | "close",
   ) => {
-    onFocusSplit(tabId, path)
+    onFocusSplit(tabId, path);
 
-    if (action === 'split-h') {
-      splitTab('horizontal', tabId, path)
-    } else if (action === 'split-v') {
-      splitTab('vertical', tabId, path)
-    } else if (action === 'close') {
-      const tab = tabs.find((t) => t.id === tabId)
+    if (action === "split-h") {
+      splitTab("horizontal", tabId, path);
+    } else if (action === "split-v") {
+      splitTab("vertical", tabId, path);
+    } else if (action === "close") {
+      const tab = tabs.find((t) => t.id === tabId);
       if (tab) {
-        const targetNode = getNode(tab.root, path)
-        const leafId = targetNode?.terminalId || targetNode?.browserId
+        const targetNode = getNode(tab.root, path);
+        const leafId = targetNode?.terminalId || targetNode?.browserId;
         if (leafId) {
-          closeSplit(tabId, leafId)
+          closeSplit(tabId, leafId);
         }
       }
     }
-  }
+  };
 
-  const activeTab = tabs.find((t) => t.id === activeTabId)
+  const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeTerminalId = activeTab
     ? getNode(activeTab.root, activeTab.focusedPath)?.terminalId || null
-    : null
+    : null;
 
   return (
-    <div style={containerStyle}>
-      <TitleBar onOpenSettings={() => setIsSettingsOpen(true)} onOpenAbout={() => setIsAboutOpen(true)} />
-      {(!config.tabBarPosition || config.tabBarPosition === 'top') && (
+    <ThemeProvider>
+      <TitleBar
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenAbout={() => setIsAboutOpen(true)}
+      />
+      {configError && (
+        <div className="app-warning-banner" id="config-warning-banner">
+          <div className="app-warning-banner-message">
+            <span>⚠️</span>
+            <span><strong>Configuration Error:</strong> {configError}</span>
+          </div>
+          <button
+            className="app-warning-banner-close"
+            onClick={() => useUIStore.getState().setConfigError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {dbError && (
+        <div className="app-warning-banner" id="db-warning-banner">
+          <div className="app-warning-banner-message">
+            <span>⚠️</span>
+            <span><strong>Database Error:</strong> {dbError}</span>
+          </div>
+          <button
+            className="app-warning-banner-close"
+            onClick={() => useUIStore.getState().setDbError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {(!config.tabBarPosition || config.tabBarPosition === "top") && (
         <TabBar
           tabs={tabBarTabs}
           activeTabId={activeTabId}
@@ -417,12 +283,25 @@ function App() {
           onNew={newTab}
           onDragStart={handleDragStart}
           onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
-          onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+          onDragEnd={(tabId, x, y) =>
+            handleDragEnd(tabId, x, y, terminalAreaRef.current)
+          }
           onRenameTab={renameTab}
         />
       )}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', borderTop: (config.tabBarPosition === 'left' || config.tabBarPosition === 'right') ? '1px solid var(--app-border)' : 'none' }}>
-        {config.tabBarPosition === 'left' && (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          overflow: "hidden",
+          borderTop:
+            config.tabBarPosition === "left" ||
+            config.tabBarPosition === "right"
+              ? "1px solid var(--app-border)"
+              : "none",
+        }}
+      >
+        {config.tabBarPosition === "left" && (
           <TabBar
             tabs={tabBarTabs}
             activeTabId={activeTabId}
@@ -431,16 +310,20 @@ function App() {
             onNew={newTab}
             onDragStart={handleDragStart}
             onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
-            onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+            onDragEnd={(tabId, x, y) =>
+              handleDragEnd(tabId, x, y, terminalAreaRef.current)
+            }
             onRenameTab={renameTab}
           />
         )}
-        {config.sidebarOpen && config.sidebarPlacement === 'left' && (
+        {config.sidebarOpen && config.sidebarPlacement === "left" && (
           <ErrorBoundary name="Left Sidebar">
             <Sidebar
               onRunScript={handleRunScript}
               onInjectSnippet={handleInjectSnippet}
-              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              onViewSession={(sessionId) =>
+                setViewingHistorySessionId(sessionId)
+              }
               activeTerminalId={activeTerminalId}
               onViewFile={(filePath) => setPreviewFilePath(filePath)}
               onLaunchConnection={(id) => newTab(undefined, id)}
@@ -452,27 +335,30 @@ function App() {
           ref={terminalAreaRef}
           style={{
             flex: 1,
-            overflow: 'hidden',
-            position: 'relative',
-            borderTop: (!config.tabBarPosition || config.tabBarPosition === 'top') ? '1px solid var(--app-border)' : 'none'
+            overflow: "hidden",
+            position: "relative",
+            borderTop:
+              !config.tabBarPosition || config.tabBarPosition === "top"
+                ? "1px solid var(--app-border)"
+                : "none",
           }}
         >
           {tabs.map((tab) => {
-            const isHibernated = hibernatedTabIds.includes(tab.id)
+            const isHibernated = hibernatedTabIds.includes(tab.id);
             return (
               <div
                 key={tab.id}
                 style={{
-                  visibility: tab.id === activeTabId ? 'visible' : 'hidden',
-                  position: tab.id === activeTabId ? 'relative' : 'absolute',
+                  visibility: tab.id === activeTabId ? "visible" : "hidden",
+                  position: tab.id === activeTabId ? "relative" : "absolute",
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
                   zIndex: tab.id === activeTabId ? 1 : 0,
-                  display: 'flex',
-                  width: '100%',
-                  height: '100%'
+                  display: "flex",
+                  width: "100%",
+                  height: "100%",
                 }}
               >
                 {!isHibernated && (
@@ -490,7 +376,9 @@ function App() {
                       }
                       onFocus={(path) => onFocusSplit(tab.id, path)}
                       onExit={(terminalId) => closeSplit(tab.id, terminalId)}
-                      onResize={(path, newSizes) => onResize(tab.id, path, newSizes)}
+                      onResize={(path, newSizes) =>
+                        onResize(tab.id, path, newSizes)
+                      }
                       onContextMenuAction={(path, action) =>
                         handleContextMenuAction(tab.id, path, action)
                       }
@@ -498,26 +386,27 @@ function App() {
                   </ErrorBoundary>
                 )}
               </div>
-            )
+            );
           })}
           <div
             id="drag-zone-right"
             style={{
-              display: dragState?.zone === 'right' ? 'flex' : 'none',
-              position: 'absolute',
+              display: dragState?.zone === "right" ? "flex" : "none",
+              position: "absolute",
               top: 0,
               right: 0,
-              width: '20%',
-              height: '100%',
-              background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
-              border: '2px dashed var(--app-accent)',
+              width: "20%",
+              height: "100%",
+              background:
+                "color-mix(in srgb, var(--app-accent) 15%, transparent)",
+              border: "2px dashed var(--app-accent)",
               zIndex: 100,
-              pointerEvents: 'none',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--app-fg)',
+              pointerEvents: "none",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--app-fg)",
               fontSize: 13,
-              fontFamily: 'system-ui, sans-serif'
+              fontFamily: "system-ui, sans-serif",
             }}
           >
             split right
@@ -525,32 +414,35 @@ function App() {
           <div
             id="drag-zone-bottom"
             style={{
-              display: dragState?.zone === 'bottom' ? 'flex' : 'none',
-              position: 'absolute',
+              display: dragState?.zone === "bottom" ? "flex" : "none",
+              position: "absolute",
               bottom: 0,
               left: 0,
-              width: '100%',
-              height: '20%',
-              background: 'color-mix(in srgb, var(--app-accent) 15%, transparent)',
-              border: '2px dashed var(--app-accent)',
+              width: "100%",
+              height: "20%",
+              background:
+                "color-mix(in srgb, var(--app-accent) 15%, transparent)",
+              border: "2px dashed var(--app-accent)",
               zIndex: 100,
-              pointerEvents: 'none',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--app-fg)',
+              pointerEvents: "none",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--app-fg)",
               fontSize: 13,
-              fontFamily: 'system-ui, sans-serif'
+              fontFamily: "system-ui, sans-serif",
             }}
           >
             split down
           </div>
         </div>
-        {config.sidebarOpen && config.sidebarPlacement === 'right' && (
+        {config.sidebarOpen && config.sidebarPlacement === "right" && (
           <ErrorBoundary name="Right Sidebar">
             <Sidebar
               onRunScript={handleRunScript}
               onInjectSnippet={handleInjectSnippet}
-              onViewSession={(sessionId) => setViewingHistorySessionId(sessionId)}
+              onViewSession={(sessionId) =>
+                setViewingHistorySessionId(sessionId)
+              }
               activeTerminalId={activeTerminalId}
               onViewFile={(filePath) => setPreviewFilePath(filePath)}
               onLaunchConnection={(id) => newTab(undefined, id)}
@@ -558,7 +450,7 @@ function App() {
             />
           </ErrorBoundary>
         )}
-        {config.tabBarPosition === 'right' && (
+        {config.tabBarPosition === "right" && (
           <TabBar
             tabs={tabBarTabs}
             activeTabId={activeTabId}
@@ -567,127 +459,31 @@ function App() {
             onNew={newTab}
             onDragStart={handleDragStart}
             onDragMove={(x, y) => handleDragMove(x, y, terminalAreaRef.current)}
-            onDragEnd={(tabId, x, y) => handleDragEnd(tabId, x, y, terminalAreaRef.current)}
+            onDragEnd={(tabId, x, y) =>
+              handleDragEnd(tabId, x, y, terminalAreaRef.current)
+            }
             onRenameTab={renameTab}
           />
         )}
       </div>
-      <Suspense fallback={null}>
-        {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
-        {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
-        {isUpdateModalOpen && <UpdateModal onClose={() => setIsUpdateModalOpen(false)} />}
-        {viewingHistorySessionId && (
-          <HistoryViewerModal
-            sessionId={viewingHistorySessionId}
-            onClose={() => setViewingHistorySessionId(null)}
-          />
-        )}
-        {previewFilePath && (
-          <FilePreviewModal filePath={previewFilePath} onClose={() => setPreviewFilePath(null)} />
-        )}
-        {previewClipboardItem && (
-          <ClipboardPreviewModal
-            item={previewClipboardItem}
-            onClose={() => setPreviewClipboardItem(null)}
-          />
-        )}
-        {isCommandPaletteOpen && (() => {
-          const activeTab = tabs.find((t) => t.id === activeTabId)
-          const activeNode = activeTab ? getNode(activeTab.root, activeTab.focusedPath) : null
-          const isBrowserFocused = activeNode ? !!activeNode.browserId : false
-
-          const paletteActions = [
-            { id: 'settings', label: 'Settings: Open', onExecute: () => setIsSettingsOpen(true) },
-            { id: 'about', label: 'App: About Vet', onExecute: () => setIsAboutOpen(true) },
-            {
-              id: 'config-file',
-              label: 'Settings: Open config.json5 in Editor',
-              onExecute: openConfig
-            },
-            {
-              id: 'toggle-sidebar',
-              label: 'View: Toggle Sidebar',
-              onExecute: () => updateConfig({ sidebarOpen: !config.sidebarOpen })
-            },
-            { id: 'new-tab', label: 'View: New Tab', onExecute: newTab },
-            { id: 'new-browser-tab', label: 'View: Open Web Browser Tab', onExecute: newBrowserTab },
-            { id: 'split-h', label: 'View: Split Horizontal', onExecute: () => splitTab('horizontal') },
-            { id: 'split-v', label: 'View: Split Vertical', onExecute: () => splitTab('vertical') },
-            { id: 'split-unsplit', label: 'View: Unsplit Tabs', onExecute: () => unsplitTab() },
-            { id: 'toggle-fullscreen', label: 'View: Toggle Fullscreen', onExecute: () => window.windowApi?.toggleFullscreen() },
-            { id: 'maximize', label: 'View: Maximize Window', onExecute: () => window.windowApi?.maximize() },
-            { id: 'app-exit', label: 'App: Exit', onExecute: () => window.windowApi?.quit() },
-            {
-              id: 'extract',
-              label: 'View: Extract Pane to New Tab',
-              onExecute: () => {
-                if (activeTabId && activeTab) extractToTab(activeTabId, activeTab.focusedPath)
-              }
-            },
-            {
-              id: 'detach-window',
-              label: 'View: Detach Tab to Window',
-              onExecute: () => {
-                if (activeTabId) detachTab(activeTabId)
-              }
-            },
-            { id: 'tabbar-pos-top', label: 'View: Position Tab Bar at Top', onExecute: () => updateConfig({ tabBarPosition: 'top' }) },
-            { id: 'tabbar-pos-left', label: 'View: Position Tab Bar on Left', onExecute: () => updateConfig({ tabBarPosition: 'left' }) },
-            { id: 'tabbar-pos-right', label: 'View: Position Tab Bar on Right', onExecute: () => updateConfig({ tabBarPosition: 'right' }) },
-            ...Object.keys(builtinThemes).map((themeName) => ({
-              id: `theme-${themeName}`,
-              label: `Theme: Set to ${themeName.replace('-', ' ')}`,
-              onExecute: () => updateConfig({ theme: themeName })
-            })),
-            ...Object.keys(config.customThemes || {}).map((themeName) => ({
-              id: `theme-custom-${themeName}`,
-              label: `Theme: Set to ${themeName.replace('-', ' ')} (custom)`,
-              onExecute: () => updateConfig({ theme: themeName })
-            })),
-            ...(config.profiles || []).map((profile) => ({
-              id: `launch-profile-${profile.id}`,
-              label: `Profiles: Launch ${profile.name}`,
-              onExecute: () => newTab(profile.id)
-            })),
-            ...(config.sshHosts || [])
-              .filter((h): h is SshHost => 'host' in h)
-              .map((host) => ({
-              id: `launch-ssh-${host.id}`,
-              label: `SSH: Connect to ${host.name} (${host.host})`,
-              onExecute: () => newTab(undefined, host.id)
-            }))
-          ]
-
-          if (isBrowserFocused) {
-            paletteActions.push(
-              {
-                id: 'browser-devtools',
-                label: 'Browser: Open Developer Tools',
-                onExecute: () => {
-                  window.dispatchEvent(new CustomEvent('browser:action', { detail: { action: 'browser:devtools' } }))
-                }
-              },
-              {
-                id: 'browser-search',
-                label: 'Browser: Find in Page',
-                onExecute: () => {
-                  window.dispatchEvent(new CustomEvent('browser:action', { detail: { action: 'browser:search' } }))
-                }
-              }
-            )
-          }
-
-          return (
-            <CommandPalette
-              isOpen={isCommandPaletteOpen}
-              onClose={() => setIsCommandPaletteOpen(false)}
-              actions={paletteActions}
-            />
-          )
-        })()}
-      </Suspense>
-    </div>
-  )
+      <ModalManager />
+      {toasts.length > 0 && (
+        <div className="app-toast-container" id="toast-container">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={`app-toast app-toast-${toast.type}`}>
+              <div className="app-toast-content">{toast.message}</div>
+              <button
+                className="app-toast-close"
+                onClick={() => removeToast(toast.id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;

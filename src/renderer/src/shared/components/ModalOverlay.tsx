@@ -1,39 +1,63 @@
-import React, { ReactNode, HTMLAttributes } from 'react'
+import React, { ReactNode, HTMLAttributes, useRef } from "react";
+import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 interface ModalOverlayProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactNode
-  onClick?: (e: React.MouseEvent) => void
-  containerRef?: React.RefObject<HTMLDivElement | null>
+  children: ReactNode;
+  onClose?: () => void;
+  closeOnOverlayClick?: boolean;
+  closeOnEsc?: boolean;
+  trapFocus?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
  * Reusable modal backdrop/overlay component with glassmorphism blur.
  */
-export const ModalOverlay: React.FC<ModalOverlayProps> = ({ children, onClick, containerRef, style, ...props }) => {
+export const ModalOverlay: React.FC<ModalOverlayProps> = ({
+  children,
+  onClose,
+  closeOnOverlayClick = true,
+  closeOnEsc = true,
+  trapFocus = true,
+  containerRef,
+  onClick,
+  style,
+  ...props
+}) => {
+  const defaultRef = useRef<HTMLDivElement>(null);
+  const actualRef = containerRef || defaultRef;
+
+  // Handle Escape key
+  useEscapeKey(() => {
+    if (onClose && closeOnEsc) {
+      onClose();
+    }
+  }, !!onClose && closeOnEsc);
+
+  // Handle focus trapping
+  useFocusTrap(actualRef, trapFocus);
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (onClick) {
+      onClick(e);
+    }
+    if (onClose && closeOnOverlayClick && e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
     <div
-      ref={containerRef}
+      ref={actualRef}
       tabIndex={-1}
-      onClick={onClick}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        outline: 'none',
-        ...style
-      }}
+      onClick={handleOverlayClick}
+      className="app-modal-overlay"
+      style={style}
       {...props}
     >
       {children}
     </div>
-  )
-}
+  );
+};
+

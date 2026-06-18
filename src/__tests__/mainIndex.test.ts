@@ -19,20 +19,20 @@ const mockWindowInstance = {
   setVibrancy: jest.fn(),
   on: jest.fn(),
   loadURL: jest.fn(),
-}
+};
 
-let ipcHandleMock: jest.Mock
-let ipcOnMock: jest.Mock
+let ipcHandleMock: jest.Mock;
+let ipcOnMock: jest.Mock;
 
-jest.mock('electron', () => {
-  ipcHandleMock = jest.fn()
-  ipcOnMock = jest.fn()
-  const BrowserWindow = jest.fn(() => mockWindowInstance)
-  BrowserWindow.fromWebContents = jest.fn(() => mockWindowInstance)
-  BrowserWindow.getAllWindows = jest.fn(() => [mockWindowInstance])
+jest.mock("electron", () => {
+  ipcHandleMock = jest.fn();
+  ipcOnMock = jest.fn();
+  const BrowserWindow = jest.fn(() => mockWindowInstance) as any;
+  BrowserWindow.fromWebContents = jest.fn(() => mockWindowInstance);
+  BrowserWindow.getAllWindows = jest.fn(() => [mockWindowInstance]);
   return {
     app: {
-      getPath: jest.fn((_name: string) => '/mock/path'),
+      getPath: jest.fn((_name: string) => "/mock/path"),
       whenReady: jest.fn(() => Promise.resolve()),
       on: jest.fn(),
       quit: jest.fn(),
@@ -42,14 +42,14 @@ jest.mock('electron', () => {
     session: {
       defaultSession: {
         webRequest: {
-          onHeadersReceived: jest.fn()
-        }
-      }
-    }
-  }
-})
+          onHeadersReceived: jest.fn(),
+        },
+      },
+    },
+  };
+});
 
-jest.mock('electron-updater', () => ({
+jest.mock("electron-updater", () => ({
   autoUpdater: {
     autoDownload: false,
     checkForUpdates: jest.fn(() => Promise.resolve({ success: true })),
@@ -57,135 +57,142 @@ jest.mock('electron-updater', () => ({
     downloadUpdate: jest.fn(() => Promise.resolve({ success: true })),
     quitAndInstall: jest.fn(),
     on: jest.fn(),
-  }
-}))
+  },
+}));
 
-jest.mock('@electron-toolkit/utils', () => ({
+jest.mock("@electron-toolkit/utils", () => ({
   electronApp: { setAppUserModelId: jest.fn() },
   is: { dev: false },
-}))
+}));
 
-jest.mock('../main/pty', () => ({
-  createTerminal: jest.fn(() => 'mock-terminal-id'),
+jest.mock("../main/pty", () => ({
+  createTerminal: jest.fn(() => "mock-terminal-id"),
   destroyTerminal: jest.fn(),
   writeToTerminal: jest.fn(),
   resizeTerminal: jest.fn(),
   setForwardTarget: jest.fn(),
-  getTerminalInfo: jest.fn(() => Promise.resolve({ title: 'test', cwd: '/test' })),
-  getHistory: jest.fn(() => ''),
-}))
+  getTerminalInfo: jest.fn(() =>
+    Promise.resolve({ title: "test", cwd: "/test" }),
+  ),
+  getHistory: jest.fn(() => ""),
+}));
 
-jest.mock('../main/config', () => ({
+jest.mock("../main/config", () => ({
   initConfigManager: jest.fn(),
-  getConfig: jest.fn(() => ({ shell: '/bin/bash', vibrancy: 'none' })),
+  getConfig: jest.fn(() => ({ shell: "/bin/bash", vibrancy: "none" })),
   sanitizeConfig: jest.fn((c: any) => c),
-}))
+}));
 
-jest.mock('../main/session', () => ({
+jest.mock("../main/session", () => ({
   initSessionManager: jest.fn(),
   getSessionData: jest.fn(),
-}))
+}));
 
-jest.mock('../main/sysinfo', () => ({
+jest.mock("../main/sysinfo", () => ({
   initSysInfoManager: jest.fn(),
-}))
+}));
 
-jest.mock('../main/ports', () => ({
+jest.mock("../main/ports", () => ({
   initPortsManager: jest.fn(),
-}))
+}));
 
-jest.mock('../main/workspace', () => ({
+jest.mock("../main/workspace", () => ({
   initWorkspaceManager: jest.fn(),
-}))
+}));
 
-jest.mock('../main/connections', () => ({
+jest.mock("../main/connections", () => ({
   initConnectionsManager: jest.fn(),
-}))
+}));
 
-jest.mock('../main/historyDb', () => ({
+jest.mock("../main/historyDb", () => ({
   initHistoryDb: jest.fn(),
   searchHistory: jest.fn(() => []),
   getHistorySessions: jest.fn(() => []),
-  getSessionTranscript: jest.fn(() => ''),
+  getSessionTranscript: jest.fn(() => ""),
   getScrollbackChunk: jest.fn(() => []),
   clearHistory: jest.fn(),
   deleteSession: jest.fn(),
-}))
+}));
 
-jest.mock('../main/adblocker', () => ({
+jest.mock("../main/adblocker", () => ({
   initAdblocker: jest.fn(() => Promise.resolve()),
   registerAdblockerIpcHandlers: jest.fn(),
-}))
+}));
 
-jest.mock('../main/sftp', () => ({
+jest.mock("../main/sftp", () => ({
   initSftpManager: jest.fn(),
-}))
+}));
 
-jest.mock('../main/clipboardHistory', () => ({
+jest.mock("../main/clipboardHistory", () => ({
   initClipboardHistoryManager: jest.fn(),
-}))
+}));
 
-describe('main process index', () => {
+describe("main process index", () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    jest.resetModules()
-  })
+    jest.useFakeTimers({ doNotFake: ["setImmediate"] });
+    jest.clearAllMocks();
+    jest.resetModules();
+  });
 
-  it('registers all expected IPC handlers on app ready', async () => {
-    require('../main/index')
-    await new Promise((resolve) => setImmediate(resolve))
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    const handleCalls = ipcHandleMock.mock.calls.map((c: string[]) => c[0])
-    const onCalls = ipcOnMock.mock.calls.map((c: string[]) => c[0])
-    const calls = [...handleCalls, ...onCalls]
+  it("registers all expected IPC handlers on app ready", async () => {
+    require("../main/index");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const handleCalls = ipcHandleMock.mock.calls.map((c: string[]) => c[0]);
+    const onCalls = ipcOnMock.mock.calls.map((c: string[]) => c[0]);
+    const calls = [...handleCalls, ...onCalls];
 
     // Window control
-    expect(calls).toContain('win:minimize')
-    expect(calls).toContain('win:maximize')
-    expect(calls).toContain('win:close')
-    expect(calls).toContain('win:is-maximized')
+    expect(calls).toContain("win:minimize");
+    expect(calls).toContain("win:maximize");
+    expect(calls).toContain("win:close");
+    expect(calls).toContain("win:is-maximized");
 
     // Terminal
-    expect(calls).toContain('terminal:create')
-    expect(calls).toContain('terminal:enable-forwarding')
-    expect(calls).toContain('terminal:write')
-    expect(calls).toContain('terminal:resize')
-    expect(calls).toContain('terminal:destroy')
-    expect(calls).toContain('terminal:get-history')
-    expect(calls).toContain('terminal:detach-tab')
-    expect(calls).toContain('terminal:reattach-tab')
-    expect(calls).toContain('terminal:get-info')
-    expect(calls).toContain('terminal:set-foreground')
+    expect(calls).toContain("terminal:create");
+    expect(calls).toContain("terminal:enable-forwarding");
+    expect(calls).toContain("terminal:write");
+    expect(calls).toContain("terminal:resize");
+    expect(calls).toContain("terminal:destroy");
+    expect(calls).toContain("terminal:get-history");
+    expect(calls).toContain("terminal:detach-tab");
+    expect(calls).toContain("terminal:reattach-tab");
+    expect(calls).toContain("terminal:get-info");
+    expect(calls).toContain("terminal:set-foreground");
 
     // History
-    expect(calls).toContain('history:search')
-    expect(calls).toContain('history:get-sessions')
-    expect(calls).toContain('history:get-session-transcript')
-    expect(calls).toContain('history:get-scrollback-chunk')
-    expect(calls).toContain('history:clear')
-    expect(calls).toContain('history:delete-session')
-  })
+    expect(calls).toContain("history:search");
+    expect(calls).toContain("history:get-sessions");
+    expect(calls).toContain("history:get-session-transcript");
+    expect(calls).toContain("history:get-scrollback-chunk");
+    expect(calls).toContain("history:clear");
+    expect(calls).toContain("history:delete-session");
+  });
 
-  it('initializes all sub-managers on app ready', async () => {
-    require('../main/index')
-    await new Promise((resolve) => setImmediate(resolve))
+  it("initializes all sub-managers on app ready", async () => {
+    require("../main/index");
+    await new Promise((resolve) => setImmediate(resolve));
 
-    const { initConfigManager } = require('../main/config')
-    const { initSessionManager } = require('../main/session')
-    const { initSysInfoManager } = require('../main/sysinfo')
-    const { initPortsManager } = require('../main/ports')
-    const { initWorkspaceManager } = require('../main/workspace')
-    const { initConnectionsManager } = require('../main/connections')
-    const { initHistoryDb } = require('../main/historyDb')
-    const { initAdblocker } = require('../main/adblocker')
+    const { initConfigManager } = require("../main/config");
+    const { initSessionManager } = require("../main/session");
+    const { initSysInfoManager } = require("../main/sysinfo");
+    const { initPortsManager } = require("../main/ports");
+    const { initWorkspaceManager } = require("../main/workspace");
+    const { initConnectionsManager } = require("../main/connections");
+    const { initHistoryDb } = require("../main/historyDb");
+    const { initAdblocker } = require("../main/adblocker");
 
-    expect(initConfigManager).toHaveBeenCalled()
-    expect(initAdblocker).toHaveBeenCalled()
-    expect(initSessionManager).toHaveBeenCalled()
-    expect(initSysInfoManager).toHaveBeenCalled()
-    expect(initPortsManager).toHaveBeenCalled()
-    expect(initWorkspaceManager).toHaveBeenCalled()
-    expect(initConnectionsManager).toHaveBeenCalled()
-    expect(initHistoryDb).toHaveBeenCalled()
-  })
-})
+    expect(initConfigManager).toHaveBeenCalled();
+    expect(initAdblocker).toHaveBeenCalled();
+    expect(initSessionManager).toHaveBeenCalled();
+    expect(initSysInfoManager).toHaveBeenCalled();
+    expect(initPortsManager).toHaveBeenCalled();
+    expect(initWorkspaceManager).toHaveBeenCalled();
+    expect(initConnectionsManager).toHaveBeenCalled();
+    expect(initHistoryDb).toHaveBeenCalled();
+  });
+});

@@ -1,18 +1,18 @@
 const ipcMain = {
   handle: jest.fn(),
   on: jest.fn(),
-}
+};
 
 const ipcRenderer = {
   invoke: jest.fn(),
   on: jest.fn(),
   send: jest.fn(),
-}
+};
 
 const BrowserWindow = {
   fromWebContents: jest.fn(),
   getAllWindows: jest.fn(() => []),
-}
+};
 
 function mockBrowserWindow() {
   return {
@@ -32,7 +32,7 @@ function mockBrowserWindow() {
     setVibrancy: jest.fn(),
     on: jest.fn(),
     loadURL: jest.fn(),
-  }
+  };
 }
 
 const app = {
@@ -40,16 +40,16 @@ const app = {
   whenReady: jest.fn(() => Promise.resolve()),
   on: jest.fn(),
   quit: jest.fn(),
-}
+};
 
 const shell = {
   openExternal: jest.fn(),
   showItemInFolder: jest.fn(),
-}
+};
 
 const contextBridge = {
   exposeInMainWorld: jest.fn(),
-}
+};
 
 export {
   app,
@@ -59,4 +59,4 @@ export {
   shell,
   contextBridge,
   mockBrowserWindow,
-}
+};

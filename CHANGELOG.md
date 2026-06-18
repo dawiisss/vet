@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-06-18
+
+### Added
+- **User Onboarding Welcome Guide**: Designed and implemented an interactive, multi-slide onboarding welcome guide (`IntroModal`) to showcase key features on startup (Multi-Pane Splits, Web Browser, Sidebar panels, Command Palette, SQLite History, and Keyboard Shortcuts).
+- **Live Theme Customizer**: Added a live theme selector on the final onboarding slide to let users preview and select built-in application themes (Dracula, Nord, Catppuccin, One Dark) in real time.
+- **Onboarding Config Persistence**: Saved the onboarding state (`showIntroOnStartup`) to `config.json5` so the welcome guide won't reappear on launch once skipped or completed, but remains replayable via the About Modal and Command Palette.
+
+### Fixed
+- **Session Layout Persistence**: Wired up window terminal API session saving and loading to automatically persist and restore complex tab and split-pane layouts across app restarts.
+- **React Key Collision & Tab Counters**: Fixed duplicate tab key warnings (e.g. duplicate `tab-2` keys) on session restoration by migrating tab ID and shell counters to Zustand state, resolving circular dependency initialization issues between `useTabStore.ts` and `tabActions.ts`.
+- **Fastfetch/Startup Size Persistence**: Fixed rendering layout artifacts and horizontal clipping on startup commands (like `fastfetch`) in narrow/midsize terminals by calculating estimated dimensions from Electron window bounds on spawn and executing initial ResizeObserver layouts instantly (without 50ms debounces).
+
+### Changed
+- **Major Refactoring and Architecture Improvements**:
+  - **Preload Isolation & Dry IPC**: Reduced preload code by 150+ lines using declarative factory helpers (`invoke`, `send`, `on`).
+  - **God Component Decompositions**: Split the giant 800+ lines `App.tsx` into clean components: `AppShell` container, `ThemeProvider` CSS injector, `ModalManager`, and a `useKeybindings` hook.
+  - **useTabStore Split**: Decomposed `useTabStore.ts` by extracting action files for tab CRUD, split pane layout, and window detaching, fixing tab hibernation bugs.
+  - **Terminal Lifecycle Extraction**: Moved all xterm and fit/webgl/links/image addon lifecycle/mounting logic into a reusable `useTerminal` hook.
+  - **Local/SSH PTY Isolation**: Separated local PTY spawning from SSH PTY spawning in `pty.ts` and `sshPty.ts`, fixing memory leaks on exit.
+  - **Standardized UI Components**: Created reusable shared `<Panel>`, `<SettingsField>`, and `<ModalOverlay>` components, consolidating backdrop/ESC/focus-trap behaviors.
+  - **Custom useSearchableList Hook**: Extracted list filtering and keyboard selection/scrolling logic into a custom hook consumed by the Command Palette and Clipboard.
+  - **Declarative Sidebar Mapping**: Replaced duplicate JSX blocks in `Sidebar.tsx` with a mapped array configuration.
+  - **Runtime Config Validation**: Implemented settings sanitization/clamping and syntax error broadcasting (`config:error`) via IPC, rendering warnings on a non-disruptive banner.
+  - **Stricter Type Safety**: Enabled strict TypeScript flags (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) in all config files and resolved all compiler issues.
+  - **CSS Design Tokens**: Added font-size, spacing, border-radius, shadows, and transitions scales to `global.css` and replaced hardcoded values.
+  - **ESLint React Config**: Configured `react: { version: "detect" }` in the flat ESLint configuration to enable hooks lint checks.
+
 ## [1.0.4] - 2026-06-17
 
 ### Added
