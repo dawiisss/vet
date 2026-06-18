@@ -12,29 +12,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
       - name: Install system dependencies (for node-pty native build)
         run: sudo apt-get update && sudo apt-get install -y python3 make gcc g++
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Type check
-        run: pnpm typecheck
+        run: npm run typecheck
 
       - name: Lint
-        run: pnpm lint
+        run: npm run lint
 
       - name: Test
-        run: pnpm test
+        run: npm run test
 
       - name: Build
-        run: pnpm build
+        run: npm run build
