@@ -271,7 +271,6 @@ export function useTerminal({
       });
 
       term.onResize(({ cols, rows }) => {
-        console.log(`[xterm] Terminal ${terminalId} resized to ${cols}x${rows}`);
         api.resize(terminalId, cols, rows);
       });
 

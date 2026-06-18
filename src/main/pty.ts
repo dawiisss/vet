@@ -349,7 +349,6 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
   const terminal = terminals.get(id);
   if (terminal) {
     try {
-      console.log(`[pty] Resizing PTY ${id} to ${cols}x${rows}`);
       terminal.pty.resize(cols, rows);
     } catch (e) {
       console.error(`Failed to resize terminal ${id}:`, e);
