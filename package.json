@@ -2,7 +2,6 @@
   "name": "vet",
   "desktopName": "vet.desktop",
   "version": "1.0.6",
-  "packageManager": "pnpm@11.5.3",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "main": "./out/main/index.js",
