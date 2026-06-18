@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
-import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
+import { useSearchableList } from "@/shared/hooks/useSearchableList";
 
 export interface CommandAction {
   id: string;
@@ -20,32 +19,33 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   onClose,
   actions,
 }) => {
-  const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filteredActions = actions.filter((action) =>
-    action.label.toLowerCase().includes(query.toLowerCase()),
-  );
+  const {
+    query,
+    setQuery,
+    selectedIndex,
+    setSelectedIndex,
+    filteredItems: filteredActions,
+    handleKeyDown: handleHookKeyDown,
+    listRef,
+  } = useSearchableList<CommandAction>({
+    items: actions,
+    filterFn: (action, q) =>
+      action.label.toLowerCase().includes(q.toLowerCase()),
+    onSelect: (action) => {
+      action.onExecute();
+      onClose();
+    },
+    isOpen,
+  });
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (listRef.current) {
-      const selectedEl = listRef.current.children[selectedIndex] as HTMLElement;
-      if (selectedEl && typeof selectedEl.scrollIntoView === "function") {
-        selectedEl.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
-      setQuery("");
-      setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 10);
     } else {
       if (previousFocusRef.current) {
@@ -55,51 +55,21 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, [isOpen]);
 
-  // Reset selection when query changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
-
-  useEscapeKey(onClose, isOpen);
-  useFocusTrap(containerRef, isOpen);
-
   if (!isOpen) return null;
-
-  const executeSelected = () => {
-    if (filteredActions.length > 0) {
-      filteredActions[selectedIndex].onExecute();
-      onClose();
-    }
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onClose();
       e.stopPropagation();
-    } else if (e.key === "ArrowDown") {
-      setSelectedIndex((prev) =>
-        Math.min(prev + 1, filteredActions.length - 1),
-      );
-      e.preventDefault();
-    } else if (e.key === "ArrowUp") {
-      setSelectedIndex((prev) => Math.max(prev - 1, 0));
-      e.preventDefault();
-    } else if (e.key === "Enter") {
-      executeSelected();
-      e.preventDefault();
-    }
-  };
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
+    } else {
+      handleHookKeyDown(e);
     }
   };
 
   return (
     <ModalOverlay
       containerRef={containerRef}
-      onClick={handleOverlayClick}
+      onClose={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Command Palette"

@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
-import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 interface FilePreviewModalProps {
   filePath: string;
@@ -41,9 +39,6 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     };
   }, [filePath]);
 
-  useEscapeKey(onClose);
-  useFocusTrap(modalRef);
-
   useEffect(() => {
     if (!loading && contentRef.current) {
       contentRef.current.focus();
@@ -61,18 +56,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     };
   }, []);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const lines = content.split("\n");
 
   return (
     <ModalOverlay
       containerRef={modalRef}
-      onClick={handleOverlayClick}
+      onClose={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`Preview of ${filePath}`}

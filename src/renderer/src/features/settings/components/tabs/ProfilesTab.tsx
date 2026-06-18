@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { FormLabel, FormInput } from '@/shared/components/FormComponents'
+import { FormInput } from '@/shared/components/FormComponents'
+import { SettingsField } from '../SettingsField'
 
 export const ProfilesTab: React.FC = () => {
   const { config, updateConfig } = useConfig()
@@ -190,49 +191,49 @@ export const ProfilesTab: React.FC = () => {
 
       {/* Edit Form */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <FormLabel>Profile Name</FormLabel>
+        <SettingsField htmlFor="profile-name-input" label="Profile Name">
           <FormInput
+            id="profile-name-input"
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
           />
-        </div>
+        </SettingsField>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <FormLabel>Shell/Executable Path</FormLabel>
+        <SettingsField htmlFor="profile-shell-input" label="Shell/Executable Path">
           <FormInput
+            id="profile-shell-input"
             type="text"
             value={editShell}
             onChange={(e) => setEditShell(e.target.value)}
             style={{ fontFamily: 'monospace' }}
           />
-        </div>
+        </SettingsField>
 
         <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-            <FormLabel>Arguments (space separated)</FormLabel>
+          <SettingsField htmlFor="profile-args-input" label="Arguments (space separated)" flex={1}>
             <FormInput
+              id="profile-args-input"
               type="text"
               value={editArgs}
               onChange={(e) => setEditArgs(e.target.value)}
               placeholder="e.g. -l -v"
             />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-            <FormLabel>Default Directory (CWD)</FormLabel>
+          </SettingsField>
+          <SettingsField htmlFor="profile-cwd-input" label="Default Directory (CWD)" flex={1}>
             <FormInput
+              id="profile-cwd-input"
               type="text"
               value={editCwd}
               onChange={(e) => setEditCwd(e.target.value)}
               placeholder="e.g. ~/Downloads"
             />
-          </div>
+          </SettingsField>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <FormLabel>Environment Variables (KEY=VALUE lines)</FormLabel>
+        <SettingsField htmlFor="profile-env-input" label="Environment Variables (KEY=VALUE lines)">
           <textarea
+            id="profile-env-input"
             value={editEnv}
             onChange={(e) => setEditEnv(e.target.value)}
             placeholder="e.g.&#10;NODE_ENV=production&#10;MY_VAR=hello"
@@ -249,7 +250,7 @@ export const ProfilesTab: React.FC = () => {
               outline: 'none'
             }}
           />
-        </div>
+        </SettingsField>
 
         <div style={{ marginTop: 8 }}>
           <button

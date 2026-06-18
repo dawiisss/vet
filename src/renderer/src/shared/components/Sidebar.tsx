@@ -98,15 +98,81 @@ export default function Sidebar({
     [config.sidebarPlacement, width, updateConfig],
   );
 
-  const tabs = [
-    { icon: "📁", name: "Workspace" },
-    { icon: "📊", name: "System" },
-    { icon: "🔌", name: "Ports" },
-    { icon: "⚡", name: "Scripts" },
-    { icon: "📋", name: "Snippets" },
-    { icon: "📑", name: "Clipboard" },
-    { icon: "🌐", name: "Connections" },
-    { icon: "📜", name: "History" },
+  const panelConfigs = [
+    {
+      id: 0,
+      icon: "📁",
+      name: "Workspace",
+      render: (isActive: boolean) => (
+        <WorkspacePanel
+          isActive={isActive}
+          activeTerminalId={activeTerminalId}
+          onViewFile={onViewFile}
+        />
+      ),
+    },
+    {
+      id: 1,
+      icon: "📊",
+      name: "System",
+      render: (isActive: boolean) => <SystemMonitorPanel isActive={isActive} />,
+    },
+    {
+      id: 2,
+      icon: "🔌",
+      name: "Ports",
+      render: (isActive: boolean) => <PortMonitorPanel isActive={isActive} />,
+    },
+    {
+      id: 3,
+      icon: "⚡",
+      name: "Scripts",
+      render: (isActive: boolean) => (
+        <ScriptRunnerPanel isActive={isActive} onRunScript={onRunScript} />
+      ),
+    },
+    {
+      id: 4,
+      icon: "📋",
+      name: "Snippets",
+      render: (isActive: boolean) => (
+        <SnippetLibraryPanel
+          isActive={isActive}
+          onInjectSnippet={onInjectSnippet}
+        />
+      ),
+    },
+    {
+      id: 5,
+      icon: "📑",
+      name: "Clipboard",
+      render: (isActive: boolean) => (
+        <ClipboardHistoryPanel
+          isActive={isActive}
+          onInjectSnippet={onInjectSnippet}
+        />
+      ),
+    },
+    {
+      id: 6,
+      icon: "🌐",
+      name: "Connections",
+      render: (isActive: boolean) => (
+        <ConnectionsPanel
+          isActive={isActive}
+          onRunScript={onRunScript}
+          onLaunchConnection={onLaunchConnection}
+        />
+      ),
+    },
+    {
+      id: 7,
+      icon: "📜",
+      name: "History",
+      render: (isActive: boolean) => (
+        <HistoryPanel isActive={isActive} onViewSession={onViewSession} />
+      ),
+    },
   ];
 
   const isLeftPlacement = config.sidebarPlacement === "left";
@@ -124,8 +190,8 @@ export default function Sidebar({
           ).filter((el) => el.offsetParent !== null);
 
           if (focusableElements.length > 0) {
-            const firstElement = focusableElements[0];
-            const lastElement = focusableElements[focusableElements.length - 1];
+            const firstElement = focusableElements[0]!;
+            const lastElement = focusableElements[focusableElements.length - 1]!;
 
             if (e.shiftKey) {
               if (
@@ -153,10 +219,10 @@ export default function Sidebar({
 
         if (e.key === "ArrowLeft") {
           e.preventDefault();
-          setActiveTab((prev) => (prev - 1 + tabs.length) % tabs.length);
+          setActiveTab((prev) => (prev - 1 + panelConfigs.length) % panelConfigs.length);
         } else if (e.key === "ArrowRight") {
           e.preventDefault();
-          setActiveTab((prev) => (prev + 1) % tabs.length);
+          setActiveTab((prev) => (prev + 1) % panelConfigs.length);
         }
       }}
       style={{
@@ -186,21 +252,21 @@ export default function Sidebar({
           paddingTop: 12,
         }}
       >
-        {tabs.map((t, i) => (
+        {panelConfigs.map((t) => (
           <button
-            key={i}
+            key={t.id}
             role="tab"
-            aria-selected={activeTab === i}
-            aria-controls={`sidebar-panel-${i}`}
-            id={`sidebar-tab-${i}`}
-            onClick={() => setActiveTab(i)}
+            aria-selected={activeTab === t.id}
+            aria-controls={`sidebar-panel-${t.id}`}
+            id={`sidebar-tab-${t.id}`}
+            onClick={() => setActiveTab(t.id)}
             title={t.name}
             style={{
               width: 36,
               height: 36,
               marginBottom: 8,
               borderRadius: 8,
-              background: activeTab === i ? "var(--app-border)" : "transparent",
+              background: activeTab === t.id ? "var(--app-border)" : "transparent",
               border: "none",
               cursor: "pointer",
               display: "flex",
@@ -216,130 +282,22 @@ export default function Sidebar({
       </div>
 
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-0"
-          id="sidebar-panel-0"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 0 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <WorkspacePanel
-            isActive={activeTab === 0}
-            activeTerminalId={activeTerminalId}
-            onViewFile={onViewFile}
-          />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-1"
-          id="sidebar-panel-1"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 1 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <SystemMonitorPanel isActive={activeTab === 1} />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-2"
-          id="sidebar-panel-2"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 2 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <PortMonitorPanel isActive={activeTab === 2} />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-3"
-          id="sidebar-panel-3"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 3 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <ScriptRunnerPanel
-            isActive={activeTab === 3}
-            onRunScript={onRunScript}
-          />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-4"
-          id="sidebar-panel-4"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 4 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <SnippetLibraryPanel
-            isActive={activeTab === 4}
-            onInjectSnippet={onInjectSnippet}
-          />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-5"
-          id="sidebar-panel-5"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 5 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <ClipboardHistoryPanel
-            isActive={activeTab === 5}
-            onInjectSnippet={onInjectSnippet}
-          />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-6"
-          id="sidebar-panel-6"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 6 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <ConnectionsPanel
-            isActive={activeTab === 6}
-            onRunScript={onRunScript}
-            onLaunchConnection={onLaunchConnection}
-          />
-        </div>
-        <div
-          role="tabpanel"
-          aria-labelledby="sidebar-tab-7"
-          id="sidebar-panel-7"
-          tabIndex={-1}
-          style={{
-            display: activeTab === 7 ? "block" : "none",
-            height: "100%",
-            outline: "none",
-          }}
-        >
-          <HistoryPanel
-            isActive={activeTab === 7}
-            onViewSession={onViewSession}
-          />
-        </div>
+        {panelConfigs.map((panel) => (
+          <div
+            key={panel.id}
+            role="tabpanel"
+            aria-labelledby={`sidebar-tab-${panel.id}`}
+            id={`sidebar-panel-${panel.id}`}
+            tabIndex={-1}
+            style={{
+              display: activeTab === panel.id ? "block" : "none",
+              height: "100%",
+              outline: "none",
+            }}
+          >
+            {panel.render(activeTab === panel.id)}
+          </div>
+        ))}
       </div>
 
       {/* Resize Handle */}

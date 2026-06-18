@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ModalOverlay } from "./ModalOverlay";
-import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
+import { useUIStore } from "@/shared/stores/useUIStore";
 
 interface AboutModalProps {
   onClose: () => void;
@@ -9,6 +9,7 @@ interface AboutModalProps {
 const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [version, setVersion] = useState<string>("1.0.2");
+  const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
 
   useEffect(() => {
     // Focus modal for accessibility
@@ -21,14 +22,6 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
     }
   }, []);
 
-  useEscapeKey(onClose);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     e.preventDefault();
     window.windowApi?.openExternal?.(url);
@@ -36,7 +29,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
 
   return (
     <ModalOverlay
-      onClick={handleOverlayClick}
+      onClose={onClose}
       containerRef={modalRef}
       role="dialog"
       aria-modal="true"
@@ -309,10 +302,40 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
           )}
         </div>
 
-        {/* Action button */}
-        <button className="vet-about-action-btn" onClick={onClose}>
-          Done
-        </button>
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            className="vet-about-secondary-btn"
+            onClick={() => {
+              setIsIntroOpen(true);
+              onClose();
+            }}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--app-border)",
+              color: "var(--app-fg)",
+              padding: "8px 16px",
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--app-accent)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--app-border)";
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            Welcome Guide
+          </button>
+          <button className="vet-about-action-btn" onClick={onClose}>
+            Done
+          </button>
+        </div>
       </div>
     </ModalOverlay>
   );

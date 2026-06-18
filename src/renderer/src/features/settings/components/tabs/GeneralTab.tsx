@@ -1,44 +1,41 @@
 import React from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { FormLabel, FormInput, FormSelect } from '@/shared/components/FormComponents'
+import { FormInput, FormSelect } from '@/shared/components/FormComponents'
+import { SettingsField } from '../SettingsField'
 
 export const GeneralTab: React.FC = () => {
   const { config, updateConfig, openConfig } = useConfig()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <FormLabel htmlFor="shell-input">Shell</FormLabel>
+      <SettingsField htmlFor="shell-input" label="Shell">
         <FormInput
           id="shell-input"
           type="text"
           value={config.shell || ''}
           onChange={(e) => updateConfig({ shell: e.target.value })}
         />
-      </div>
+      </SettingsField>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <FormLabel htmlFor="font-family-input">Font Family</FormLabel>
+      <SettingsField htmlFor="font-family-input" label="Font Family">
         <FormInput
           id="font-family-input"
           type="text"
           value={config.fontFamily || ''}
           onChange={(e) => updateConfig({ fontFamily: e.target.value })}
         />
-      </div>
+      </SettingsField>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="font-size-input">Font Size</FormLabel>
+        <SettingsField htmlFor="font-size-input" label="Font Size" flex={1}>
           <FormInput
             id="font-size-input"
             type="number"
             value={config.fontSize || 12}
             onChange={(e) => updateConfig({ fontSize: parseInt(e.target.value) || 12 })}
           />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="cursor-style-select">Cursor Style</FormLabel>
+        </SettingsField>
+        <SettingsField htmlFor="cursor-style-select" label="Cursor Style" flex={1}>
           <FormSelect
             id="cursor-style-select"
             value={config.cursorStyle || 'block'}
@@ -48,12 +45,11 @@ export const GeneralTab: React.FC = () => {
             <option value="underline" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Underline</option>
             <option value="bar" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Bar</option>
           </FormSelect>
-        </div>
+        </SettingsField>
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="tab-bar-position-select">Tab Bar Position</FormLabel>
+        <SettingsField htmlFor="tab-bar-position-select" label="Tab Bar Position" flex={1}>
           <FormSelect
             id="tab-bar-position-select"
             value={config.tabBarPosition || 'top'}
@@ -63,9 +59,8 @@ export const GeneralTab: React.FC = () => {
             <option value="left" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Left</option>
             <option value="right" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Right</option>
           </FormSelect>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="max-active-terminals-input">Max Active Terminals (0 = unlimited)</FormLabel>
+        </SettingsField>
+        <SettingsField htmlFor="max-active-terminals-input" label="Max Active Terminals (0 = unlimited)" flex={1}>
           <FormInput
             id="max-active-terminals-input"
             type="number"
@@ -74,12 +69,11 @@ export const GeneralTab: React.FC = () => {
             value={config.maxActiveTerminals ?? 4}
             onChange={(e) => updateConfig({ maxActiveTerminals: parseInt(e.target.value) || 0 })}
           />
-        </div>
+        </SettingsField>
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="ssh-parse-select">Parse ~/.ssh/config</FormLabel>
+        <SettingsField htmlFor="ssh-parse-select" label="Parse ~/.ssh/config" flex={1}>
           <FormSelect
             id="ssh-parse-select"
             value={config.sshParseGlobal !== false ? 'true' : 'false'}
@@ -88,21 +82,19 @@ export const GeneralTab: React.FC = () => {
             <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
             <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
           </FormSelect>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="docker-shell-input">Docker Default Shell</FormLabel>
+        </SettingsField>
+        <SettingsField htmlFor="docker-shell-input" label="Docker Default Shell" flex={1}>
           <FormInput
             id="docker-shell-input"
             type="text"
             value={config.dockerDefaultShell || '/bin/bash'}
             onChange={(e) => updateConfig({ dockerDefaultShell: e.target.value })}
           />
-        </div>
+        </SettingsField>
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="terminal-opacity-input">Terminal Opacity ({config.opacity ?? 1})</FormLabel>
+        <SettingsField htmlFor="terminal-opacity-input" label={`Terminal Opacity (${config.opacity ?? 1})`} flex={1}>
           <input
             id="terminal-opacity-input"
             type="range"
@@ -113,9 +105,8 @@ export const GeneralTab: React.FC = () => {
             onChange={(e) => updateConfig({ opacity: parseFloat(e.target.value) })}
             style={{ accentColor: 'var(--app-accent)', width: '100%' }}
           />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="webgl-select">Hardware Acceleration (WebGL)</FormLabel>
+        </SettingsField>
+        <SettingsField htmlFor="webgl-select" label="Hardware Acceleration (WebGL)" flex={1}>
           <FormSelect
             id="webgl-select"
             value={config.webglEnabled !== false ? 'true' : 'false'}
@@ -124,7 +115,7 @@ export const GeneralTab: React.FC = () => {
             <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
             <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled (Canvas)</option>
           </FormSelect>
-        </div>
+        </SettingsField>
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -146,3 +137,4 @@ export const GeneralTab: React.FC = () => {
     </div>
   )
 }
+

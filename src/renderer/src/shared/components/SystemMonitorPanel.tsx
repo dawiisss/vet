@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Panel from "./Panel";
 
 export default function SystemMonitorPanel({
   isActive,
@@ -30,9 +31,11 @@ export default function SystemMonitorPanel({
 
   if (!data) {
     return (
-      <div style={{ padding: 12, color: "var(--app-fg-subtle)", fontSize: 13 }}>
-        Loading system metrics...
-      </div>
+      <Panel title="System Metrics">
+        <div style={{ color: "var(--app-fg-subtle)", fontSize: 13 }}>
+          Loading system metrics...
+        </div>
+      </Panel>
     );
   }
 
@@ -42,16 +45,7 @@ export default function SystemMonitorPanel({
   const memTotalGB = (data.mem.total / 1024 ** 3).toFixed(2);
 
   return (
-    <div
-      style={{
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
+    <Panel title="System Metrics" bodyStyle={{ gap: 16 }}>
       <div>
         <div
           style={{
@@ -114,6 +108,7 @@ export default function SystemMonitorPanel({
           />
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
+

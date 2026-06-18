@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
+import Panel from "@/shared/components/Panel";
 
 interface WorkspaceItem {
   name: string;
@@ -261,59 +262,45 @@ export default function WorkspacePanel({
     return cwd && cwd !== "/" ? itemIndex + 1 : itemIndex;
   };
 
+  const headerActions = (
+    <button
+      onClick={() => {
+        if (cwd) {
+          setLoading(true);
+          if (sshHostId) {
+            window.sftpApi
+              .listDir(sshHostId, cwd)
+              .then(setItems)
+              .finally(() => setLoading(false));
+          } else {
+            window.workspaceApi
+              .listDir(cwd)
+              .then(setItems)
+              .finally(() => setLoading(false));
+          }
+        }
+      }}
+      style={{
+        background: "none",
+        border: "none",
+        color: "var(--app-blue)",
+        cursor: "pointer",
+        fontSize: 12,
+      }}
+    >
+      {loading ? "Refreshing..." : "Refresh"}
+    </button>
+  );
+
   return (
-    <div
+    <Panel
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      style={{
-        outline: "none",
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        boxSizing: "border-box",
-      }}
+      title="Workspace"
+      headerActions={headerActions}
+      hasScrollableBody={false}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 12,
-          alignItems: "center",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 14, color: "#bac2de" }}>Workspace</h3>
-        <button
-          onClick={() => {
-            if (cwd) {
-              setLoading(true);
-              if (sshHostId) {
-                window.sftpApi
-                  .listDir(sshHostId, cwd)
-                  .then(setItems)
-                  .finally(() => setLoading(false));
-              } else {
-                window.workspaceApi
-                  .listDir(cwd)
-                  .then(setItems)
-                  .finally(() => setLoading(false));
-              }
-            }
-          }}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--app-blue)",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
 
       {!activeTerminalId ? (
         <div style={{ color: "var(--app-fg-muted)", fontStyle: "italic" }}>
@@ -655,6 +642,6 @@ export default function WorkspacePanel({
           </div>
         </>
       )}
-    </div>
+    </Panel>
   );
 }

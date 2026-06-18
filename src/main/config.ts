@@ -87,6 +87,7 @@ const DEFAULT_CONFIG: any = {
   browserHomepage: "https://duckduckgo.com",
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
+  showIntroOnStartup: true,
   profiles: [
     {
       id: "default",
@@ -114,6 +115,7 @@ const DEFAULT_CONFIG: any = {
 
 let currentConfig: any = { ...DEFAULT_CONFIG };
 let watcher: FSWatcher | null = null;
+let lastConfigError: string | null = null;
 
 export function sanitizeConfig(conf: any): any {
   const sanitized = { ...conf };
@@ -225,6 +227,57 @@ export function sanitizeConfig(conf: any): any {
     sanitized.browserSearchEngine = "duckduckgo";
   }
 
+  // fontSize validation
+  if (typeof sanitized.fontSize !== "number" || isNaN(sanitized.fontSize)) {
+    sanitized.fontSize = 14;
+  } else {
+    sanitized.fontSize = Math.max(6, Math.min(72, sanitized.fontSize));
+  }
+
+  // opacity validation
+  if (typeof sanitized.opacity !== "number" || isNaN(sanitized.opacity)) {
+    sanitized.opacity = 1.0;
+  } else {
+    sanitized.opacity = Math.max(0.1, Math.min(1.0, sanitized.opacity));
+  }
+
+  // maxActiveTerminals validation
+  if (
+    typeof sanitized.maxActiveTerminals !== "number" ||
+    isNaN(sanitized.maxActiveTerminals)
+  ) {
+    sanitized.maxActiveTerminals = 4;
+  } else {
+    sanitized.maxActiveTerminals = Math.max(
+      1,
+      Math.min(50, sanitized.maxActiveTerminals),
+    );
+  }
+
+  // cursorStyle validation
+  if (!["block", "underline", "bar"].includes(sanitized.cursorStyle)) {
+    sanitized.cursorStyle = "block";
+  }
+
+  // vibrancy validation
+  if (
+    !["none", "dark", "light", "medium", "ultra-dark"].includes(
+      sanitized.vibrancy,
+    )
+  ) {
+    sanitized.vibrancy = "none";
+  }
+
+  // fontFamily validation
+  if (typeof sanitized.fontFamily !== "string") {
+    sanitized.fontFamily = 'JetBrains Mono, "Fira Code", monospace';
+  }
+
+  // theme validation
+  if (typeof sanitized.theme !== "string") {
+    sanitized.theme = "catppuccin-mocha";
+  }
+
   return sanitized;
 }
 
@@ -250,8 +303,13 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
   watcher.on("change", async () => {
     try {
       const success = await loadConfig();
-      if (success && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("config:changed", currentConfig);
+      if (!mainWindow.isDestroyed()) {
+        if (success) {
+          mainWindow.webContents.send("config:changed", currentConfig);
+          mainWindow.webContents.send("config:error", null);
+        } else {
+          mainWindow.webContents.send("config:error", lastConfigError);
+        }
       }
     } catch (e) {
       console.error("Error reloading config:", e);
@@ -260,6 +318,7 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
 
   // IPC Handlers
   ipcMain.handle("config:get", () => currentConfig);
+  ipcMain.handle("config:get-error", () => lastConfigError);
 
   ipcMain.handle("config:set", async (_event, partialConfig: any) => {
     currentConfig = sanitizeConfig({ ...currentConfig, ...partialConfig });
@@ -268,6 +327,7 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
     // However, to ensure immediate response, we can also return it or send it directly.
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send("config:changed", currentConfig);
+      mainWindow.webContents.send("config:error", null);
     }
   });
 
@@ -295,14 +355,17 @@ async function loadConfig(): Promise<boolean> {
     }
 
     currentConfig = sanitized;
+    lastConfigError = null;
     return true;
   } catch (e: any) {
     if (e.code === "ENOENT") {
       // File doesn't exist, create it
       await saveConfig();
+      lastConfigError = null;
       return true;
     }
     console.error("Failed to parse config file:", e);
+    lastConfigError = e instanceof Error ? e.message : String(e);
     return false;
   }
 }

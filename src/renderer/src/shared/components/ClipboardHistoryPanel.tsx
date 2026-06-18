@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useClipboardStore } from "@/features/clipboard/useClipboardStore";
 import { useUIStore } from "@/shared/stores/useUIStore";
+import Panel from "./Panel";
+import { useSearchableList } from "@/shared/hooks/useSearchableList";
 
 export default function ClipboardHistoryPanel({
   isActive,
@@ -13,9 +15,20 @@ export default function ClipboardHistoryPanel({
   const setPreviewClipboardItem = useUIStore(
     (state) => state.setPreviewClipboardItem,
   );
-  const [keyboardIndex, setKeyboardIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    selectedIndex: keyboardIndex,
+    setSelectedIndex: setKeyboardIndex,
+    handleKeyDown: handleHookKeyDown,
+    listRef,
+  } = useSearchableList({
+    items: history,
+    filterFn: () => true, // Clipboard doesn't have a search bar currently
+    onSelect: (item) => setPreviewClipboardItem(item),
+    isOpen: isActive,
+  });
 
   // Focus container when tab becomes active
   useEffect(() => {
@@ -24,18 +37,6 @@ export default function ClipboardHistoryPanel({
       setKeyboardIndex(0);
     }
   }, [isActive]);
-
-  // Scroll active item into view
-  useEffect(() => {
-    if (keyboardIndex >= 0 && containerRef.current) {
-      const activeEl = containerRef.current.querySelector(
-        '[data-active="true"]',
-      );
-      if (activeEl && typeof activeEl.scrollIntoView === "function") {
-        activeEl.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [keyboardIndex]);
 
   // Format timestamp nicely
   const formatTime = (timestamp: number) => {
@@ -50,19 +51,7 @@ export default function ClipboardHistoryPanel({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (history.length === 0) return;
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setKeyboardIndex((prev) => Math.min(prev + 1, history.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setKeyboardIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const item = history[keyboardIndex];
-      if (item) {
-        setPreviewClipboardItem(item);
-      }
-    } else if (e.ctrlKey && (e.key === "c" || e.key === "C")) {
+    if (e.ctrlKey && (e.key === "c" || e.key === "C")) {
       // Only intercept when panel is focused and not inside an input
       if (
         e.target instanceof HTMLInputElement ||
@@ -74,56 +63,42 @@ export default function ClipboardHistoryPanel({
       if (item) {
         navigator.clipboard.writeText(item.text).catch(() => {});
       }
+    } else {
+      handleHookKeyDown(e);
     }
   };
 
+  const headerActions = history.length > 0 ? (
+    <button
+      onClick={clear}
+      aria-label="Clear all clipboard history"
+      style={{
+        background: "none",
+        border: "none",
+        color: "var(--app-red)",
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: "bold",
+        outlineColor: "var(--app-red)",
+      }}
+      title="Clear All"
+    >
+      Clear All
+    </button>
+  ) : undefined;
+
   return (
-    <div
+    <Panel
       id="clipboard-panel"
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      style={{
-        outline: "none",
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        boxSizing: "border-box",
-      }}
+      title="Clipboard"
+      headerActions={headerActions}
+      hasScrollableBody={false}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 12,
-          alignItems: "center",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 14, color: "#bac2de" }}>Clipboard</h3>
-        {history.length > 0 && (
-          <button
-            onClick={clear}
-            aria-label="Clear all clipboard history"
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--app-red)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: "bold",
-              outlineColor: "var(--app-red)",
-            }}
-            title="Clear All"
-          >
-            Clear All
-          </button>
-        )}
-      </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div ref={listRef} style={{ flex: 1, overflowY: "auto" }}>
         {history.length === 0 && (
           <div
             style={{
@@ -280,6 +255,6 @@ export default function ClipboardHistoryPanel({
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 }

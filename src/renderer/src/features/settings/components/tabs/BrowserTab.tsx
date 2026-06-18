@@ -1,6 +1,7 @@
 import React from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
-import { FormLabel, FormInput, FormSelect } from '@/shared/components/FormComponents'
+import { FormInput, FormSelect } from '@/shared/components/FormComponents'
+import { SettingsField } from '../SettingsField'
 
 export const BrowserTab: React.FC = () => {
   const { config, updateConfig } = useConfig()
@@ -14,8 +15,7 @@ export const BrowserTab: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <FormLabel htmlFor="homepage-input">Homepage URL</FormLabel>
+      <SettingsField htmlFor="homepage-input" label="Homepage URL">
         <FormInput
           id="homepage-input"
           type="text"
@@ -23,11 +23,10 @@ export const BrowserTab: React.FC = () => {
           onChange={(e) => updateConfig({ browserHomepage: e.target.value })}
           placeholder="e.g. https://duckduckgo.com"
         />
-      </div>
+      </SettingsField>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="search-engine-select">Default Search Engine</FormLabel>
+        <SettingsField htmlFor="search-engine-select" label="Default Search Engine" flex={1}>
           <FormSelect
             id="search-engine-select"
             value={config.browserSearchEngine || 'duckduckgo'}
@@ -37,10 +36,9 @@ export const BrowserTab: React.FC = () => {
             <option value="google" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Google</option>
             <option value="bing" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Bing</option>
           </FormSelect>
-        </div>
+        </SettingsField>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-          <FormLabel htmlFor="adblock-select">Global Adblocker (EasyList)</FormLabel>
+        <SettingsField htmlFor="adblock-select" label="Global Adblocker (EasyList)" flex={1}>
           <FormSelect
             id="adblock-select"
             value={config.browserAdblockEnabled !== false ? 'true' : 'false'}
@@ -49,8 +47,9 @@ export const BrowserTab: React.FC = () => {
             <option value="true" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Enabled</option>
             <option value="false" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Disabled</option>
           </FormSelect>
-        </div>
+        </SettingsField>
       </div>
     </div>
   )
 }
+

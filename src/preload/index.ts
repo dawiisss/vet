@@ -30,60 +30,49 @@ ipcRenderer.on("win:maximize-change", (_event, maximized: boolean) => {
   maximizeHandlers.forEach((h) => h(maximized));
 });
 
+const invoke = <T>(channel: string) => (...args: any[]): Promise<T> =>
+  ipcRenderer.invoke(channel, ...args);
+
+const send = (channel: string) => (...args: any[]) =>
+  ipcRenderer.send(channel, ...args);
+
+const registerHandler = <T>(handlers: Set<T>) => (callback: T) => {
+  handlers.add(callback);
+  return () => {
+    handlers.delete(callback);
+  };
+};
+
 const terminalApi: TerminalApi = {
-  create: (opts?: {
-    cwd?: string;
-    forward?: boolean;
-    isRestore?: boolean;
-    profileId?: string;
-    sshHostId?: string;
-  }) => ipcRenderer.invoke("terminal:create", opts || {}),
-  enableForwarding: (id: string) =>
-    ipcRenderer.invoke("terminal:enable-forwarding", { id }),
-  write: (id: string, data: string) =>
-    ipcRenderer.send("terminal:write", { id, data }),
-  resize: (id: string, cols: number, rows: number) =>
-    ipcRenderer.invoke("terminal:resize", { id, cols, rows }),
-  getHistory: (id: string) =>
-    ipcRenderer.invoke("terminal:get-history", { id }),
-  destroy: (id: string) => ipcRenderer.invoke("terminal:destroy", { id }),
-  detachTab: (tabId: string, terminalIds: string[]) =>
-    ipcRenderer.invoke("terminal:detach-tab", { tabId, terminalIds }),
-  reattachTab: (terminalIds: string[]) =>
-    ipcRenderer.invoke("terminal:reattach-tab", { terminalIds }),
-  getTerminalInfo: (id: string) =>
-    ipcRenderer.invoke("terminal:get-info", { id }),
-  setForeground: (ids: string[]) =>
-    ipcRenderer.invoke("terminal:set-foreground", { ids }),
-  onData: (callback) => {
-    dataHandlers.add(callback);
-    return () => dataHandlers.delete(callback);
-  },
-  onExit: (callback) => {
-    exitHandlers.add(callback);
-    return () => exitHandlers.delete(callback);
-  },
-  onReattachTab: (callback) => {
-    reattachHandlers.add(callback);
-    return () => reattachHandlers.delete(callback);
-  },
-  saveSession: (state: any) => ipcRenderer.invoke("session:save", state),
-  getSession: () => ipcRenderer.invoke("session:get"),
+  create: (opts) => invoke<any>("terminal:create")(opts || {}),
+  enableForwarding: (id) => invoke<void>("terminal:enable-forwarding")({ id }),
+  write: (id, data) => send("terminal:write")({ id, data }),
+  resize: (id, cols, rows) => invoke<void>("terminal:resize")({ id, cols, rows }),
+  getHistory: (id) => invoke<string>("terminal:get-history")({ id }),
+  destroy: (id) => invoke<void>("terminal:destroy")({ id }),
+  detachTab: (tabId, terminalIds) =>
+    invoke<any>("terminal:detach-tab")({ tabId, terminalIds }),
+  reattachTab: (terminalIds) =>
+    invoke<any>("terminal:reattach-tab")({ terminalIds }),
+  getTerminalInfo: (id) => invoke<any>("terminal:get-info")({ id }),
+  setForeground: (ids) => invoke<void>("terminal:set-foreground")({ ids }),
+  onData: registerHandler(dataHandlers),
+  onExit: registerHandler(exitHandlers),
+  onReattachTab: registerHandler(reattachHandlers),
+  saveSession: (state) => invoke<void>("session:save")(state),
+  getSession: () => invoke<any>("session:get")(),
 };
 
 const windowApi: WindowApi = {
-  minimize: () => ipcRenderer.invoke("win:minimize"),
-  maximize: () => ipcRenderer.invoke("win:maximize"),
-  toggleFullscreen: () => ipcRenderer.invoke("win:toggle-fullscreen"),
-  close: () => ipcRenderer.invoke("win:close"),
-  quit: () => ipcRenderer.invoke("app:quit"),
-  getVersion: () => ipcRenderer.invoke("app:getVersion"),
-  isMaximized: () => ipcRenderer.invoke("win:is-maximized"),
-  openExternal: (url: string) => ipcRenderer.invoke("win:open-external", url),
-  onMaximizeChange: (callback) => {
-    maximizeHandlers.add(callback);
-    return () => maximizeHandlers.delete(callback);
-  },
+  minimize: invoke("win:minimize"),
+  maximize: invoke("win:maximize"),
+  toggleFullscreen: invoke("win:toggle-fullscreen"),
+  close: invoke("win:close"),
+  quit: invoke("app:quit"),
+  getVersion: invoke("app:getVersion"),
+  isMaximized: invoke("win:is-maximized"),
+  openExternal: invoke("win:open-external"),
+  onMaximizeChange: registerHandler(maximizeHandlers),
   onWebviewKeydown: (callback) => {
     const handler = (_event: any, data: any) => callback(data);
     ipcRenderer.on("webview:keydown", handler);
@@ -94,20 +83,23 @@ const windowApi: WindowApi = {
 };
 
 const configChangeHandlers = new Set<(config: Config) => void>();
+const configErrorHandlers = new Set<(err: string | null) => void>();
 
 ipcRenderer.on("config:changed", (_event, config: Config) => {
   configChangeHandlers.forEach((h) => h(config));
 });
 
+ipcRenderer.on("config:error", (_event, err: string | null) => {
+  configErrorHandlers.forEach((h) => h(err));
+});
+
 const configApi: ConfigApi = {
-  get: () => ipcRenderer.invoke("config:get"),
-  set: (partialConfig: Partial<Config>) =>
-    ipcRenderer.invoke("config:set", partialConfig),
-  openInEditor: () => ipcRenderer.invoke("config:open-in-editor"),
-  onChanged: (callback) => {
-    configChangeHandlers.add(callback);
-    return () => configChangeHandlers.delete(callback);
-  },
+  get: invoke("config:get"),
+  set: invoke("config:set"),
+  openInEditor: invoke("config:open-in-editor"),
+  onChanged: registerHandler(configChangeHandlers),
+  getError: invoke("config:get-error"),
+  onError: registerHandler(configErrorHandlers),
 };
 
 const sysinfoHandlers = new Set<(data: any) => void>();
@@ -116,32 +108,27 @@ ipcRenderer.on("sysinfo:update", (_event, data: any) => {
 });
 
 const sysinfoApi = {
-  start: () => ipcRenderer.invoke("sysinfo:start"),
-  stop: () => ipcRenderer.invoke("sysinfo:stop"),
-  onUpdate: (callback: (data: any) => void) => {
-    sysinfoHandlers.add(callback);
-    return () => sysinfoHandlers.delete(callback);
-  },
+  start: invoke("sysinfo:start"),
+  stop: invoke("sysinfo:stop"),
+  onUpdate: registerHandler(sysinfoHandlers),
 };
 
 const portsApi = {
-  list: () => ipcRenderer.invoke("ports:list"),
-  kill: (pid: number) => ipcRenderer.invoke("ports:kill", pid),
+  list: invoke("ports:list"),
+  kill: (pid: number) => invoke<void>("ports:kill")(pid),
 };
 
 const workspaceApi = {
-  getScripts: (cwd: string) => ipcRenderer.invoke("workspace:getScripts", cwd),
-  listDir: (dirPath: string) =>
-    ipcRenderer.invoke("workspace:list-dir", dirPath),
-  revealPath: (itemPath: string) =>
-    ipcRenderer.invoke("workspace:reveal-path", itemPath),
+  getScripts: (cwd: string) => invoke<any>("workspace:getScripts")(cwd),
+  listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
+  revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
-    ipcRenderer.invoke("workspace:read-file-head", filePath),
+    invoke<string>("workspace:read-file-head")(filePath),
 };
 
 const connectionsApi = {
-  getSshHosts: () => ipcRenderer.invoke("connections:get-ssh-hosts"),
-  getDockerContainers: () => ipcRenderer.invoke("connections:get-docker"),
+  getSshHosts: () => invoke<any[]>("connections:get-ssh-hosts")(),
+  getDockerContainers: () => invoke<any[]>("connections:get-docker")(),
 };
 
 const unwrap = async (promise: Promise<any>) => {
@@ -152,34 +139,36 @@ const unwrap = async (promise: Promise<any>) => {
 
 const sftpApi: SftpApi = {
   setTempPassword: (sshHostId: string, password: string) =>
-    ipcRenderer.invoke("sftp:set-temp-password", sshHostId, password),
+    invoke<void>("sftp:set-temp-password")(sshHostId, password),
   listDir: (sshHostId: string, dirPath: string) =>
-    unwrap(ipcRenderer.invoke("sftp:list-dir", sshHostId, dirPath)),
+    unwrap(invoke<WorkspaceItem[]>("sftp:list-dir")(sshHostId, dirPath)),
   readFileHead: (sshHostId: string, filePath: string) =>
-    unwrap(ipcRenderer.invoke("sftp:read-file-head", sshHostId, filePath)),
+    unwrap(invoke<string>("sftp:read-file-head")(sshHostId, filePath)),
   getHomeDir: (sshHostId: string) =>
-    unwrap(ipcRenderer.invoke("sftp:get-home", sshHostId)),
+    unwrap(invoke<string>("sftp:get-home")(sshHostId)),
 };
 
 const historyApi: HistoryApi = {
-  search: (query: string) => ipcRenderer.invoke("history:search", query),
-  getSessions: () => ipcRenderer.invoke("history:get-sessions"),
+  search: (query: string) => invoke<any[]>("history:search")(query),
+  getSessions: () => invoke<any[]>("history:get-sessions")(),
   getSessionTranscript: (id: string) =>
-    ipcRenderer.invoke("history:get-session-transcript", id),
+    invoke<string>("history:get-session-transcript")(id),
   getScrollbackChunk: (id: string, beforeTimestamp: number) =>
-    ipcRenderer.invoke("history:get-scrollback-chunk", id, beforeTimestamp),
-  clear: () => ipcRenderer.invoke("history:clear"),
-  deleteSession: (id: string) =>
-    ipcRenderer.invoke("history:delete-session", id),
+    invoke<{ data: string; timestamp: number }[]>("history:get-scrollback-chunk")(
+      id,
+      beforeTimestamp,
+    ),
+  clear: () => invoke<void>("history:clear")(),
+  deleteSession: (id: string) => invoke<void>("history:delete-session")(id),
   addBrowserVisit: (url: string, title: string) =>
-    ipcRenderer.invoke("history:add-browser-visit", url, title),
-  getBrowserHistory: () => ipcRenderer.invoke("history:get-browser-history"),
+    invoke<void>("history:add-browser-visit")(url, title),
+  getBrowserHistory: () => invoke<any[]>("history:get-browser-history")(),
   searchBrowserHistory: (query: string) =>
-    ipcRenderer.invoke("history:search-browser-history", query),
+    invoke<any[]>("history:search-browser-history")(query),
   deleteBrowserVisit: (id: number) =>
-    ipcRenderer.invoke("history:delete-browser-visit", id),
-  clearBrowserHistory: () =>
-    ipcRenderer.invoke("history:clear-browser-history"),
+    invoke<void>("history:delete-browser-visit")(id),
+  clearBrowserHistory: () => invoke<void>("history:clear-browser-history")(),
+  getDbError: () => invoke<string | null>("history:get-db-error")(),
 };
 
 interface ClipboardItem {
@@ -190,17 +179,17 @@ interface ClipboardItem {
 
 const clipboardApi = {
   getHistory: () =>
-    ipcRenderer.invoke("clipboard:get-history") as Promise<ClipboardItem[]>,
+    invoke<ClipboardItem[]>("clipboard:get-history")(),
   setHistory: (items: ClipboardItem[]) =>
-    ipcRenderer.invoke("clipboard:set-history", items),
+    invoke<void>("clipboard:set-history")(items),
 };
 
 const adblockerApi = {
-  toggle: (enabled: boolean) => ipcRenderer.invoke("adblocker:toggle", enabled),
+  toggle: (enabled: boolean) => invoke<boolean>("adblocker:toggle")(enabled),
   getStats: (webContentsId: number) =>
-    ipcRenderer.invoke("adblocker:get-stats", webContentsId),
+    invoke<number>("adblocker:get-stats")(webContentsId),
   clearStats: (webContentsId: number) =>
-    ipcRenderer.invoke("adblocker:clear-stats", webContentsId),
+    invoke<number>("adblocker:clear-stats")(webContentsId),
   onBlockedEvent: (
     callback: (
       event: any,
@@ -213,16 +202,9 @@ const adblockerApi = {
     };
   },
   getHtmlReplaceRules: (url: string) =>
-    ipcRenderer.invoke("adblocker:get-html-replace-rules", url) as Promise<{
-      pruneKeys: string[];
-      replaceRules: Array<{
-        regex: string;
-        flags: string;
-        replacement: string;
-      }>;
-    }>,
+    invoke<any>("adblocker:get-html-replace-rules")(url),
   getAppPreloadPath: () =>
-    ipcRenderer.invoke("adblocker:get-app-preload-path") as Promise<string>,
+    invoke<string>("adblocker:get-app-preload-path")(),
 };
 
 const statusChangeHandlers = new Set<(status: any, info?: any) => void>();
@@ -237,18 +219,12 @@ ipcRenderer.on("updater:progress", (_event, progress) => {
 });
 
 const updaterApi: UpdaterApi = {
-  checkForUpdates: () => ipcRenderer.invoke("updater:check"),
-  downloadUpdate: () => ipcRenderer.invoke("updater:download"),
-  quitAndInstall: () => ipcRenderer.invoke("updater:install"),
-  simulateUpdate: () => ipcRenderer.invoke("updater:simulate"),
-  onStatusChange: (callback) => {
-    statusChangeHandlers.add(callback);
-    return () => statusChangeHandlers.delete(callback);
-  },
-  onDownloadProgress: (callback) => {
-    downloadProgressHandlers.add(callback);
-    return () => downloadProgressHandlers.delete(callback);
-  },
+  checkForUpdates: () => invoke<any>("updater:check")(),
+  downloadUpdate: () => invoke<any>("updater:download")(),
+  quitAndInstall: () => invoke<any>("updater:install")(),
+  simulateUpdate: () => invoke<void>("updater:simulate")(),
+  onStatusChange: registerHandler(statusChangeHandlers),
+  onDownloadProgress: registerHandler(downloadProgressHandlers),
 };
 
 contextBridge.exposeInMainWorld("terminalApi", terminalApi);

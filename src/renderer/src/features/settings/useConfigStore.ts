@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useUIStore } from "../../shared/stores/useUIStore";
 
 const defaultConfig: Config = {
   shell: "/bin/bash",
@@ -14,6 +15,7 @@ const defaultConfig: Config = {
   virtualScrollbackEnabled: true,
   virtualScrollbackBufferSize: 1000,
   keybindings: {},
+  showIntroOnStartup: true,
 };
 
 interface ConfigState {
@@ -48,6 +50,14 @@ export const useConfigStore = create<ConfigState>((set, get) => {
 
       window.configApi.onChanged((newConfig) => {
         set({ config: newConfig });
+      });
+
+      window.configApi.getError().then((err) => {
+        useUIStore.getState().setConfigError(err);
+      });
+
+      window.configApi.onError((err) => {
+        useUIStore.getState().setConfigError(err);
       });
     },
   };

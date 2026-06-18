@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { useTabStore } from "@/features/terminal/useTabStore";
+import Panel from "./Panel";
 
 interface HistorySession {
   id: string;
@@ -133,14 +134,7 @@ export default function HistoryPanel({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        color: "var(--app-fg)",
-      }}
-    >
+    <Panel hasScrollableBody={false} style={{ padding: 0 }}>
       <div
         style={{
           padding: 12,
@@ -501,6 +495,6 @@ export default function HistoryPanel({
           ))
         )}
       </div>
-    </div>
+    </Panel>
   );
 }

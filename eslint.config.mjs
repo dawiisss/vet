@@ -28,6 +28,11 @@ export default tseslint.config(
         ...globals.jest,
       },
     },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
     plugins: {
       "react-hooks": reactHooks,
       react,

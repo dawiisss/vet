@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import Panel from "@/shared/components/Panel";
 
 export interface ConnectionInfo {
   id?: string;
@@ -14,7 +15,7 @@ export default function ConnectionsPanel({
 }: {
   isActive: boolean;
   onRunScript: (cmd: string, cwd: string) => void;
-  onLaunchConnection?: (id: string) => void;
+  onLaunchConnection?: ((id: string) => void) | undefined;
 }) {
   const [sshHosts, setSshHosts] = useState<ConnectionInfo[]>([]);
   const [dockerContainers, setDockerContainers] = useState<ConnectionInfo[]>(
@@ -90,41 +91,27 @@ export default function ConnectionsPanel({
     </div>
   );
 
-  return (
-    <div
+  const headerActions = (
+    <button
+      onClick={fetchConnections}
       style={{
-        padding: 12,
-        color: "var(--app-fg)",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
+        background: "none",
+        border: "none",
+        color: "var(--app-blue)",
+        cursor: "pointer",
+        fontSize: 12,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 12,
-          alignItems: "center",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 14, color: "#bac2de" }}>
-          Connections
-        </h3>
-        <button
-          onClick={fetchConnections}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--app-blue)",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
+      {loading ? "Refreshing..." : "Refresh"}
+    </button>
+  );
+
+  return (
+    <Panel
+      title="Connections"
+      headerActions={headerActions}
+      hasScrollableBody={false}
+    >
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ marginBottom: 16 }}>
@@ -171,6 +158,6 @@ export default function ConnectionsPanel({
           {sshHosts.map((s) => renderItem(s, "🌐", "var(--app-green)"))}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
