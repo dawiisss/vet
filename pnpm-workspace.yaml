@@ -8,7 +8,7 @@ allowBuilds:
   esbuild: true
   electron-winstaller: true
   unrs-resolver: true
-  cpu-features@file:stubs/cpu-features-0.0.10.tgz: set this to true or false
+  cpu-features@file:stubs/cpu-features-0.0.10.tgz: true
 
 overrides:
   nan: "^2.22.0"
