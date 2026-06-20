@@ -174,9 +174,10 @@ describe("workspace", () => {
 
   describe("workspace:reveal-path handler", () => {
     it("calls shell.showItemInFolder", async () => {
+      const path = require("path");
       const { shell } = require("electron");
       await revealPathHandler({}, "/path/to/file");
-      expect(shell.showItemInFolder).toHaveBeenCalledWith("/path/to/file");
+      expect(shell.showItemInFolder).toHaveBeenCalledWith(path.resolve("/path/to/file"));
     });
   });
 
