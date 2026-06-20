@@ -1,9 +1,20 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dawiisss/vet.git"
+  },
+  "keywords": [
+    "terminal",
+    "emulator",
+    "electron",
+    "xterm"
+  ],
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -16,8 +27,7 @@
     "lint": "eslint .",
     "dist": "electron-vite build && electron-builder",
     "dist:linux": "electron-vite build && electron-builder --linux",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "dist:mac": "electron-vite build && electron-builder --mac"
+    "dist:win": "electron-vite build && electron-builder --win"
   },
   "build": {
     "appId": "com.vet.app",
@@ -50,12 +60,6 @@
     "win": {
       "target": [
         "nsis",
-        "zip"
-      ]
-    },
-    "mac": {
-      "target": [
-        "dmg",
         "zip"
       ]
     },
@@ -119,8 +123,5 @@
     "js-yaml": "^4.2.0",
     "form-data": "^4.0.6",
     "undici": "^7.28.0"
-  },
-  "allowScripts": {
-    "node-pty@1.1.0": true
   }
 }

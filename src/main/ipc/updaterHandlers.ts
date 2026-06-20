@@ -2,6 +2,8 @@ import { BrowserWindow, app } from "electron";
 import { autoUpdater } from "electron-updater";
 import { registerHandlers } from "./ipcUtils";
 
+let simulationInterval: NodeJS.Timeout | null = null;
+
 export function registerUpdaterHandlers(
   getMainWindow: () => BrowserWindow | null,
 ): void {
@@ -108,13 +110,21 @@ export function registerUpdaterHandlers(
     },
     "updater:download": async () => {
       if (isSimulationActive) {
+        if (simulationInterval) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+        }
+
         let percent = 0;
         const totalBytes = 1024 * 1024 * 18.5; // 18.5 MB
-        const interval = setInterval(() => {
+        simulationInterval = setInterval(() => {
           percent += 4;
           if (percent >= 100) {
             percent = 100;
-            clearInterval(interval);
+            if (simulationInterval) {
+              clearInterval(simulationInterval);
+              simulationInterval = null;
+            }
             sendStatus("downloaded", {
               version: "1.2.5-simulated",
               releaseDate: new Date().toISOString(),
@@ -142,6 +152,10 @@ export function registerUpdaterHandlers(
           "Simulated install called! Restarting app in simulation mode.",
         );
         isSimulationActive = false;
+        if (simulationInterval) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+        }
         sendStatus("idle");
         app.relaunch();
         app.exit(0);
@@ -152,4 +166,11 @@ export function registerUpdaterHandlers(
       return { success: true };
     },
   });
+}
+
+export function cleanupUpdaterSimulation() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
 }

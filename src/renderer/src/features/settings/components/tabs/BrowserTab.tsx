@@ -2,6 +2,7 @@ import React from 'react'
 import { useConfig } from '@/features/settings/useConfigStore'
 import { FormInput, FormSelect } from '@/shared/components/FormComponents'
 import { SettingsField } from '../SettingsField'
+import { DEFAULT_BROWSER_HOMEPAGE } from '../../../../../../shared/utils/pathUtils'
 
 export const BrowserTab: React.FC = () => {
   const { config, updateConfig } = useConfig()
@@ -19,9 +20,9 @@ export const BrowserTab: React.FC = () => {
         <FormInput
           id="homepage-input"
           type="text"
-          value={config.browserHomepage || 'https://duckduckgo.com'}
+          value={config.browserHomepage || DEFAULT_BROWSER_HOMEPAGE}
           onChange={(e) => updateConfig({ browserHomepage: e.target.value })}
-          placeholder="e.g. https://duckduckgo.com"
+          placeholder={`e.g. ${DEFAULT_BROWSER_HOMEPAGE}`}
         />
       </SettingsField>
 

@@ -4,6 +4,7 @@ import { useTabStore } from "@/features/terminal/useTabStore";
 import { leafCount } from "@/features/terminal/splitTree";
 import SearchOverlay from "@/shared/components/SearchOverlay";
 import { buildShortcutString } from "@/shared/utils/keybindings";
+import { DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/utils/pathUtils";
 
 interface BrowserViewProps {
   browserId: string;
@@ -85,7 +86,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
 
-  const homepage = config.browserHomepage || "https://duckduckgo.com";
+  const homepage = config.browserHomepage || DEFAULT_BROWSER_HOMEPAGE;
   const searchEngine = config.browserSearchEngine || "duckduckgo";
   const isAdblockEnabled = config.browserAdblockEnabled !== false;
 

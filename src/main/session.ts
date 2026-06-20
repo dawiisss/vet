@@ -2,7 +2,7 @@ import { app, ipcMain } from "electron";
 import { join } from "path";
 import { promises as fs } from "fs";
 import { homedir } from "os";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 
 const CONFIG_DIR = join(homedir(), ".config", "vet");
 const SESSION_FILE = join(CONFIG_DIR, "session.json");
@@ -13,7 +13,9 @@ export function initSessionManager() {
   if (!existsSync(CONFIG_DIR)) {
     try {
       mkdirSync(CONFIG_DIR, { recursive: true });
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to create session config directory:", err);
+    }
   }
 
   ipcMain.handle("session:save", async (_event, state: any) => {
@@ -27,8 +29,7 @@ export function initSessionManager() {
   app.on("before-quit", () => {
     if (sessionState) {
       try {
-        const fsSync = require("fs");
-        fsSync.writeFileSync(SESSION_FILE, JSON.stringify(sessionState));
+        writeFileSync(SESSION_FILE, JSON.stringify(sessionState));
       } catch (err) {
         console.error("Failed to save session on quit", err);
       }

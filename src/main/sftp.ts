@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import os from "os";
 import { getConfig } from "./config";
+import { sortDirectoryItems } from "../shared/utils/pathUtils";
 
 interface SftpSession {
   client: Client;
@@ -100,6 +101,19 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
 
   return new Promise((resolve, reject) => {
     const client = new Client();
+    let settled = false;
+
+    const safeResolve = (session: SftpSession) => {
+      if (settled) return;
+      settled = true;
+      resolve(session);
+    };
+
+    const safeReject = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
 
     const cleanupTempPassword = () => {
       tempPasswords.delete(sshHostId);
@@ -110,7 +124,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
         if (err) {
           cleanupTempPassword();
           client.end();
-          return reject(err);
+          return safeReject(err);
         }
 
         // Get home dir
@@ -120,7 +134,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
             cleanupTempPassword();
             const session = { client, sftp, homeDir };
             sftpSessions.set(sshHostId, session);
-            resolve(session);
+            safeResolve(session);
             return;
           }
           let data = "";
@@ -130,25 +144,28 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
             homeDir = data.trim() || "/";
             const session = { client, sftp, homeDir };
             sftpSessions.set(sshHostId, session);
-            resolve(session);
+            safeResolve(session);
           });
         });
       });
     });
     client.on("error", (err) => {
       cleanupTempPassword();
-      reject(err);
+      safeReject(err);
     });
     client.on("close", () => {
       cleanupTempPassword();
       sftpSessions.delete(sshHostId);
+      if (!settled) {
+        safeReject(new Error("SSH connection closed before session was established"));
+      }
     });
 
     try {
       client.connect(connOpts);
-    } catch (err) {
+    } catch (err: any) {
       cleanupTempPassword();
-      reject(err);
+      safeReject(err);
     }
   });
 }
@@ -190,14 +207,7 @@ export function initSftpManager() {
               ext: path.extname(f.filename).toLowerCase(),
             }));
 
-            items.sort((a, b) => {
-              if (a.isDirectory !== b.isDirectory) {
-                return a.isDirectory ? -1 : 1;
-              }
-              return a.name.localeCompare(b.name);
-            });
-
-            resolve(items);
+            resolve(sortDirectoryItems(items));
           });
         });
       } catch (err: any) {
@@ -249,4 +259,15 @@ export function initSftpManager() {
       return { __ipcError: true, message: err.message };
     }
   });
+}
+
+export function cleanupSftpSessions() {
+  for (const [id, session] of sftpSessions.entries()) {
+    try {
+      session.client.end();
+    } catch (err) {
+      console.error(`Failed to close SFTP session for ${id}:`, err);
+    }
+  }
+  sftpSessions.clear();
 }
