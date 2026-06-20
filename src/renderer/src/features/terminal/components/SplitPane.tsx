@@ -19,9 +19,7 @@ interface SplitPaneProps {
   leafCount?: number | undefined;
 }
 
-function pathsEqual(a: number[], b: number[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
+import { pathsEqual } from "../../../../../shared/utils/pathUtils";
 
 function SplitPane({
   node,

@@ -39,6 +39,7 @@ export function initHistoryDb() {
   try {
     db = new DatabaseSync(DB_FILE);
     db.exec("PRAGMA foreign_keys = ON;");
+    db.exec("PRAGMA auto_vacuum = INCREMENTAL;");
 
     // Create tables
     db.exec(`
@@ -281,7 +282,7 @@ export function clearHistory() {
   try {
     db.exec("DELETE FROM sessions"); // Cascade deletes chunks
     db.exec("DELETE FROM session_search");
-    db.exec("VACUUM");
+    db.exec("PRAGMA incremental_vacuum;");
   } catch (err) {
     console.error("Clear DB Error:", err);
   }
@@ -310,6 +311,26 @@ function getDatabaseSizeMb(): number {
   }
 }
 
+function getLogicalDatabaseSizeMb(): number {
+  if (!db) return 0;
+  try {
+    const pageCountObj = db.prepare("PRAGMA page_count").get() as Record<string, any>;
+    const pageCount = (pageCountObj && typeof pageCountObj === "object" && (Object.values(pageCountObj)[0] as number)) || 0;
+
+    const freelistCountObj = db.prepare("PRAGMA freelist_count").get() as Record<string, any>;
+    const freelistCount = (freelistCountObj && typeof freelistCountObj === "object" && (Object.values(freelistCountObj)[0] as number)) || 0;
+
+    const pageSizeObj = db.prepare("PRAGMA page_size").get() as Record<string, any>;
+    const pageSize = (pageSizeObj && typeof pageSizeObj === "object" && (Object.values(pageSizeObj)[0] as number)) || 0;
+
+    const logicalSize = (pageCount - freelistCount) * pageSize;
+    return logicalSize / (1024 * 1024);
+  } catch (err) {
+    console.error("Failed to get logical DB size:", err);
+    return getDatabaseSizeMb();
+  }
+}
+
 function pruneHistory() {
   if (!db) return;
   const config = getConfig();
@@ -330,8 +351,9 @@ function pruneHistory() {
     pruneBrowserStmt.run(cutoffTime);
 
     // 2. Prune by size (FIFO)
-    let sizeMb = getDatabaseSizeMb();
+    let sizeMb = getLogicalDatabaseSizeMb();
     if (sizeMb > limitMb) {
+      let deletedCount = 0;
       while (sizeMb > limitMb) {
         // Delete oldest 10 sessions
         const oldestStmt = db.prepare(
@@ -351,10 +373,17 @@ function pruneHistory() {
         deleteStmt.run(...ids);
         deleteSearchStmt.run(...ids);
 
-        sizeMb = getDatabaseSizeMb();
+        deletedCount += oldest.length;
+        sizeMb = getLogicalDatabaseSizeMb();
+
+        if (deletedCount > 1000) {
+          console.warn("Pruning stopped: reached safety limit of 1000 deleted sessions");
+          break;
+        }
       }
-      db.exec("VACUUM");
     }
+    // Perform incremental vacuum to release pages to disk
+    db.exec("PRAGMA incremental_vacuum;");
   } catch (err) {
     console.error("Prune Error:", err);
   }
@@ -444,7 +473,7 @@ export function clearBrowserHistory() {
   if (!db) return;
   try {
     db.exec("DELETE FROM browser_history");
-    db.exec("VACUUM");
+    db.exec("PRAGMA incremental_vacuum;");
   } catch (err) {
     console.error("Clear Browser History Error:", err);
   }

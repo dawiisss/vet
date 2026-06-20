@@ -13,10 +13,7 @@ import {
 import { destroyTerminalCache } from "../hooks/useTerminal";
 import { useConfigStore } from "@/features/settings/useConfigStore";
 import { useUIStore } from "@/shared/stores/useUIStore";
-
-function pathsEqual(a: number[], b: number[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
+import { pathsEqual, DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/utils/pathUtils";
 
 export async function splitTabAction(
   set: any,
@@ -51,9 +48,10 @@ export async function splitTabAction(
     if (!currentUrl) {
       try {
         const cfg = useConfigStore.getState().config;
-        currentUrl = cfg?.browserHomepage || "https://duckduckgo.com";
-      } catch {
-        currentUrl = "https://duckduckgo.com";
+        currentUrl = cfg?.browserHomepage || DEFAULT_BROWSER_HOMEPAGE;
+      } catch (err) {
+        console.warn("Failed to retrieve config for browser homepage:", err);
+        currentUrl = DEFAULT_BROWSER_HOMEPAGE;
       }
     }
 

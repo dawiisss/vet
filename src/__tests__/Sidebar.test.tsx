@@ -92,8 +92,14 @@ describe("Sidebar", () => {
       />,
     );
     const buttons = screen.getAllByRole("tab");
-    const systemBtn = buttons[1];
+    expect(buttons[0]).toHaveAttribute("aria-selected", "true");
+    expect(buttons[1]).toHaveAttribute("aria-selected", "false");
+
+    const systemBtn = buttons[1]!;
     fireEvent.click(systemBtn);
+
+    expect(buttons[0]).toHaveAttribute("aria-selected", "false");
+    expect(buttons[1]).toHaveAttribute("aria-selected", "true");
   });
 
   it("renders resize handle", () => {

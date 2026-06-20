@@ -132,6 +132,10 @@ describe("panel components", () => {
     it("renders without error", async () => {
       const SnippetLibraryPanel =
         require("../renderer/src/shared/components/SnippetLibraryPanel").default;
+      render(<SnippetLibraryPanel isActive={true} onInjectSnippet={jest.fn()} />);
+      await waitFor(() => {
+        expect(screen.getByText("Snippets")).toBeInTheDocument();
+      });
     });
   });
 

@@ -2,10 +2,46 @@
  * @jest-environment node
  */
 
+process.getCPUUsage = jest.fn(() => ({ percentCPUUsage: 1.5, idleWakeupsPerSecond: 10 }));
+
 jest.mock("systeminformation", () => ({
   currentLoad: jest.fn(() => Promise.resolve({ currentLoad: 45.2 })),
   mem: jest.fn(() =>
     Promise.resolve({ total: 16000000000, active: 8000000000 }),
+  ),
+  fsSize: jest.fn(() =>
+    Promise.resolve([
+      { size: 50000000000, used: 20000000000, use: 40.0, mount: "/", fs: "/dev/sda1" }
+    ]),
+  ),
+  cpuTemperature: jest.fn(() =>
+    Promise.resolve({ main: 42.0 }),
+  ),
+  networkStats: jest.fn(() =>
+    Promise.resolve([
+      { iface: "eth0", operstate: "up", rx_sec: 102400, tx_sec: 51200 }
+    ]),
+  ),
+  battery: jest.fn(() =>
+    Promise.resolve({
+      hasBattery: true,
+      percent: 85,
+      isCharging: true,
+      acConnected: true
+    }),
+  ),
+  graphics: jest.fn(() =>
+    Promise.resolve({
+      controllers: [
+        { model: "NVIDIA GeForce RTX 3060 Ti", vram: 8192, memoryTotal: 8192, memoryUsed: 1024, temperatureGpu: 45, utilizationGpu: 20 }
+      ]
+    }),
+  ),
+  fsStats: jest.fn(() =>
+    Promise.resolve({
+      rx_sec: 1048576,
+      wx_sec: 524288
+    }),
   ),
 }));
 
@@ -91,6 +127,32 @@ describe("sysinfo", () => {
           mem: expect.objectContaining({
             total: 16000000000,
             used: 8000000000,
+          }),
+          network: expect.objectContaining({
+            rx_sec: 102400,
+            tx_sec: 51200,
+          }),
+          battery: expect.objectContaining({
+            hasBattery: true,
+            percent: 85,
+            isCharging: true,
+            acConnected: true,
+          }),
+          graphics: expect.objectContaining({
+            controllers: expect.arrayContaining([
+              expect.objectContaining({
+                model: "NVIDIA GeForce RTX 3060 Ti",
+                utilizationGpu: 20,
+              })
+            ]),
+          }),
+          diskIo: expect.objectContaining({
+            rx_sec: 1048576,
+            wx_sec: 524288,
+          }),
+          appResources: expect.objectContaining({
+            cpu: 1.5,
+            mem: expect.any(Number),
           }),
         }),
       );

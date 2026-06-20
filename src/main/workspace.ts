@@ -1,6 +1,35 @@
 import { ipcMain, shell } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as os from "os";
+import { sortDirectoryItems } from "../shared/utils/pathUtils";
+
+function isPathAllowed(targetPath: string): boolean {
+  try {
+    const resolvedPath = path.resolve(targetPath);
+    const homeDir = os.homedir();
+
+    // Sensitive directories to monitor
+    const sensitivePaths = [
+      path.join(homeDir, ".ssh"),
+      path.join(homeDir, ".gnupg"),
+      path.join(homeDir, ".aws"),
+      path.join(homeDir, ".config", "vet"),
+      "/etc/shadow",
+      "/etc/passwd",
+    ];
+
+    for (const sp of sensitivePaths) {
+      if (resolvedPath === sp || resolvedPath.startsWith(sp + path.sep)) {
+        console.warn(`[security] Accessing sensitive path: ${resolvedPath}`);
+      }
+    }
+
+    return true; // Option C: Allow all paths, but log warnings for sensitive ones
+  } catch {
+    return true;
+  }
+}
 
 class WorkspaceService {
   async getScripts(cwd?: string) {
@@ -36,6 +65,8 @@ class WorkspaceService {
         targetPath = targetPath.replace(/^~/, process.env.HOME);
       }
 
+      isPathAllowed(targetPath);
+
       const files = await fs.readdir(targetPath);
       const items: any[] = [];
 
@@ -65,15 +96,7 @@ class WorkspaceService {
         }
       }
 
-      // Sort: folders first, then alphabetically
-      items.sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) {
-          return a.isDirectory ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      return items;
+      return sortDirectoryItems(items);
     } catch (err) {
       console.error(`Failed to list directory: ${dirPath}`, err);
       return [];
@@ -86,6 +109,9 @@ class WorkspaceService {
       if (targetPath.startsWith("~") && process.env.HOME) {
         targetPath = targetPath.replace(/^~/, process.env.HOME);
       }
+
+      isPathAllowed(targetPath);
+
       shell.showItemInFolder(targetPath);
     } catch (err) {
       console.error(`Failed to reveal path: ${itemPath}`, err);
@@ -98,6 +124,8 @@ class WorkspaceService {
       if (targetPath.startsWith("~") && process.env.HOME) {
         targetPath = targetPath.replace(/^~/, process.env.HOME);
       }
+
+      isPathAllowed(targetPath);
 
       // Read first 50KB only to prevent main process memory bloat
       const fileHandle = await fs.open(targetPath, "r");

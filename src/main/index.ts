@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, webContents } from "electron";
+import { app, BrowserWindow, ipcMain, webContents, shell } from "electron";
 import { join } from "path";
 import { electronApp, is } from "@electron-toolkit/utils";
 import { autoUpdater } from "electron-updater";
@@ -86,7 +86,6 @@ function createWindow(): BrowserWindow {
   // Security: Block unauthorized new window creation
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
-      const { shell } = require("electron");
       const parsedUrl = new URL(url);
       const safeProtocols = ["http:", "https:", "mailto:"];
       if (safeProtocols.includes(parsedUrl.protocol)) {
@@ -197,15 +196,17 @@ function registerIpcHandlers(): void {
   registerUpdaterHandlers(() => mainWindow);
 }
 
-import { initConfigManager, getConfig } from "./config";
+import { initConfigManager, getConfig, cleanupConfigManager } from "./config";
 import { initSessionManager, getSessionData } from "./session";
-import { initSysInfoManager } from "./sysinfo";
+import { initSysInfoManager, cleanupSysInfo } from "./sysinfo";
 import { initPortsManager } from "./ports";
 import { initWorkspaceManager } from "./workspace";
 import { initConnectionsManager } from "./connections";
-import { initSftpManager } from "./sftp";
+import { initSftpManager, cleanupSftpSessions } from "./sftp";
 import { initClipboardHistoryManager } from "./clipboardHistory";
 import * as historyDb from "./historyDb";
+import { cleanupAdblocker } from "./adblocker";
+import { cleanupUpdaterSimulation } from "./ipc/updaterHandlers";
 
 if (process.platform === "linux" && app.commandLine) {
   app.commandLine.appendSwitch("disable-accelerated-video-decode");
@@ -270,5 +271,38 @@ app.whenReady().then(async () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  try {
+    historyDb.cleanupHistoryDb();
+  } catch (err) {
+    console.error("Error during history DB cleanup:", err);
+  }
+  try {
+    cleanupConfigManager();
+  } catch (err) {
+    console.error("Error during config manager cleanup:", err);
+  }
+  try {
+    cleanupSysInfo();
+  } catch (err) {
+    console.error("Error during sysinfo cleanup:", err);
+  }
+  try {
+    cleanupAdblocker();
+  } catch (err) {
+    console.error("Error during adblocker cleanup:", err);
+  }
+  try {
+    cleanupUpdaterSimulation();
+  } catch (err) {
+    console.error("Error during updater simulation cleanup:", err);
+  }
+  try {
+    cleanupSftpSessions();
+  } catch (err) {
+    console.error("Error during SFTP sessions cleanup:", err);
   }
 });

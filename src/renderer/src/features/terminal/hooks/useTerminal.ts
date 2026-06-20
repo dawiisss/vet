@@ -62,6 +62,18 @@ export function useTerminal({
   const fitAddonRef = useRef<FitAddon | null>(null);
 
   const { config } = useConfig();
+  const {
+    theme: configTheme,
+    customThemes: configCustomThemes,
+    opacity: configOpacity,
+    fontFamily: configFontFamily,
+    fontSize: configFontSize,
+    cursorBlink: configCursorBlink,
+    cursorStyle: configCursorStyle,
+    virtualScrollbackEnabled: configVirtualScrollbackEnabled,
+    virtualScrollbackBufferSize: configVirtualScrollbackBufferSize,
+    webglEnabled: configWebglEnabled,
+  } = config || {};
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -201,7 +213,8 @@ export function useTerminal({
             initialWriteDone = true;
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error(`Failed to load terminal history for ${terminalId}:`, err);
           initialWriteDone = true;
         });
 
@@ -250,7 +263,9 @@ export function useTerminal({
       });
 
       // Enable forwarding immediately so PTY output flows to xterm
-      api.enableForwarding(terminalId).catch(() => {});
+      api.enableForwarding(terminalId).catch((err) => {
+        console.error(`Failed to enable forwarding for terminal ${terminalId}:`, err);
+      });
 
       const unsubData = api.onData((pId, data) => {
         if (pId === terminalId) {
@@ -427,20 +442,20 @@ export function useTerminal({
   useEffect(() => {
     if (terminal) {
       const themeObj = toXtermTheme(
-        resolveTheme(config.theme, config.customThemes),
-        typeof config.opacity === "number" ? config.opacity : undefined,
+        resolveTheme(configTheme, configCustomThemes),
+        typeof configOpacity === "number" ? configOpacity : undefined,
       );
 
-      terminal.options.fontFamily = config.fontFamily;
-      terminal.options.fontSize = config.fontSize;
-      terminal.options.cursorBlink = config.cursorBlink;
-      terminal.options.cursorStyle = config.cursorStyle as any;
+      terminal.options.fontFamily = configFontFamily;
+      terminal.options.fontSize = configFontSize;
+      terminal.options.cursorBlink = configCursorBlink;
+      terminal.options.cursorStyle = configCursorStyle as any;
       terminal.options.theme = themeObj;
-      terminal.options.scrollback = config.virtualScrollbackEnabled
-        ? config.virtualScrollbackBufferSize || 1000
+      terminal.options.scrollback = configVirtualScrollbackEnabled
+        ? configVirtualScrollbackBufferSize || 1000
         : 100000;
 
-      if (config.webglEnabled && !webglAddonRef.current) {
+      if (configWebglEnabled && !webglAddonRef.current) {
         try {
           const webglAddon = new WebglAddon();
           webglAddon.onContextLoss(() => {
@@ -456,14 +471,27 @@ export function useTerminal({
         } catch (e) {
           console.warn("Failed to enable WebGL", e);
         }
-      } else if (!config.webglEnabled && webglAddonRef.current) {
+      } else if (!configWebglEnabled && webglAddonRef.current) {
         webglAddonRef.current.dispose();
         webglAddonRef.current = null;
         const entry = terminalCache.get(terminalId);
         if (entry) entry.webglAddon = null;
       }
     }
-  }, [config, terminal, terminalId]);
+  }, [
+    configTheme,
+    configCustomThemes,
+    configOpacity,
+    configFontFamily,
+    configFontSize,
+    configCursorBlink,
+    configCursorStyle,
+    configVirtualScrollbackEnabled,
+    configVirtualScrollbackBufferSize,
+    configWebglEnabled,
+    terminal,
+    terminalId,
+  ]);
 
   return { terminal, searchAddon, fitAddon: fitAddonRef.current };
 }

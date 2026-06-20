@@ -1,6 +1,6 @@
 import { spawn } from "node-pty";
 import { v4 as uuidv4 } from "uuid";
-import { promises as fs, existsSync, statSync } from "fs";
+import * as fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -36,6 +36,11 @@ const SAFE_COMMANDS = new Set([
   "ksh",
   "csh",
   "tcsh",
+  "ash",
+  "git-bash.exe",
+  "git-bash",
+  "tmux",
+  "screen",
   "node",
   "python",
   "python3",
@@ -59,16 +64,22 @@ function isValidShell(shellPath: string): boolean {
   if (SAFE_COMMANDS.has(baseName)) {
     return true;
   }
+  
+  // Option B: Allow user-configured shells from config
   try {
-    if (existsSync(shellPath)) {
-      const stat = statSync(shellPath);
-      if (stat.isFile()) {
+    const config = getConfig();
+    if (config.allowedShells && Array.isArray(config.allowedShells)) {
+      const userAllowed = config.allowedShells.map((s: string) =>
+        path.basename(s).toLowerCase(),
+      );
+      if (userAllowed.includes(baseName)) {
         return true;
       }
     }
   } catch (e) {
-    // ignore
+    console.warn("Failed to retrieve allowed shells from config:", e);
   }
+  
   return false;
 }
 
@@ -209,15 +220,16 @@ export function createTerminal(options: {
 
       // Validate resolvedCwd exists and is a directory
       try {
-        if (existsSync(resolvedCwd)) {
-          const stat = statSync(resolvedCwd);
+        if (fs.existsSync(resolvedCwd)) {
+          const stat = fs.statSync(resolvedCwd);
           if (!stat.isDirectory()) {
             resolvedCwd = process.env.HOME || process.cwd();
           }
         } else {
           resolvedCwd = process.env.HOME || process.cwd();
         }
-      } catch {
+      } catch (err) {
+        console.warn(`Failed to validate/resolve cwd '${resolvedCwd}', falling back:`, err);
         resolvedCwd = process.env.HOME || process.cwd();
       }
 
@@ -440,12 +452,12 @@ export async function getTerminalInfo(
       }
     }
   } catch (err) {
-    // ignore
+    console.warn("Failed to resolve dynamic foreground process ssh target:", err);
   }
 
   try {
     if (platform() === "linux") {
-      cwd = await fs.readlink(`/proc/${terminal.pty.pid}/cwd`);
+      cwd = await fs.promises.readlink(`/proc/${terminal.pty.pid}/cwd`);
     } else if (platform() === "darwin") {
       const { stdout } = await execFileAsync("lsof", [
         "-a",
@@ -463,8 +475,8 @@ export async function getTerminalInfo(
         }
       }
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn("Failed to resolve terminal cwd path:", err);
   }
 
   const resolvedCwd = cwd || process.cwd();
