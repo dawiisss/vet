@@ -70,7 +70,7 @@ const Panel = React.forwardRef<HTMLDivElement, PanelProps>(function Panel(
       )}
       {hasScrollableBody ? (
         <div
-          className="panel-body"
+          className="panel-body app-scrollbar"
           style={{
             flex: 1,
             overflowY: "auto",

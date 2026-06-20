@@ -343,6 +343,7 @@ export default function WorkspacePanel({
           </div>
 
           <div
+            className="app-scrollbar"
             style={{
               flex: 1,
               overflowY: "auto",
