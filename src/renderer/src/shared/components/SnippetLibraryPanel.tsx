@@ -153,7 +153,7 @@ export default function SnippetLibraryPanel({
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="app-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         {snippets.length === 0 && !isAdding && (
           <div
             style={{

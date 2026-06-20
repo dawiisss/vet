@@ -253,7 +253,7 @@ export default function HistoryPanel({
         />
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+      <div className="app-scrollbar" style={{ flex: 1, overflowY: "auto", padding: 8 }}>
         {isSearching ? (
           <div
             style={{

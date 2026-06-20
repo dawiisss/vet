@@ -98,7 +98,7 @@ export default function ClipboardHistoryPanel({
       hasScrollableBody={false}
     >
 
-      <div ref={listRef} style={{ flex: 1, overflowY: "auto" }}>
+      <div className="app-scrollbar" ref={listRef} style={{ flex: 1, overflowY: "auto" }}>
         {history.length === 0 && (
           <div
             style={{
