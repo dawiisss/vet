@@ -165,10 +165,9 @@ export function createTerminal(options: {
   let connectionTarget = "localhost";
   let resolvedCwd = options.cwd || process.cwd();
 
-  const cleanEnv: Record<string, string> = { ...process.env } as Record<
-    string,
-    string
-  >;
+  const cleanEnv: Record<string, string> = Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
 
   let sshHost: any = null;
   if (options.sshHostId) {
@@ -257,7 +256,8 @@ export function createTerminal(options: {
         connectionTarget = args[0] || "remote";
       } else if (shell.endsWith("docker") && args[0] === "exec") {
         connectionType = "docker";
-        connectionTarget = args[args.indexOf("-it") + 1] || "container";
+        const itIdx = args.indexOf("-it");
+        connectionTarget = itIdx >= 0 ? args[itIdx + 1] || "container" : "container";
       }
     }
   } catch (err: any) {
@@ -496,4 +496,8 @@ export async function getTerminalInfo(
     cwd: resolvedCwd,
     sshHostId: effectiveSshHostId,
   };
+}
+
+export function getPtyPids(): number[] {
+  return Array.from(terminals.values()).map((t) => t.pty.pid);
 }

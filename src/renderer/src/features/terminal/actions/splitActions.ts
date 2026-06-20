@@ -43,7 +43,9 @@ export async function splitTabAction(
         const url = webviewEl.getURL();
         if (url && url !== "about:blank") currentUrl = url;
       }
-    } catch {}
+    } catch {
+      // webview element may not be mounted yet or getURL unavailable
+    }
 
     if (!currentUrl) {
       try {
@@ -111,7 +113,9 @@ export async function splitTabAction(
               webviewEl.src = currentUrl;
             }
           }
-        } catch {}
+        } catch {
+          // webview state access is best-effort
+        }
       }, 0);
     }
   } else {
@@ -188,7 +192,9 @@ export async function unsplitTabAction(set: any, get: any) {
           try {
             const info = await api.getTerminalInfo(node.terminalId);
             if (info?.title) label = info.title;
-          } catch {}
+          } catch {
+            // terminal info may not be available during split
+          }
         }
         return newTabState(tabId, node.terminalId!, label);
       }
@@ -307,7 +313,9 @@ export async function extractToTabAction(
     try {
       const info = await api.getTerminalInfo(leafId);
       if (info?.title) label = info.title;
-    } catch {}
+    } catch {
+      // terminal info may not be available
+    }
   }
 
   const tIndex = prevTabs.findIndex((t: any) => t.id === tabId);
@@ -419,7 +427,9 @@ export function mergeTabAsSplitAction(
         const url = wv.getURL();
         if (url && url !== "about:blank") browserUrl = url;
       }
-    } catch {}
+    } catch {
+      // webview may not be available during drag merge
+    }
   }
 
   const newTerminalIds = collectLeafIds(fromTab.root);

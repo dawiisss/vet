@@ -1,14 +1,20 @@
 import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
-import { DatabaseSync } from "node:sqlite";
+import type { Database as DatabaseType, Statement } from "better-sqlite3";
 import { getConfig } from "./config";
 
 const DB_DIR = path.join(app.getPath("home"), ".config", "vet");
 const DB_FILE = path.join(DB_DIR, "vet_history.db");
 
-let db: DatabaseSync | null = null;
+let db: DatabaseType | null = null;
 let dbInitError: string | null = null;
+let dbReady = false;
+
+let insertChunkStmt: Statement | null = null;
+let insertSearchStmt: Statement | null = null;
+let updateSessionCloseStmt: Statement | null = null;
+let insertSessionStmt: Statement | null = null;
 
 export function getDbInitError(): string | null {
   return dbInitError;
@@ -32,16 +38,21 @@ const ANSI_REGEX = new RegExp(
 );
 
 export function initHistoryDb() {
+  if (dbReady || db) return;
+
+  const Database = require("better-sqlite3") as typeof import("better-sqlite3");
+
   if (!fs.existsSync(DB_DIR)) {
     fs.mkdirSync(DB_DIR, { recursive: true });
   }
 
   try {
-    db = new DatabaseSync(DB_FILE);
-    db.exec("PRAGMA foreign_keys = ON;");
-    db.exec("PRAGMA auto_vacuum = INCREMENTAL;");
+    db = new Database(DB_FILE);
+    db.pragma("journal_mode = WAL");
+    db.pragma("synchronous = NORMAL");
+    db.pragma("foreign_keys = ON");
+    db.pragma("auto_vacuum = INCREMENTAL");
 
-    // Create tables
     db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
@@ -78,11 +89,24 @@ export function initHistoryDb() {
       );
     `);
 
-    // Start flush interval
+    insertChunkStmt = db.prepare(
+      "INSERT INTO session_chunks (session_id, timestamp, data) VALUES (?, ?, ?)",
+    );
+    insertSearchStmt = db.prepare(
+      "INSERT INTO session_search (session_id, text) VALUES (?, ?)",
+    );
+    insertSessionStmt = db.prepare(
+      "INSERT INTO sessions (id, title, created_at, connection_type, connection_target) VALUES (?, ?, ?, ?, ?)",
+    );
+    updateSessionCloseStmt = db.prepare(
+      "UPDATE sessions SET closed_at = ? WHERE id = ?",
+    );
+
     flushInterval = setInterval(flushBuffer, 500);
 
-    // Run initial prune
-    pruneHistory();
+    setTimeout(pruneHistory, 2000);
+
+    dbReady = true;
     dbInitError = null;
   } catch (err: any) {
     console.error("Failed to initialize history DB:", err);
@@ -96,29 +120,24 @@ export function startSession(
   connectionType: string,
   connectionTarget: string,
 ) {
-  if (!db) return;
+  if (!db || !insertSessionStmt) return;
   const config = getConfig();
   if (config.historyLoggingEnabled === false) return;
 
   try {
-    const stmt = db.prepare(`
-      INSERT INTO sessions (id, title, created_at, connection_type, connection_target)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, title, Date.now(), connectionType, connectionTarget);
+    insertSessionStmt.run(id, title, Date.now(), connectionType, connectionTarget);
   } catch (err) {
     console.error("DB Insert Error:", err);
   }
 }
 
 export function closeSession(id: string) {
-  if (!db) return;
-  flushBuffer(); // Flush any pending logs for this session first
+  if (!db || !updateSessionCloseStmt) return;
+  flushBuffer();
 
   try {
-    const stmt = db.prepare("UPDATE sessions SET closed_at = ? WHERE id = ?");
-    stmt.run(Date.now(), id);
-    pruneHistory();
+    updateSessionCloseStmt.run(Date.now(), id);
+    setTimeout(pruneHistory, 500);
   } catch (err) {
     console.error("DB Update Error:", err);
   }
@@ -134,33 +153,23 @@ export function logOutput(sessionId: string, data: string) {
     data,
   });
 
-  // Flush immediately if buffer is getting large (e.g., fast output stream)
   if (writeBuffer.length > 500) {
     flushBuffer();
   }
 }
 
 function flushBuffer() {
-  if (!db || writeBuffer.length === 0) return;
+  if (!db || !insertChunkStmt || !insertSearchStmt || writeBuffer.length === 0) return;
 
   const chunks = [...writeBuffer];
   writeBuffer = [];
 
-  try {
-    const insertChunk = db.prepare(`
-      INSERT INTO session_chunks (session_id, timestamp, data) VALUES (?, ?, ?)
-    `);
-    const insertSearch = db.prepare(`
-      INSERT INTO session_search (session_id, text) VALUES (?, ?)
-    `);
-
-    db.exec("BEGIN TRANSACTION;");
-
+  const trx = db.transaction(() => {
     const sessionTextMap = new Map<string, string>();
 
     for (const chunk of chunks) {
       try {
-        insertChunk.run(chunk.sessionId, chunk.timestamp, chunk.data);
+        insertChunkStmt!.run(chunk.sessionId, chunk.timestamp, chunk.data);
 
         const plainText = chunk.data.replace(ANSI_REGEX, "");
         if (plainText.trim()) {
@@ -168,11 +177,7 @@ function flushBuffer() {
           sessionTextMap.set(chunk.sessionId, existing + plainText);
         }
       } catch (err: any) {
-        // If the session was deleted (e.g. user cleared history), silently ignore the orphaned logs.
-        if (
-          err?.code !== "ERR_SQLITE_ERROR" ||
-          !err?.errstr?.includes("constraint failed")
-        ) {
+        if (err?.code !== "SQLITE_CONSTRAINT ForeignKey") {
           console.warn("Failed to insert chunk:", err);
         }
       }
@@ -180,17 +185,16 @@ function flushBuffer() {
 
     for (const [sessionId, text] of sessionTextMap.entries()) {
       try {
-        insertSearch.run(sessionId, text);
-      } catch (e) {
-        // Ignore orphaned full-text search entries too
+        insertSearchStmt!.run(sessionId, text);
+      } catch {
+        // Ignore orphaned FTS entries
       }
     }
+  });
 
-    db.exec("COMMIT;");
+  try {
+    trx();
   } catch (err) {
-    try {
-      db?.exec("ROLLBACK;");
-    } catch (e) {} // Attempt rollback if possible
     console.error("DB Flush Error:", err);
   }
 }
@@ -205,13 +209,12 @@ export function searchHistory(query: string): any[] {
       FROM session_search ss
       JOIN sessions s ON ss.session_id = s.id
       WHERE session_search MATCH ?
-      ORDER BY s.created_at DESC
+      ORDER BY s.created_at DESC, s.id DESC
       LIMIT 100
     `);
     const rows = stmt.all(query) as any[];
 
-    // Filter out duplicate sessions in JS since FTS5 snippet() doesn't support GROUP BY
-    const uniqueSessions = [];
+    const uniqueSessions: any[] = [];
     const seen = new Set<string>();
     for (const row of rows) {
       if (!seen.has(row.id)) {
@@ -231,7 +234,7 @@ export function getSessionDetails(id: string): any | null {
   try {
     const stmt = db.prepare("SELECT * FROM sessions WHERE id = ?");
     return stmt.get(id) || null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -241,11 +244,11 @@ export function getSessionTranscript(id: string): string {
   flushBuffer();
   try {
     const stmt = db.prepare(
-      "SELECT data FROM session_chunks WHERE session_id = ? ORDER BY timestamp ASC",
+      "SELECT data FROM session_chunks WHERE session_id = ? ORDER BY timestamp ASC, id ASC",
     );
     const rows = stmt.all(id) as { data: string }[];
     return rows.map((r) => r.data).join("");
-  } catch (err) {
+  } catch {
     return "";
   }
 }
@@ -258,20 +261,17 @@ export function getScrollbackChunk(
   if (!db) return [];
   flushBuffer();
   try {
-    // This fetches chunks. A chunk might contain multiple lines.
-    // For simplicity, we fetch the last N chunks before the timestamp.
     const stmt = db.prepare(`
       SELECT timestamp, data FROM session_chunks 
       WHERE session_id = ? AND timestamp < ? 
-      ORDER BY timestamp DESC LIMIT 50
+      ORDER BY timestamp DESC, id DESC LIMIT 50
     `);
-    // SQLite returns them in DESC order (newest to oldest), but terminal needs them chronological (oldest to newest)
     const rows = stmt.all(id, beforeTimestamp) as {
       data: string;
       timestamp: number;
     }[];
     return rows.reverse();
-  } catch (err) {
+  } catch {
     return [];
   }
 }
@@ -280,9 +280,9 @@ export function clearHistory() {
   if (!db) return;
   writeBuffer = [];
   try {
-    db.exec("DELETE FROM sessions"); // Cascade deletes chunks
     db.exec("DELETE FROM session_search");
-    db.exec("PRAGMA incremental_vacuum;");
+    db.exec("DELETE FROM sessions");
+    db.pragma("incremental_vacuum");
   } catch (err) {
     console.error("Clear DB Error:", err);
   }
@@ -314,14 +314,9 @@ function getDatabaseSizeMb(): number {
 function getLogicalDatabaseSizeMb(): number {
   if (!db) return 0;
   try {
-    const pageCountObj = db.prepare("PRAGMA page_count").get() as Record<string, any>;
-    const pageCount = (pageCountObj && typeof pageCountObj === "object" && (Object.values(pageCountObj)[0] as number)) || 0;
-
-    const freelistCountObj = db.prepare("PRAGMA freelist_count").get() as Record<string, any>;
-    const freelistCount = (freelistCountObj && typeof freelistCountObj === "object" && (Object.values(freelistCountObj)[0] as number)) || 0;
-
-    const pageSizeObj = db.prepare("PRAGMA page_size").get() as Record<string, any>;
-    const pageSize = (pageSizeObj && typeof pageSizeObj === "object" && (Object.values(pageSizeObj)[0] as number)) || 0;
+    const pageCount = db.pragma("page_count", { simple: true }) as number;
+    const freelistCount = db.pragma("freelist_count", { simple: true }) as number;
+    const pageSize = db.pragma("page_size", { simple: true }) as number;
 
     const logicalSize = (pageCount - freelistCount) * pageSize;
     return logicalSize / (1024 * 1024);
@@ -332,14 +327,14 @@ function getLogicalDatabaseSizeMb(): number {
 }
 
 function pruneHistory() {
-  if (!db) return;
+  if (!db || !dbReady) return;
   const config = getConfig();
   const limitMb = config.historyDatabaseLimitMb || 100;
   const keepDays = config.historyKeepDays || 30;
 
   try {
-    // 1. Prune by days
     const cutoffTime = Date.now() - keepDays * 24 * 60 * 60 * 1000;
+
     const pruneDaysStmt = db.prepare(
       "DELETE FROM sessions WHERE created_at < ?",
     );
@@ -350,28 +345,30 @@ function pruneHistory() {
     );
     pruneBrowserStmt.run(cutoffTime);
 
-    // 2. Prune by size (FIFO)
     let sizeMb = getLogicalDatabaseSizeMb();
     if (sizeMb > limitMb) {
       let deletedCount = 0;
       while (sizeMb > limitMb) {
-        // Delete oldest 10 sessions
         const oldestStmt = db.prepare(
-          "SELECT id FROM sessions ORDER BY created_at ASC LIMIT 10",
+          "SELECT id FROM sessions ORDER BY created_at ASC, id ASC LIMIT 100",
         );
         const oldest = oldestStmt.all() as { id: string }[];
         if (oldest.length === 0) break;
 
-        const placeholders = oldest.map(() => "?").join(",");
+        const ids = oldest.map((row) => row.id);
+        const placeholders = ids.map(() => "?").join(",");
         const deleteStmt = db.prepare(
           `DELETE FROM sessions WHERE id IN (${placeholders})`,
         );
         const deleteSearchStmt = db.prepare(
           `DELETE FROM session_search WHERE session_id IN (${placeholders})`,
         );
-        const ids = oldest.map((row) => row.id);
-        deleteStmt.run(...ids);
-        deleteSearchStmt.run(...ids);
+
+        const trx = db.transaction(() => {
+          deleteStmt.run(...ids);
+          deleteSearchStmt.run(...ids);
+        });
+        trx();
 
         deletedCount += oldest.length;
         sizeMb = getLogicalDatabaseSizeMb();
@@ -382,8 +379,7 @@ function pruneHistory() {
         }
       }
     }
-    // Perform incremental vacuum to release pages to disk
-    db.exec("PRAGMA incremental_vacuum;");
+    db.pragma("incremental_vacuum");
   } catch (err) {
     console.error("Prune Error:", err);
   }
@@ -393,10 +389,10 @@ export function getHistorySessions(): any[] {
   if (!db) return [];
   try {
     const stmt = db.prepare(
-      "SELECT * FROM sessions ORDER BY created_at DESC LIMIT 100",
+      "SELECT * FROM sessions ORDER BY created_at DESC, id DESC LIMIT 100",
     );
     return stmt.all();
-  } catch (err) {
+  } catch {
     return [];
   }
 }
@@ -448,10 +444,11 @@ export function searchBrowserHistory(query: string): any[] {
   try {
     const stmt = db.prepare(`
       SELECT * FROM browser_history 
-      WHERE url LIKE ? OR title LIKE ? 
+      WHERE url LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\' 
       ORDER BY timestamp DESC, id DESC LIMIT 100
     `);
-    const searchPattern = `%${query}%`;
+    const escaped = query.replace(/[%_]/g, "\\$&");
+    const searchPattern = `%${escaped}%`;
     return stmt.all(searchPattern, searchPattern);
   } catch (err) {
     console.error("Search Browser History Error:", err);
@@ -473,7 +470,7 @@ export function clearBrowserHistory() {
   if (!db) return;
   try {
     db.exec("DELETE FROM browser_history");
-    db.exec("PRAGMA incremental_vacuum;");
+    db.pragma("incremental_vacuum");
   } catch (err) {
     console.error("Clear Browser History Error:", err);
   }
@@ -485,11 +482,18 @@ export function cleanupHistoryDb() {
     flushInterval = null;
   }
   if (db) {
+    flushBuffer();
     try {
+      db.pragma("wal_checkpoint(TRUNCATE)");
       db.close();
     } catch (err) {
       console.error("Error closing database:", err);
     }
     db = null;
+    insertChunkStmt = null;
+    insertSearchStmt = null;
+    insertSessionStmt = null;
+    updateSessionCloseStmt = null;
+    dbReady = false;
   }
 }

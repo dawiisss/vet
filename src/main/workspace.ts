@@ -4,30 +4,41 @@ import * as path from "path";
 import * as os from "os";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
 
-function isPathAllowed(targetPath: string): boolean {
-  try {
-    const resolvedPath = path.resolve(targetPath);
-    const homeDir = os.homedir();
+interface DirectoryItem {
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  ext: string;
+}
 
-    // Sensitive directories to monitor
-    const sensitivePaths = [
-      path.join(homeDir, ".ssh"),
-      path.join(homeDir, ".gnupg"),
-      path.join(homeDir, ".aws"),
-      path.join(homeDir, ".config", "vet"),
-      "/etc/shadow",
-      "/etc/passwd",
-    ];
-
-    for (const sp of sensitivePaths) {
-      if (resolvedPath === sp || resolvedPath.startsWith(sp + path.sep)) {
-        console.warn(`[security] Accessing sensitive path: ${resolvedPath}`);
-      }
+function expandHome(inputPath: string): string {
+  if (inputPath === "~" || inputPath.startsWith("~/")) {
+    return path.join(os.homedir(), inputPath.slice(1));
+  }
+  if (inputPath.startsWith("~")) {
+    const sep = inputPath.indexOf("/");
+    if (sep === -1) {
+      return path.join(os.homedir(), inputPath.slice(1));
     }
+    return path.join(os.homedir(), inputPath.slice(sep));
+  }
+  return inputPath;
+}
 
-    return true; // Option C: Allow all paths, but log warnings for sensitive ones
-  } catch {
-    return true;
+function logSensitivePathAccess(resolvedPath: string): void {
+  const homeDir = os.homedir();
+  const sensitivePaths = [
+    path.join(homeDir, ".ssh"),
+    path.join(homeDir, ".gnupg"),
+    path.join(homeDir, ".aws"),
+    path.join(homeDir, ".config", "vet"),
+  ];
+
+  for (const sp of sensitivePaths) {
+    if (resolvedPath === sp || resolvedPath.startsWith(sp + path.sep)) {
+      console.warn(`[security] Accessing sensitive path: ${resolvedPath}`);
+      break;
+    }
   }
 }
 
@@ -60,15 +71,12 @@ class WorkspaceService {
 
   async listDir(dirPath: string) {
     try {
-      let targetPath = dirPath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(dirPath));
 
-      isPathAllowed(targetPath);
+      logSensitivePathAccess(targetPath);
 
       const files = await fs.readdir(targetPath);
-      const items: any[] = [];
+      const items: DirectoryItem[] = [];
 
       for (const file of files) {
         // Skip reading stats for heavy files to avoid PTY/Main blocks
@@ -105,12 +113,9 @@ class WorkspaceService {
 
   revealPath(itemPath: string) {
     try {
-      let targetPath = itemPath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(itemPath));
 
-      isPathAllowed(targetPath);
+      logSensitivePathAccess(targetPath);
 
       shell.showItemInFolder(targetPath);
     } catch (err) {
@@ -120,14 +125,10 @@ class WorkspaceService {
 
   async readFileHead(filePath: string) {
     try {
-      let targetPath = filePath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(filePath));
 
-      isPathAllowed(targetPath);
+      logSensitivePathAccess(targetPath);
 
-      // Read first 50KB only to prevent main process memory bloat
       const fileHandle = await fs.open(targetPath, "r");
       try {
         const buffer = Buffer.alloc(50 * 1024);

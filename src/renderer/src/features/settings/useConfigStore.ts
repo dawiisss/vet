@@ -42,10 +42,11 @@ export const useConfigStore = create<ConfigState>((set, get) => {
     },
     initialize: () => {
       if (get().isInitialized || !window.configApi) return;
-      set({ isInitialized: true });
 
       window.configApi.get().then((cfg) => {
-        set({ config: cfg });
+        set({ config: cfg, isInitialized: true });
+      }).catch(() => {
+        set({ isInitialized: true });
       });
 
       window.configApi.onChanged((newConfig) => {
@@ -66,7 +67,8 @@ export const useConfigStore = create<ConfigState>((set, get) => {
 // Seamless compatibility wrapper hook
 export const useConfig = () => {
   const config = useConfigStore((state) => state.config);
+  const isInitialized = useConfigStore((state) => state.isInitialized);
   const updateConfig = useConfigStore((state) => state.updateConfig);
   const openConfig = useConfigStore((state) => state.openConfig);
-  return { config, updateConfig, openConfig };
+  return { config, isInitialized, updateConfig, openConfig };
 };

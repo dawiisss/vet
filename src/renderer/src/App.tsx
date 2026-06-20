@@ -24,7 +24,7 @@ import { useKeybindings } from "@/shared/hooks/useKeybindings";
  * and delegates themes, modals, and hotkeys to custom hooks and providers.
  */
 function App() {
-  const { config } = useConfig();
+  const { config, isInitialized } = useConfig();
   const error = useUIStore((s) => s.error);
   const configError = useUIStore((s) => s.configError);
   const dbError = useUIStore((s) => s.dbError);
@@ -65,11 +65,11 @@ function App() {
 
   // Trigger onboarding welcome guide if configured
   useEffect(() => {
-    if (config && config.showIntroOnStartup !== false && !hasTriggeredIntro.current) {
+    if (isInitialized && config && config.showIntroOnStartup !== false && !hasTriggeredIntro.current) {
       hasTriggeredIntro.current = true;
       setIsIntroOpen(true);
     }
-  }, [config.showIntroOnStartup]);
+  }, [isInitialized, config.showIntroOnStartup]);
 
   // Initialize global keyboard shortcuts and webview key-forwarding
   useKeybindings();

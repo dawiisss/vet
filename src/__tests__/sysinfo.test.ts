@@ -4,6 +4,10 @@
 
 process.getCPUUsage = jest.fn(() => ({ percentCPUUsage: 1.5, idleWakeupsPerSecond: 10 }));
 
+jest.mock("../main/pty", () => ({
+  getPtyPids: jest.fn(() => []),
+}));
+
 jest.mock("systeminformation", () => ({
   currentLoad: jest.fn(() => Promise.resolve({ currentLoad: 45.2 })),
   mem: jest.fn(() =>
@@ -57,6 +61,16 @@ const mockWindow = {
 jest.mock("electron", () => ({
   ipcMain: { handle: jest.fn() },
   BrowserWindow: {},
+  app: {
+    getAppMetrics: jest.fn(() => [
+      {
+        type: "Browser",
+        pid: 12345,
+        cpu: { percentCPUUsage: 1.5, idleWakeupsPerSecond: 10 },
+        memory: { workingSetSize: 231735296 },
+      },
+    ]),
+  },
 }));
 
 import { initSysInfoManager } from "../main/sysinfo";
