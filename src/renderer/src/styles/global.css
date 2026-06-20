@@ -77,8 +77,18 @@ body,
   background: transparent;
 }
 
+.titlebar-btn {
+  background: transparent;
+  color: var(--app-fg);
+}
+
 .titlebar-btn:hover {
   background: var(--app-border);
+}
+
+.titlebar-close-btn {
+  background: transparent;
+  color: var(--app-fg);
 }
 
 .titlebar-close-btn:hover {

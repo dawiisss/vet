@@ -31,13 +31,11 @@ function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
     width: 46,
     height: 32,
     border: "none",
-    background: "transparent",
     cursor: "pointer",
-    color: "var(--app-fg)",
     fontFamily: "system-ui, sans-serif",
     fontSize: 14,
     WebkitAppRegion: "no-drag",
-    transition: "background 0.1s",
+    transition: "background 0.1s, color 0.1s",
   } as React.CSSProperties;
 
   return (

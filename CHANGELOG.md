@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8] - 2026-06-20
+
+### Added
+- **better-sqlite3 migration**: Replaced `node:sqlite` (`DatabaseSync`) with `better-sqlite3` for the history database, providing ~5-10x faster synchronous SQLite operations and significantly reduced main thread blocking.
+- **WAL journal mode**: History database now uses WAL (Write-Ahead Logging) for improved concurrent read performance.
+- **SQLite write performance (`synchronous = NORMAL`)**: Added `db.pragma("synchronous = NORMAL")` to database initialization to bypass immediate disk synchronization under WAL mode, dramatically optimizing write speeds.
+- **Cached prepared statements**: Frequently-used SQL statements (`INSERT INTO sessions`, `INSERT INTO session_chunks`, `INSERT INTO session_search`, `UPDATE sessions SET closed_at`) are now prepared once at init and reused, eliminating per-call prepare overhead.
+- **WAL checkpoint on shutdown**: `cleanupHistoryDb()` now checkpoints the WAL before closing, ensuring a clean `.db` file on exit.
+- **`expandHome` utility**: Proper `~` and `~user` path expansion for workspace file operations, replacing fragile regex-based tilde expansion.
+- **`logSensitivePathAccess` function**: Replaces the previously-unconditional `isPathAllowed()` (which always returned `true`) with a function that resolves and logs access to sensitive paths (`.ssh`, `.gnupg`, `.aws`, vet config) while still allowing full filesystem access.
+- **`.agents/` and `.Jules/` in `.gitignore`**: Added per project's own convention.
+
+### Fixed
+- **Config password redaction for new SSH hosts**: New SSH hosts submitted with `__redacted__` passwords now have the key deleted rather than set to `""`, preventing accidental credential loss.
+- **Docker shell `connectionTarget` off-by-one**: `args.indexOf("-it")` returning `-1` caused `args[0]` to be used as the container name. Now correctly handles missing `-it` flag.
+- **`useConfigStore` race condition**: `isInitialized` was set to `true` synchronously before `configApi.get()` resolved. Moved into the `.then()` callback so the state reflects actual initialization.
+- **Adblocker memory leak**: `blockedCounts` and `lastHostname` Maps now clean up on webview `destroyed` event instead of growing indefinitely.
+- **LIKE wildcard injection in browser history search**: User-provided `%` and `_` characters in search queries are now escaped, and the `ESCAPE '\\'` clause is explicitly specified.
+- **`structuredClone` instead of `JSON.parse(JSON.stringify(...))`**: Config deep cloning now uses `structuredClone()` instead of the lossy, slow JSON round-trip.
+- **`process.env` spread drops `undefined` values**: Replaced unsafe `{ ...process.env } as Record<string, string>` with `Object.fromEntries(Object.entries(process.env).filter(...))` to correctly handle `undefined` env values.
+- **Pre-existing `mainWindow` null bug**: `mainWindow = createWindow(isTransparent)` is now called before `initConfigManager(mainWindow)`, fixing a null pointer crash in the main process startup flow.
+- **TitleBar Button Hover States**: Fixed an issue where inline `background` and `color` styles in `TitleBar.tsx` overrode the hover styles in `global.css` (caused by the removal of `!important` flags in version `1.0.7`), by moving base backgrounds and colors directly to CSS classes.
+- **Welcome Modal Race Condition**: Fixed a race condition where the onboarding welcome modal would trigger on app startup before the persisted configuration was loaded from disk, by checking the config store's `isInitialized` state before evaluating `showIntroOnStartup`.
+- **Adblocker catch block formatting**: Fixed the indentation formatting of the navigation error catcher block in `adblocker.ts`.
+- **Deterministic sorting on history queries**: Modified history and chunk queries in `historyDb.ts` to include secondary sort keys (`s.id DESC` / `id ASC`) to ensure consistent sorting order and prevent test non-determinism.
+- **Empty catch blocks annotated**: Added explanatory comments to previously-silent catch blocks in `adblocker.ts`, `sysinfo.ts`, `index.ts`, and `splitActions.ts`.
+- **Debug log removed**: Removed `console.log("[adblocker] cosmetic filter for", url)` that fired on every cosmetic filter application.
+- **`install.sh` version mismatch**: `FALLBACK_VERSION` updated from `1.0.6` to `1.0.7` to match `package.json`.
+- **`EventEmitter.defaultMaxListeners` comment**: Added documentation explaining why the global override exists and that per-emitter limits are preferred.
+- **`mainIndex.test.ts`**: Updated mocks for `electron` (added `shell`), `fs`, `json5`, and fixed `initAdblocker` assertion for lazy-loading change.
+- **`sysinfo.test.ts`**: Added mocks for `../main/pty` (`getPtyPids`) and `app.getAppMetrics` to prevent ESM `uuid` import failure.
+- **Prune batch size**: Size-based history pruning now deletes 100 sessions per iteration (up from 10), reducing loop iterations from potentially 1000 to 100.
+- **Prune batch deletes wrapped in transaction**: Size-based deletes now use `db.transaction()` for atomicity.
+
+### Changed
+- **Workspace `DirectoryItem` interface**: Replaced `any[]` with a typed `DirectoryItem` interface in workspace directory listings.
+- **`flushBuffer` transaction**: Manual `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK` replaced with `better-sqlite3`'s `db.transaction()` for automatic rollback on errors.
+- **PRAGMA API**: All `db.exec("PRAGMA ...")` calls replaced with `db.pragma()` (better-sqlite3 idiomatic API; `getLogicalDatabaseSizeMb` now uses `{ simple: true }` for direct number returns).
+- **Adblocker `web-contents-created`**: `wcId` is now captured outside the navigation handler so it's available in the `destroyed` cleanup listener.
+- **Adblocker lists simplification**: Removed redundant/overlapping filter lists (AdGuard, Fanboy, and custom uBlock repos) and simplified to `@ghostery/adblocker-electron`'s consolidated `fullLists` CDN asset, optimizing memory, parsing speed, and network usage.
+- **System Info Polling Split**: Polling logic in `sysinfo.ts` has been optimized. Fast-changing metrics (CPU, memory, network, disk IO, temperature) continue to poll every 2s, while slow-changing/static metrics (mounted disks size, battery, graphics info) are cached and queried only once every 10s, reducing system call and subprocess spawn CPU overhead.
+
 ## [1.0.7] - 2026-06-20
 
 ### Added

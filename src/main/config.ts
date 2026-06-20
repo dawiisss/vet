@@ -335,8 +335,8 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
               h.passphrase = existing.passphrase;
             }
           } else {
-            if (h.password === "__redacted__") h.password = "";
-            if (h.passphrase === "__redacted__") h.passphrase = "";
+            if (h.password === "__redacted__") delete h.password;
+            if (h.passphrase === "__redacted__") delete h.passphrase;
           }
         }
       }
@@ -414,7 +414,7 @@ async function saveConfig(): Promise<void> {
 export function sanitizeConfigForRenderer(conf: any): any {
   if (!conf) return conf;
   try {
-    const sanitized = JSON.parse(JSON.stringify(conf));
+    const sanitized = structuredClone(conf);
     if (sanitized.sshHosts && Array.isArray(sanitized.sshHosts)) {
       for (const h of sanitized.sshHosts) {
         if (h.password) {

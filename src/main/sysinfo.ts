@@ -1,24 +1,48 @@
 import si from "systeminformation";
-import { ipcMain, BrowserWindow } from "electron";
+import { app, ipcMain, BrowserWindow } from "electron";
+import { readFile } from "fs/promises";
 import os from "os";
+import { getPtyPids } from "./pty";
 
 let timeoutId: NodeJS.Timeout | null = null;
 let running = false;
+let lastDisks: any = null;
+let lastBattery: any = null;
+let lastGraphics: any = null;
+let slowPollCounter = 0;
 
 function scheduleNext(mainWindow: BrowserWindow) {
   if (!running) return;
   timeoutId = setTimeout(async () => {
     try {
-      const [cpu, mem, disks, temp, net, battery, graphics, fsStats] = await Promise.all([
+      const promises: Promise<any>[] = [
         si.currentLoad(),
         si.mem(),
-        si.fsSize(),
         si.cpuTemperature(),
         si.networkStats(),
-        si.battery(),
-        si.graphics(),
         si.fsStats(),
-      ]);
+      ];
+
+      const runSlowPoll = slowPollCounter % 5 === 0 || !lastDisks || !lastBattery || !lastGraphics;
+      if (runSlowPoll) {
+        promises.push(si.fsSize());
+        promises.push(si.battery());
+        promises.push(si.graphics());
+      }
+
+      const [cpu, mem, temp, net, fsStats, newDisks, newBattery, newGraphics] = await Promise.all(promises);
+
+      if (runSlowPoll) {
+        lastDisks = newDisks;
+        lastBattery = newBattery;
+        lastGraphics = newGraphics;
+      }
+
+      const disks = lastDisks;
+      const battery = lastBattery;
+      const graphics = lastGraphics;
+
+      slowPollCounter++;
 
       const seenDevices = new Set<string>();
       const disksList = Array.isArray(disks)
@@ -105,9 +129,27 @@ function scheduleNext(mainWindow: BrowserWindow) {
           }
         : null;
 
-      const appCpu = process.getCPUUsage().percentCPUUsage;
-      const appMem = process.memoryUsage().rss;
-      const appResources = { cpu: appCpu, mem: appMem };
+      let totalMem = 0;
+      const electronMetrics = app.getAppMetrics();
+      for (const proc of electronMetrics) {
+        totalMem += proc.memory?.workingSetSize || 0;
+      }
+      if (process.platform === "linux") {
+        for (const pid of getPtyPids()) {
+          try {
+            const status = await readFile(`/proc/${pid}/status`, "utf-8");
+            const match = status.match(/VmRSS:\s+(\d+)\s+kB/);
+            if (match) totalMem += parseInt(match[1], 10) * 1024;
+          } catch {
+            // Process may have exited between listing and reading /proc/pid/status
+          }
+        }
+      }
+      const totalCpu = electronMetrics.reduce(
+        (sum, proc) => sum + (proc.cpu?.percentCPUUsage || 0),
+        0,
+      );
+      const appResources = { cpu: totalCpu, mem: totalMem };
 
       if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send("sysinfo:update", {
@@ -151,6 +193,10 @@ export function initSysInfoManager(mainWindow: BrowserWindow) {
       clearTimeout(timeoutId);
       timeoutId = null;
     }
+    lastDisks = null;
+    lastBattery = null;
+    lastGraphics = null;
+    slowPollCounter = 0;
   });
 }
 
@@ -160,4 +206,8 @@ export function cleanupSysInfo() {
     clearTimeout(timeoutId);
     timeoutId = null;
   }
+  lastDisks = null;
+  lastBattery = null;
+  lastGraphics = null;
+  slowPollCounter = 0;
 }

@@ -11,6 +11,7 @@ import { parse } from "tldts-experimental";
 import { getConfig } from "./config";
 
 let blocker: ElectronBlocker | null = null;
+let adblockerPromise: Promise<void> | null = null;
 const blockedCounts = new Map<string, number>();
 const lastHostname = new Map<string, string>();
 let isAdblockEnabled = true;
@@ -21,20 +22,8 @@ const BLOCKER_CONFIG = {
   guessRequestTypeFromUrl: true,
 };
 
-// Extended filter lists: fullLists from Ghostery CDN + official sources
-const EXTENDED_LISTS = [
-  ...fullLists,
-  // Fanboy's Annoyance (social, cookie notices, newsletter popups)
-  "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
-  // AdGuard Base — broader cosmetic coverage than EasyList alone
-  "https://filters.adtidy.org/extension/ublock/filters/2.txt",
-  // AdGuard Tracking Protection
-  "https://filters.adtidy.org/extension/ublock/filters/3.txt",
-  // AdGuard Social Media
-  "https://filters.adtidy.org/extension/ublock/filters/4.txt",
-  // uBlock Origin Annoyances (live from uAssets)
-  "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/annoyances.txt",
-];
+// Filter lists: fullLists from Ghostery CDN
+const EXTENDED_LISTS = fullLists;
 
 function patchScriptletsForYouTube(b: ElectronBlocker) {
   const origInject = b.onInjectCosmeticFilters.bind(b);
@@ -66,7 +55,6 @@ function patchScriptletsForYouTube(b: ElectronBlocker) {
         return;
       }
     } catch {}
-    console.log("[adblocker] cosmetic filter for", url);
     return origInject(event, url, msg);
   };
 }
@@ -79,13 +67,16 @@ export function registerAdblockerIpcHandlers() {
   // Listen for new WebContents creation to reset adblocker count when navigating
   app.on("web-contents-created", (_, wc) => {
     if (wc.getType() === "webview") {
+      ensureAdblocker();
+      const wcId = String(wc.id);
       wc.on("did-start-navigation", (details) => {
         if (details.isMainFrame) {
-          const wcId = String(wc.id);
           let newHost = "";
           try {
             newHost = new URL(details.url).hostname;
-          } catch {}
+          } catch {
+            // URL parsing or hostname extraction failed — fall through to default injection
+          }
           const oldHost = lastHostname.get(wcId) || "";
           if (newHost && newHost !== oldHost) {
             lastHostname.set(wcId, newHost);
@@ -104,13 +95,17 @@ export function registerAdblockerIpcHandlers() {
           }
         }
       });
+      wc.on("destroyed", () => {
+        blockedCounts.delete(wcId);
+        lastHostname.delete(wcId);
+      });
     }
   });
 
-  ipcMain.handle("adblocker:toggle", (_, enabled: boolean) => {
+  ipcMain.handle("adblocker:toggle", async (_, enabled: boolean) => {
     isAdblockEnabled = enabled;
     if (enabled) {
-      enableAdblocker();
+      await enableAdblocker();
     } else {
       disableAdblocker();
     }
@@ -130,7 +125,8 @@ export function registerAdblockerIpcHandlers() {
     return `file://${join(__dirname, "../preload/index.js")}`;
   });
 
-  ipcMain.handle("adblocker:get-html-replace-rules", (_, url: string) => {
+  ipcMain.handle("adblocker:get-html-replace-rules", async (_, url: string) => {
+    await ensureAdblocker();
     if (!blocker) return [];
     try {
       const request = fromElectronDetails({
@@ -179,6 +175,17 @@ export function registerAdblockerIpcHandlers() {
       return { pruneKeys: [], replaceRules: [] };
     }
   });
+}
+
+/**
+ * Lazy-loads the adblocker engine on first use. Safe to call multiple times;
+ * subsequent calls return the same promise or resolve immediately.
+ */
+export async function ensureAdblocker() {
+  if (blocker) return;
+  if (adblockerPromise) return adblockerPromise;
+  adblockerPromise = initAdblocker(app.getPath("userData"));
+  return adblockerPromise;
 }
 
 /**
@@ -238,6 +245,7 @@ export async function initAdblocker(userDataPath: string) {
 }
 
 async function enableAdblocker() {
+  await ensureAdblocker();
   if (!blocker) return;
 
   try {

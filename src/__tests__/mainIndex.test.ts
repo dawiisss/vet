@@ -46,8 +46,19 @@ jest.mock("electron", () => {
         },
       },
     },
+    shell: { openExternal: jest.fn() },
   };
 });
+
+jest.mock("fs", () => ({
+  existsSync: jest.fn(() => false),
+  readFileSync: jest.fn(),
+}));
+
+jest.mock("json5", () => ({
+  default: { parse: jest.fn() },
+  parse: jest.fn(),
+}));
 
 jest.mock("electron-updater", () => ({
   autoUpdater: {
@@ -187,12 +198,15 @@ describe("main process index", () => {
     const { initAdblocker } = require("../main/adblocker");
 
     expect(initConfigManager).toHaveBeenCalled();
-    expect(initAdblocker).toHaveBeenCalled();
+    expect(initAdblocker).not.toHaveBeenCalled();
     expect(initSessionManager).toHaveBeenCalled();
     expect(initSysInfoManager).toHaveBeenCalled();
     expect(initPortsManager).toHaveBeenCalled();
     expect(initWorkspaceManager).toHaveBeenCalled();
     expect(initConnectionsManager).toHaveBeenCalled();
+
+    // initHistoryDb is deferred via setTimeout, advance timers to trigger it
+    jest.advanceTimersByTime(200);
     expect(initHistoryDb).toHaveBeenCalled();
   });
 });

@@ -1,3 +1,55 @@
+jest.mock("better-sqlite3", () => {
+  const { DatabaseSync } = require("node:sqlite");
+
+  class MockDatabase {
+    private _db: InstanceType<typeof DatabaseSync>;
+    private _closed = false;
+
+    constructor(filename: string) {
+      this._db = new DatabaseSync(filename);
+    }
+
+    pragma(input: string, options?: { simple?: boolean }) {
+      if (options?.simple) {
+        const result = this._db.prepare(`PRAGMA ${input}`).all();
+        const val = result.length > 0 ? Object.values(result[0] as Record<string, unknown>)[0] : undefined;
+        return Number(val);
+      }
+      this._db.exec(`PRAGMA ${input}`);
+    }
+
+    exec(sql: string) {
+      this._db.exec(sql);
+    }
+
+    prepare(sql: string) {
+      return this._db.prepare(sql);
+    }
+
+    transaction(fn: (...args: any[]) => void) {
+      return (...args: any[]) => {
+        this._db.exec("BEGIN TRANSACTION");
+        try {
+          fn(...args);
+          this._db.exec("COMMIT");
+        } catch (err) {
+          try { this._db.exec("ROLLBACK"); } catch {}
+          throw err;
+        }
+      };
+    }
+
+    close() {
+      if (!this._closed) {
+        this._db.close();
+        this._closed = true;
+      }
+    }
+  }
+
+  return MockDatabase;
+});
+
 jest.mock("electron", () => ({
   app: {
     getPath: jest.fn(() => "/tmp/test-vet-history"),
