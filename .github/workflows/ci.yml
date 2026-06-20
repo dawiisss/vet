@@ -7,8 +7,11 @@ on:
     branches: [main, dev]
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +20,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install system dependencies (for node-pty native build)
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y python3 make gcc g++
 
       - name: Install dependencies

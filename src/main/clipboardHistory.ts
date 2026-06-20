@@ -17,7 +17,9 @@ export function initClipboardHistoryManager() {
   if (!existsSync(CONFIG_DIR)) {
     try {
       mkdirSync(CONFIG_DIR, { recursive: true });
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to create clipboard config directory:", err);
+    }
   }
 
   ipcMain.handle("clipboard:get-history", async () => {

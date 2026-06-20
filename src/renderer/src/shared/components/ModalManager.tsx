@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import { useUIStore } from "@/shared/stores/useUIStore";
 import { useTabStore } from "@/features/terminal/useTabStore";
 import { useConfig } from "@/features/settings/useConfigStore";
@@ -60,149 +60,169 @@ export default function ModalManager() {
     : null;
   const isBrowserFocused = activeNode ? !!activeNode.browserId : false;
 
-  const paletteActions = [
-    {
-      id: "settings",
-      label: "Settings: Open",
-      onExecute: () => setIsSettingsOpen(true),
-    },
-    {
-      id: "welcome-guide",
-      label: "Help: Show Welcome Guide",
-      onExecute: () => setIsIntroOpen(true),
-    },
-    {
-      id: "about",
-      label: "App: About Vet",
-      onExecute: () => setIsAboutOpen(true),
-    },
-    {
-      id: "config-file",
-      label: "Settings: Open config.json5 in Editor",
-      onExecute: openConfig,
-    },
-    {
-      id: "toggle-sidebar",
-      label: "View: Toggle Sidebar",
-      onExecute: () =>
-        updateConfig({ sidebarOpen: !config.sidebarOpen }),
-    },
-    { id: "new-tab", label: "View: New Tab", onExecute: newTab },
-    {
-      id: "new-browser-tab",
-      label: "View: Open Web Browser Tab",
-      onExecute: newBrowserTab,
-    },
-    {
-      id: "split-h",
-      label: "View: Split Horizontal",
-      onExecute: () => splitTab("horizontal"),
-    },
-    {
-      id: "split-v",
-      label: "View: Split Vertical",
-      onExecute: () => splitTab("vertical"),
-    },
-    {
-      id: "split-unsplit",
-      label: "View: Unsplit Tabs",
-      onExecute: () => unsplitTab(),
-    },
-    {
-      id: "toggle-fullscreen",
-      label: "View: Toggle Fullscreen",
-      onExecute: () => window.windowApi?.toggleFullscreen(),
-    },
-    {
-      id: "maximize",
-      label: "View: Maximize Window",
-      onExecute: () => window.windowApi?.maximize(),
-    },
-    {
-      id: "app-exit",
-      label: "App: Exit",
-      onExecute: () => window.windowApi?.quit(),
-    },
-    {
-      id: "extract",
-      label: "View: Extract Pane to New Tab",
-      onExecute: () => {
-        if (activeTabId && activeTab)
-          extractToTab(activeTabId, activeTab.focusedPath);
+  const paletteActions = useMemo(() => {
+    const actions = [
+      {
+        id: "settings",
+        label: "Settings: Open",
+        onExecute: () => setIsSettingsOpen(true),
       },
-    },
-    {
-      id: "detach-window",
-      label: "View: Detach Tab to Window",
-      onExecute: () => {
-        if (activeTabId) detachTab(activeTabId);
+      {
+        id: "welcome-guide",
+        label: "Help: Show Welcome Guide",
+        onExecute: () => setIsIntroOpen(true),
       },
-    },
-    {
-      id: "tabbar-pos-top",
-      label: "View: Position Tab Bar at Top",
-      onExecute: () => updateConfig({ tabBarPosition: "top" }),
-    },
-    {
-      id: "tabbar-pos-left",
-      label: "View: Position Tab Bar on Left",
-      onExecute: () => updateConfig({ tabBarPosition: "left" }),
-    },
-    {
-      id: "tabbar-pos-right",
-      label: "View: Position Tab Bar on Right",
-      onExecute: () => updateConfig({ tabBarPosition: "right" }),
-    },
-    ...Object.keys(builtinThemes).map((themeName) => ({
-      id: `theme-${themeName}`,
-      label: `Theme: Set to ${themeName.replace("-", " ")}`,
-      onExecute: () => updateConfig({ theme: themeName }),
-    })),
-    ...Object.keys(config.customThemes || {}).map((themeName) => ({
-      id: `theme-custom-${themeName}`,
-      label: `Theme: Set to ${themeName.replace("-", " ")} (custom)`,
-      onExecute: () => updateConfig({ theme: themeName }),
-    })),
-    ...(config.profiles || []).map((profile) => ({
-      id: `launch-profile-${profile.id}`,
-      label: `Profiles: Launch ${profile.name}`,
-      onExecute: () => newTab(profile.id),
-    })),
-    ...(config.sshHosts || [])
-      .filter((h): h is SshHost => "host" in h)
-      .map((host) => ({
-        id: `launch-ssh-${host.id}`,
-        label: `SSH: Connect to ${host.name} (${host.host})`,
-        onExecute: () => newTab(undefined, host.id),
+      {
+        id: "about",
+        label: "App: About Vet",
+        onExecute: () => setIsAboutOpen(true),
+      },
+      {
+        id: "config-file",
+        label: "Settings: Open config.json5 in Editor",
+        onExecute: openConfig,
+      },
+      {
+        id: "toggle-sidebar",
+        label: "View: Toggle Sidebar",
+        onExecute: () =>
+          updateConfig({ sidebarOpen: !config.sidebarOpen }),
+      },
+      { id: "new-tab", label: "View: New Tab", onExecute: newTab },
+      {
+        id: "new-browser-tab",
+        label: "View: Open Web Browser Tab",
+        onExecute: newBrowserTab,
+      },
+      {
+        id: "split-h",
+        label: "View: Split Horizontal",
+        onExecute: () => splitTab("horizontal"),
+      },
+      {
+        id: "split-v",
+        label: "View: Split Vertical",
+        onExecute: () => splitTab("vertical"),
+      },
+      {
+        id: "split-unsplit",
+        label: "View: Unsplit Tabs",
+        onExecute: () => unsplitTab(),
+      },
+      {
+        id: "toggle-fullscreen",
+        label: "View: Toggle Fullscreen",
+        onExecute: () => window.windowApi?.toggleFullscreen(),
+      },
+      {
+        id: "maximize",
+        label: "View: Maximize Window",
+        onExecute: () => window.windowApi?.maximize(),
+      },
+      {
+        id: "app-exit",
+        label: "App: Exit",
+        onExecute: () => window.windowApi?.quit(),
+      },
+      {
+        id: "extract",
+        label: "View: Extract Pane to New Tab",
+        onExecute: () => {
+          if (activeTabId && activeTab)
+            extractToTab(activeTabId, activeTab.focusedPath);
+        },
+      },
+      {
+        id: "detach-window",
+        label: "View: Detach Tab to Window",
+        onExecute: () => {
+          if (activeTabId) detachTab(activeTabId);
+        },
+      },
+      {
+        id: "tabbar-pos-top",
+        label: "View: Position Tab Bar at Top",
+        onExecute: () => updateConfig({ tabBarPosition: "top" }),
+      },
+      {
+        id: "tabbar-pos-left",
+        label: "View: Position Tab Bar on Left",
+        onExecute: () => updateConfig({ tabBarPosition: "left" }),
+      },
+      {
+        id: "tabbar-pos-right",
+        label: "View: Position Tab Bar on Right",
+        onExecute: () => updateConfig({ tabBarPosition: "right" }),
+      },
+      ...Object.keys(builtinThemes).map((themeName) => ({
+        id: `theme-${themeName}`,
+        label: `Theme: Set to ${themeName.replace("-", " ")}`,
+        onExecute: () => updateConfig({ theme: themeName }),
       })),
-  ];
+      ...Object.keys(config.customThemes || {}).map((themeName) => ({
+        id: `theme-custom-${themeName}`,
+        label: `Theme: Set to ${themeName.replace("-", " ")} (custom)`,
+        onExecute: () => updateConfig({ theme: themeName }),
+      })),
+      ...(config.profiles || []).map((profile) => ({
+        id: `launch-profile-${profile.id}`,
+        label: `Profiles: Launch ${profile.name}`,
+        onExecute: () => newTab(profile.id),
+      })),
+      ...(config.sshHosts || [])
+        .filter((h): h is SshHost => "host" in h)
+        .map((host) => ({
+          id: `launch-ssh-${host.id}`,
+          label: `SSH: Connect to ${host.name} (${host.host})`,
+          onExecute: () => newTab(undefined, host.id),
+        })),
+    ];
 
-  if (isBrowserFocused) {
-    paletteActions.push(
-      {
-        id: "browser-devtools",
-        label: "Browser: Open Developer Tools",
-        onExecute: () => {
-          window.dispatchEvent(
-            new CustomEvent("browser:action", {
-              detail: { action: "browser:devtools" },
-            }),
-          );
+    if (isBrowserFocused) {
+      actions.push(
+        {
+          id: "browser-devtools",
+          label: "Browser: Open Developer Tools",
+          onExecute: () => {
+            window.dispatchEvent(
+              new CustomEvent("browser:action", {
+                detail: { action: "browser:devtools" },
+              }),
+            );
+          },
         },
-      },
-      {
-        id: "browser-search",
-        label: "Browser: Find in Page",
-        onExecute: () => {
-          window.dispatchEvent(
-            new CustomEvent("browser:action", {
-              detail: { action: "browser:search" },
-            }),
-          );
+        {
+          id: "browser-search",
+          label: "Browser: Find in Page",
+          onExecute: () => {
+            window.dispatchEvent(
+              new CustomEvent("browser:action", {
+                detail: { action: "browser:search" },
+              }),
+            );
+          },
         },
-      },
-    );
-  }
+      );
+    }
+
+    return actions;
+  }, [
+    config.sidebarOpen,
+    config.customThemes,
+    config.profiles,
+    config.sshHosts,
+    isBrowserFocused,
+    activeTabId,
+    activeTab,
+    newTab,
+    newBrowserTab,
+    splitTab,
+    unsplitTab,
+    extractToTab,
+    detachTab,
+    updateConfig,
+    openConfig,
+  ]);
 
   return (
     <Suspense fallback={null}>

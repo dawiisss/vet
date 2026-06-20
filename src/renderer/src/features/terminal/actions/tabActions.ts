@@ -20,7 +20,9 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
     let config: any = undefined;
     try {
       config = useConfigStore.getState().config;
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to get config from useConfigStore:", e);
+    }
     const maxActive = config?.maxActiveTerminals ?? 4;
     const order = state.tabActivationOrder.filter((t: any) => t !== id);
     order.unshift(id);
@@ -60,7 +62,9 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
     try {
       const api = window.terminalApi;
       if (api) api.setForeground(termIds);
-    } catch {}
+    } catch (e) {
+      console.error("Failed to set foreground terminals:", e);
+    }
   }
 }
 
@@ -204,7 +208,9 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
           try {
             const info = await api.getTerminalInfo(id);
             if (info.title) label = info.title;
-          } catch {}
+          } catch (e) {
+            console.warn(`Failed to get terminal info for ${id}:`, e);
+          }
           set({
             tabs: [get().newTabState(tabId, id, label)],
             activeTabId: tabId,
@@ -215,7 +221,8 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
           useUIStore.getState().addToast(`Failed to create terminal: ${err.message || err}`, "error");
         });
     })
-    .catch(() => {
+    .catch((err: any) => {
+      console.warn("Failed to get session from database:", err);
       // Fallback
       api
         .create()
@@ -225,7 +232,9 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
           try {
             const info = await api.getTerminalInfo(id);
             if (info.title) label = info.title;
-          } catch {}
+          } catch (e) {
+            console.warn(`Failed to get terminal info for fallback ${id}:`, e);
+          }
           set({
             tabs: [get().newTabState(tabId, id, label)],
             activeTabId: tabId,
@@ -277,7 +286,9 @@ export function onReattachTabAction(set: any, get: any) {
           const info = await api.getTerminalInfo(firstItem.id);
           const suffix = parsed.length > 1 ? ` + ${parsed.length - 1}` : "";
           if (info.title) label = info.title + suffix;
-        } catch {}
+        } catch (e) {
+          console.warn(`Failed to get terminal info for first item ${firstItem.id}:`, e);
+        }
       }
       set((state: any) => ({
         tabs: [
@@ -337,8 +348,8 @@ export function pollTabLabelsAction(set: any, get: any) {
           updates.set(tab.id, targetLabel);
           changed = true;
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        console.warn(`Failed to poll terminal info for tab ${tab.id}:`, e);
       }
     }
 
@@ -376,7 +387,9 @@ export async function newTabAction(
     try {
       const info = await api.getTerminalInfo(id);
       if (info.title) label = info.title;
-    } catch {}
+    } catch (e) {
+      console.warn(`Failed to get terminal info for new tab ${id}:`, e);
+    }
     set((state: any) => ({
       tabs: [...state.tabs, get().newTabState(tabId, id, label)],
       activeTabId: tabId,

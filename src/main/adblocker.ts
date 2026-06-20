@@ -14,6 +14,7 @@ let blocker: ElectronBlocker | null = null;
 const blockedCounts = new Map<string, number>();
 const lastHostname = new Map<string, string>();
 let isAdblockEnabled = true;
+let blockedListener: ((request: any) => void) | null = null;
 
 const BLOCKER_CONFIG = {
   enableHtmlFiltering: true,
@@ -248,8 +249,13 @@ async function enableAdblocker() {
     console.error("[adblocker] Error enabling in persist:browser:", e);
   }
 
+  // Remove existing listener to avoid duplicates
+  if (blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+  }
+
   // Track blocked requests
-  blocker.on("request-blocked", (request: any) => {
+  blockedListener = (request: any) => {
     const wcId = request.tabId || request.webContentsId;
     if (wcId) {
       const current = blockedCounts.get(String(wcId)) || 0;
@@ -268,7 +274,9 @@ async function enableAdblocker() {
         }
       }
     }
-  });
+  };
+
+  blocker.on("request-blocked", blockedListener);
 }
 
 async function disableAdblocker() {
@@ -277,5 +285,17 @@ async function disableAdblocker() {
     blocker.disableBlockingInSession(session.fromPartition("persist:browser"));
   } catch (e) {
     console.warn("[adblocker] Error disabling in persist:browser:", e);
+  }
+
+  if (blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+    blockedListener = null;
+  }
+}
+
+export function cleanupAdblocker() {
+  if (blocker && blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+    blockedListener = null;
   }
 }

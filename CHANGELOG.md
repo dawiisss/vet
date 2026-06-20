@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2026-06-20
+
+### Added
+- **Dedicated Test Suites**: Added new test suites [adblocker.test.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/__tests__/adblocker.test.ts) and [sftp.test.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/__tests__/sftp.test.ts) to cover critical adblocking and SFTP connection logic.
+- **Cross-Platform CI**: Added Windows (matrix) testing to [ci.yml](file:///home/dawiisss/Documents/GitHub/vet2/.github/workflows/ci.yml) to detect cross-platform compile/runtime errors.
+- **Advanced System Metrics**: Expanded the System Metrics tab to monitor real-time network speeds, disk read/write throughput rates, graphics (GPU) usage and temperature, battery charging levels, and Vet's own CPU/RAM resource footprint.
+- **Visual Dashboard Cards**: Redesigned the metrics panel into beautiful, theme-aligned dashboard cards with clean progress indicators and custom scrollbars.
+
+### Fixed
+- **History Database Pruning**: Resolved the infinite loop and size-based pruning bug using logical database page metrics and replaced synchronous blocking `VACUUM` commands with incremental vacuuming.
+- **IPC Security Redaction**: Redacted plaintext SSH passwords/passphrases sent over IPC in renderer config queries, and securely merged them in the main process when setting configurations.
+- **Path Traversal Warnings**: Enforced warning telemetry on sensitive path operations (such as `.ssh` and `.gnupg` access) inside workspace directory listings.
+- **Terminal Session Ownership**: Implemented terminal write and destroy ownership checks via sender verification.
+- **Shell Validation Bypass**: Removed executable verification bypasses and implemented a user-configurable whitelist option.
+- **Lifecycle Resource Leaks**: Fixed event listener and process/interval leaks by establishing explicit cleanup handlers (`FSWatcher`, sysinfo pollers, adblocker webRequest events, updater intervals, SFTP connections) triggered on app quit.
+- **Jest Test Compilation**: Created [tsconfig.test.json](file:///home/dawiisss/Documents/GitHub/vet2/tsconfig.test.json) to resolve TS5023 `files` override issues in Jest diagnostic runs, and fixed the `fs` mock issue in `pty.test.ts`.
+- **CSS Hover Variables**: Removed `!important` flags from hover classes to restore CSS theme customizability, and scoped `.extract-btn` positioning rules to `.terminal-container`.
+- **Assertion-Less and Empty Tests**: Added valid assertions to tab-switching tests in `Sidebar.test.tsx` and rendering assertions to `SnippetLibraryPanel`.
+- **TypeScript Strict Warnings**: Resolved all remaining compiler errors and warnings in both node and web renderer processes (e.g. missing `shell` import, strict size destructuring, and undefined object properties).
+- **Disk Space Partition Deduplication**: Filtered out non-physical virtual filesystems (e.g. `efivarfs`, `tmpfs`, loop/FUSE mounts) and deduplicated multiple mounts mapping to the same physical device partition (such as Btrfs subvolumes).
+
+### Changed
+- **Shared Utilities Refactoring**: Extracted duplicated `pathsEqual`, directory sort, and default browser homepage strings into a single shared utility [pathUtils.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/shared/utils/pathUtils.ts) consumed by both main and renderer processes.
+- **Removed macOS targets**: Excluded unsupported macOS build tasks from `package.json` and workflow scripts.
+- **Top-Level Imports**: Cleaned up inline require statements in `index.ts` and `session.ts` to improve dependency loading performance.
+
 ## [1.0.5] - 2026-06-18
 
 ### Added
