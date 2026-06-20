@@ -238,6 +238,7 @@ export default function ClipboardHistoryPanel({
                 </div>
               </div>
               <div
+                className="app-scrollbar"
                 style={{
                   padding: "6px 10px",
                   fontSize: 11,

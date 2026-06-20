@@ -43,6 +43,10 @@
   outline: none;
 }
 
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border) transparent;
+}
 .app-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
