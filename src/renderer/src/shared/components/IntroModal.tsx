@@ -350,7 +350,7 @@ export const IntroModal: React.FC<IntroModalProps> = ({ onClose }) => {
               })}
             </div>
             <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "var(--app-fg-muted)" }}>
-              Current theme: <strong style={{ color: "var(--app-accent)" }}>{config.theme}</strong>
+              Current theme: <strong style={{ color: "var(--app-accent)" }}>{typeof config.theme === "string" ? config.theme : "Custom"}</strong>
             </div>
           </div>
         </div>
@@ -359,6 +359,7 @@ export const IntroModal: React.FC<IntroModalProps> = ({ onClose }) => {
   ];
 
   const slide = slides[currentSlide];
+  if (!slide) return null;
 
   return (
     <ModalOverlay

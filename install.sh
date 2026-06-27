@@ -18,7 +18,7 @@ echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 # Define repository metadata
 REPO_OWNER="dawiisss"
 REPO_NAME="vet"
-FALLBACK_VERSION="1.0.2"
+FALLBACK_VERSION="1.0.9"
 
 # 1. Fetch latest release version from GitHub API
 echo -e "Checking latest release version..."
@@ -45,12 +45,27 @@ fi
 TMP_DIR=$(mktemp -d -t vet-install-XXXXXX)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+# Detect system architecture
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+  DEB_ARCH="amd64"
+  RPM_ARCH="x86_64"
+elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+  DEB_ARCH="arm64"
+  RPM_ARCH="aarch64"
+else
+  echo -e "${YELLOW}Warning: Unknown architecture $ARCH. Defaulting to x86_64/amd64.${NC}"
+  DEB_ARCH="amd64"
+  RPM_ARCH="x86_64"
+fi
+
 # 2. Detect package manager and system capabilities
 IS_DEB=false
 IS_RPM=false
 
 if [ -f /etc/os-release ]; then
-  eval "$(grep -E '^(ID|ID_LIKE)=' /etc/os-release)"
+  ID=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+  ID_LIKE=$(grep -E '^ID_LIKE=' /etc/os-release | cut -d= -f2 | tr -d '"')
   if [[ "$ID" =~ ^(debian|ubuntu)$ ]] || [[ "$ID_LIKE" =~ (debian|ubuntu) ]]; then
     IS_DEB=true
   elif [[ "$ID" =~ ^(fedora|rhel|centos|suse|opensuse)$ ]] || [[ "$ID_LIKE" =~ (fedora|rhel|centos|suse|opensuse) ]]; then
@@ -69,8 +84,8 @@ fi
 
 # Define URLs for release assets
 BASE_DOWNLOAD_URL="https://github.com/dawiisss/vet/releases/download/${TAG_NAME}"
-DEB_URL="${BASE_DOWNLOAD_URL}/vet_${VERSION}_amd64.deb"
-RPM_URL="${BASE_DOWNLOAD_URL}/vet-${VERSION}.x86_64.rpm"
+DEB_URL="${BASE_DOWNLOAD_URL}/vet_${VERSION}_${DEB_ARCH}.deb"
+RPM_URL="${BASE_DOWNLOAD_URL}/vet-${VERSION}.${RPM_ARCH}.rpm"
 APPIMAGE_URL="${BASE_DOWNLOAD_URL}/Vet-${VERSION}.AppImage"
 
 # Download helper
@@ -92,7 +107,7 @@ installed=false
 
 # Try Debian installation
 if [ "$IS_DEB" = true ]; then
-  DEB_FILE="${TMP_DIR}/vet_${VERSION}_amd64.deb"
+  DEB_FILE="${TMP_DIR}/vet_${VERSION}_${DEB_ARCH}.deb"
   if download_file "$DEB_URL" "$DEB_FILE"; then
     echo -e "${BLUE}Installing Debian package...${NC}"
     if command -v apt &> /dev/null; then
@@ -109,7 +124,7 @@ fi
 
 # Try RPM installation if not installed yet
 if [ "$installed" = false ] && [ "$IS_RPM" = true ]; then
-  RPM_FILE="${TMP_DIR}/vet-${VERSION}.x86_64.rpm"
+  RPM_FILE="${TMP_DIR}/vet-${VERSION}.${RPM_ARCH}.rpm"
   if download_file "$RPM_URL" "$RPM_FILE"; then
     echo -e "${BLUE}Installing RPM package...${NC}"
     if command -v dnf &> /dev/null; then
@@ -140,9 +155,9 @@ if [ "$installed" = false ]; then
     chmod +x "$DEST_APPIMAGE"
 
     # Set up desktop entry
-    # Download icon from main repo branch
+    # Download icon from release tag branch/tag
     echo -e "Setting up application shortcut..."
-    ICON_URL="https://raw.githubusercontent.com/dawiisss/vet/dev/resources/icon.png"
+    ICON_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${TAG_NAME}/resources/icon.png"
     if ! curl -L -o "$HOME/.local/share/icons/vet.png" "$ICON_URL" 2>/dev/null; then
       wget -O "$HOME/.local/share/icons/vet.png" "$ICON_URL" &>/dev/null || true
     fi

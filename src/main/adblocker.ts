@@ -11,29 +11,28 @@ import { parse } from "tldts-experimental";
 import { getConfig } from "./config";
 
 let blocker: ElectronBlocker | null = null;
+let adblockerPromise: Promise<void> | null = null;
 const blockedCounts = new Map<string, number>();
 const lastHostname = new Map<string, string>();
 let isAdblockEnabled = true;
+let blockedListener: ((request: any) => void) | null = null;
+let getMainWindow: () => BrowserWindow | null = () => null;
+
+/** Send an IPC event to the main window without iterating all windows. */
+function sendToMainWindow(channel: string, ...args: unknown[]) {
+  const win = getMainWindow();
+  if (win && !win.isDestroyed()) {
+    win.webContents.send(channel, ...args);
+  }
+}
 
 const BLOCKER_CONFIG = {
   enableHtmlFiltering: true,
   guessRequestTypeFromUrl: true,
 };
 
-// Extended filter lists: fullLists from Ghostery CDN + official sources
-const EXTENDED_LISTS = [
-  ...fullLists,
-  // Fanboy's Annoyance (social, cookie notices, newsletter popups)
-  "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
-  // AdGuard Base — broader cosmetic coverage than EasyList alone
-  "https://filters.adtidy.org/extension/ublock/filters/2.txt",
-  // AdGuard Tracking Protection
-  "https://filters.adtidy.org/extension/ublock/filters/3.txt",
-  // AdGuard Social Media
-  "https://filters.adtidy.org/extension/ublock/filters/4.txt",
-  // uBlock Origin Annoyances (live from uAssets)
-  "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/annoyances.txt",
-];
+// Filter lists: fullLists from Ghostery CDN
+const EXTENDED_LISTS = fullLists;
 
 function patchScriptletsForYouTube(b: ElectronBlocker) {
   const origInject = b.onInjectCosmeticFilters.bind(b);
@@ -65,7 +64,6 @@ function patchScriptletsForYouTube(b: ElectronBlocker) {
         return;
       }
     } catch {}
-    console.log("[adblocker] cosmetic filter for", url);
     return origInject(event, url, msg);
   };
 }
@@ -74,42 +72,47 @@ function patchScriptletsForYouTube(b: ElectronBlocker) {
  * Register IPC handlers and event listeners that don't depend on the engine.
  * Call this early so BrowserView can get the preload path before the engine loads.
  */
-export function registerAdblockerIpcHandlers() {
+export function registerAdblockerIpcHandlers(
+  mainWindowGetter: () => BrowserWindow | null,
+) {
+  getMainWindow = mainWindowGetter;
   // Listen for new WebContents creation to reset adblocker count when navigating
   app.on("web-contents-created", (_, wc) => {
     if (wc.getType() === "webview") {
+      ensureAdblocker();
+      const wcId = String(wc.id);
       wc.on("did-start-navigation", (details) => {
         if (details.isMainFrame) {
-          const wcId = String(wc.id);
           let newHost = "";
           try {
             newHost = new URL(details.url).hostname;
-          } catch {}
+          } catch {
+            // URL parsing or hostname extraction failed — fall through to default injection
+          }
           const oldHost = lastHostname.get(wcId) || "";
           if (newHost && newHost !== oldHost) {
             lastHostname.set(wcId, newHost);
             blockedCounts.set(wcId, 0);
 
-            const windows = BrowserWindow.getAllWindows();
-            for (const win of windows) {
-              if (!win.isDestroyed()) {
-                win.webContents.send("adblocker:blocked-event", {
-                  webContentsId: wc.id,
-                  url: details.url,
-                  count: 0,
-                });
-              }
-            }
+            sendToMainWindow("adblocker:blocked-event", {
+              webContentsId: wc.id,
+              url: details.url,
+              count: 0,
+            });
           }
         }
+      });
+      wc.on("destroyed", () => {
+        blockedCounts.delete(wcId);
+        lastHostname.delete(wcId);
       });
     }
   });
 
-  ipcMain.handle("adblocker:toggle", (_, enabled: boolean) => {
+  ipcMain.handle("adblocker:toggle", async (_, enabled: boolean) => {
     isAdblockEnabled = enabled;
     if (enabled) {
-      enableAdblocker();
+      await enableAdblocker();
     } else {
       disableAdblocker();
     }
@@ -129,7 +132,8 @@ export function registerAdblockerIpcHandlers() {
     return `file://${join(__dirname, "../preload/index.js")}`;
   });
 
-  ipcMain.handle("adblocker:get-html-replace-rules", (_, url: string) => {
+  ipcMain.handle("adblocker:get-html-replace-rules", async (_, url: string) => {
+    await ensureAdblocker();
     if (!blocker) return [];
     try {
       const request = fromElectronDetails({
@@ -178,6 +182,17 @@ export function registerAdblockerIpcHandlers() {
       return { pruneKeys: [], replaceRules: [] };
     }
   });
+}
+
+/**
+ * Lazy-loads the adblocker engine on first use. Safe to call multiple times;
+ * subsequent calls return the same promise or resolve immediately.
+ */
+export async function ensureAdblocker() {
+  if (blocker) return;
+  if (adblockerPromise) return adblockerPromise;
+  adblockerPromise = initAdblocker(app.getPath("userData"));
+  return adblockerPromise;
 }
 
 /**
@@ -237,6 +252,7 @@ export async function initAdblocker(userDataPath: string) {
 }
 
 async function enableAdblocker() {
+  await ensureAdblocker();
   if (!blocker) return;
 
   try {
@@ -248,8 +264,13 @@ async function enableAdblocker() {
     console.error("[adblocker] Error enabling in persist:browser:", e);
   }
 
+  // Remove existing listener to avoid duplicates
+  if (blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+  }
+
   // Track blocked requests
-  blocker.on("request-blocked", (request: any) => {
+  blockedListener = (request: any) => {
     const wcId = request.tabId || request.webContentsId;
     if (wcId) {
       const current = blockedCounts.get(String(wcId)) || 0;
@@ -257,18 +278,15 @@ async function enableAdblocker() {
       blockedCounts.set(String(wcId), nextCount);
 
       // Notify the active window of the blocked request
-      const windows = BrowserWindow.getAllWindows();
-      for (const win of windows) {
-        if (!win.isDestroyed()) {
-          win.webContents.send("adblocker:blocked-event", {
-            webContentsId: wcId,
-            url: request.url,
-            count: nextCount,
-          });
-        }
-      }
+      sendToMainWindow("adblocker:blocked-event", {
+        webContentsId: wcId,
+        url: request.url,
+        count: nextCount,
+      });
     }
-  });
+  };
+
+  blocker.on("request-blocked", blockedListener);
 }
 
 async function disableAdblocker() {
@@ -277,5 +295,17 @@ async function disableAdblocker() {
     blocker.disableBlockingInSession(session.fromPartition("persist:browser"));
   } catch (e) {
     console.warn("[adblocker] Error disabling in persist:browser:", e);
+  }
+
+  if (blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+    blockedListener = null;
+  }
+}
+
+export function cleanupAdblocker() {
+  if (blocker && blockedListener) {
+    blocker.unsubscribe("request-blocked", blockedListener);
+    blockedListener = null;
   }
 }

@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain, webContents } from "electron";
+import { app, BrowserWindow, ipcMain, webContents, shell } from "electron";
 import { join } from "path";
+import { readFileSync, existsSync } from "fs";
+import JSON5 from "json5";
 import { electronApp, is } from "@electron-toolkit/utils";
 import { autoUpdater } from "electron-updater";
 import { setForwardTarget, destroyTerminal } from "./pty";
@@ -7,7 +9,7 @@ import { registerWindowHandlers } from "./ipc/windowHandlers";
 import { registerHistoryHandlers } from "./ipc/historyHandlers";
 import { registerTerminalHandlers } from "./ipc/terminalHandlers";
 import { registerUpdaterHandlers } from "./ipc/updaterHandlers";
-import { initAdblocker, registerAdblockerIpcHandlers } from "./adblocker";
+import { registerAdblockerIpcHandlers } from "./adblocker";
 
 import icon from "../../resources/icon.png?asset";
 
@@ -25,7 +27,7 @@ function registerForwardTarget(
   });
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(isTransparent = false): BrowserWindow {
   const win = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -34,8 +36,8 @@ function createWindow(): BrowserWindow {
     title: "Vet",
     ...(process.platform === "linux" ? { icon } : { icon }),
     frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
+    transparent: isTransparent,
+    backgroundColor: isTransparent ? "#00000000" : "#1e1e2e",
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
@@ -86,7 +88,6 @@ function createWindow(): BrowserWindow {
   // Security: Block unauthorized new window creation
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
-      const { shell } = require("electron");
       const parsedUrl = new URL(url);
       const safeProtocols = ["http:", "https:", "mailto:"];
       if (safeProtocols.includes(parsedUrl.protocol)) {
@@ -193,19 +194,21 @@ function registerIpcHandlers(): void {
     loadWindow,
     registerForwardTarget,
   });
-  registerAdblockerIpcHandlers();
+  registerAdblockerIpcHandlers(() => mainWindow);
   registerUpdaterHandlers(() => mainWindow);
 }
 
-import { initConfigManager, getConfig } from "./config";
+import { initConfigManager, getConfig, cleanupConfigManager } from "./config";
 import { initSessionManager, getSessionData } from "./session";
-import { initSysInfoManager } from "./sysinfo";
+import { initSysInfoManager, cleanupSysInfo } from "./sysinfo";
 import { initPortsManager } from "./ports";
 import { initWorkspaceManager } from "./workspace";
 import { initConnectionsManager } from "./connections";
-import { initSftpManager } from "./sftp";
+import { initSftpManager, cleanupSftpSessions } from "./sftp";
 import { initClipboardHistoryManager } from "./clipboardHistory";
 import * as historyDb from "./historyDb";
+import { cleanupAdblocker } from "./adblocker";
+import { cleanupUpdaterSimulation } from "./ipc/updaterHandlers";
 
 if (process.platform === "linux" && app.commandLine) {
   app.commandLine.appendSwitch("disable-accelerated-video-decode");
@@ -223,12 +226,29 @@ process.on("unhandledRejection", (reason) => {
 
 import { EventEmitter } from "events";
 EventEmitter.defaultMaxListeners = 50;
+// Note: Prefer setting .setMaxListeners() on specific emitters that need it,
+// rather than raising the global default. This global override is kept as a
+// safety net since Electron's webContents/ipcMain can accumulate many listeners
+// when multiple BrowserViews are created.
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId("com.vet");
 
   registerIpcHandlers();
-  mainWindow = createWindow();
+
+  let isTransparent = false;
+  const configPath = join(app.getPath("home"), ".config", "vet", "config.json5");
+  try {
+    if (existsSync(configPath)) {
+      const parsed = JSON5.parse(readFileSync(configPath, "utf-8"));
+      const opacity = typeof parsed.opacity === "number" ? parsed.opacity : 1.0;
+      isTransparent = opacity < 1.0;
+    }
+  } catch {
+    // Config file may not exist yet on first launch
+  }
+
+  mainWindow = createWindow(isTransparent);
 
   await initConfigManager(mainWindow);
 
@@ -244,12 +264,15 @@ app.whenReady().then(async () => {
   initWorkspaceManager();
   initConnectionsManager();
   initSftpManager();
-  historyDb.initHistoryDb();
 
   loadWindow(mainWindow);
 
-  // Load adblocker engine in background — IPC handlers are already registered
-  initAdblocker(app.getPath("userData"));
+  // Defer heavy init to after the window is visible
+  setTimeout(() => {
+    historyDb.initHistoryDb();
+  }, 100);
+
+  // Adblocker engine loads lazily on first browser tab — IPC handlers registered above
 
   // Start update check in background after 5s
   setTimeout(() => {
@@ -258,8 +281,9 @@ app.whenReady().then(async () => {
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow();
       const conf = getConfig();
+      const activateTransparent = conf.opacity < 1.0;
+      mainWindow = createWindow(activateTransparent);
       if (conf.vibrancy && conf.vibrancy !== "none") {
         mainWindow.setVibrancy(conf.vibrancy);
       }
@@ -270,5 +294,38 @@ app.whenReady().then(async () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  try {
+    historyDb.cleanupHistoryDb();
+  } catch (err) {
+    console.error("Error during history DB cleanup:", err);
+  }
+  try {
+    cleanupConfigManager();
+  } catch (err) {
+    console.error("Error during config manager cleanup:", err);
+  }
+  try {
+    cleanupSysInfo();
+  } catch (err) {
+    console.error("Error during sysinfo cleanup:", err);
+  }
+  try {
+    cleanupAdblocker();
+  } catch (err) {
+    console.error("Error during adblocker cleanup:", err);
+  }
+  try {
+    cleanupUpdaterSimulation();
+  } catch (err) {
+    console.error("Error during updater simulation cleanup:", err);
+  }
+  try {
+    cleanupSftpSessions();
+  } catch (err) {
+    console.error("Error during SFTP sessions cleanup:", err);
   }
 });

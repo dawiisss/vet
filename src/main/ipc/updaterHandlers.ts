@@ -1,6 +1,10 @@
 import { BrowserWindow, app } from "electron";
 import { autoUpdater } from "electron-updater";
+import * as fs from "fs/promises";
+import * as path from "path";
 import { registerHandlers } from "./ipcUtils";
+
+let simulationInterval: NodeJS.Timeout | null = null;
 
 export function registerUpdaterHandlers(
   getMainWindow: () => BrowserWindow | null,
@@ -13,19 +17,18 @@ export function registerUpdaterHandlers(
     autoUpdater.forceDevUpdateConfig = true;
     autoUpdater.logger = console;
 
-    const fs = require("fs");
-    const path = require("path");
     const devConfigPath = path.join(process.cwd(), "dev-app-update.yml");
-    if (!fs.existsSync(devConfigPath)) {
-      try {
-        fs.writeFileSync(
-          devConfigPath,
-          "provider: github\nowner: dawiisss\nrepo: vet\n",
-        );
-      } catch (err) {
-        console.error("Failed to create dev-app-update.yml:", err);
-      }
-    }
+    fs.access(devConfigPath)
+      .catch(() =>
+        fs
+          .writeFile(
+            devConfigPath,
+            "provider: github\nowner: dawiisss\nrepo: vet\n",
+          )
+          .catch((err) =>
+            console.error("Failed to create dev-app-update.yml:", err),
+          ),
+      );
   }
 
   // Helper to safely send IPC messages to the main window
@@ -108,13 +111,21 @@ export function registerUpdaterHandlers(
     },
     "updater:download": async () => {
       if (isSimulationActive) {
+        if (simulationInterval) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+        }
+
         let percent = 0;
         const totalBytes = 1024 * 1024 * 18.5; // 18.5 MB
-        const interval = setInterval(() => {
+        simulationInterval = setInterval(() => {
           percent += 4;
           if (percent >= 100) {
             percent = 100;
-            clearInterval(interval);
+            if (simulationInterval) {
+              clearInterval(simulationInterval);
+              simulationInterval = null;
+            }
             sendStatus("downloaded", {
               version: "1.2.5-simulated",
               releaseDate: new Date().toISOString(),
@@ -142,6 +153,10 @@ export function registerUpdaterHandlers(
           "Simulated install called! Restarting app in simulation mode.",
         );
         isSimulationActive = false;
+        if (simulationInterval) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+        }
         sendStatus("idle");
         app.relaunch();
         app.exit(0);
@@ -152,4 +167,11 @@ export function registerUpdaterHandlers(
       return { success: true };
     },
   });
+}
+
+export function cleanupUpdaterSimulation() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
 }

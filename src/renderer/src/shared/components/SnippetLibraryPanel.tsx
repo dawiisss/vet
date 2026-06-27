@@ -153,7 +153,7 @@ export default function SnippetLibraryPanel({
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="app-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         {snippets.length === 0 && !isAdding && (
           <div
             style={{
@@ -257,6 +257,7 @@ export default function SnippetLibraryPanel({
               </div>
             </div>
             <div
+              className="app-scrollbar"
               style={{
                 padding: "6px 10px",
                 fontSize: 11,

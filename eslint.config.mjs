@@ -28,6 +28,18 @@ export default tseslint.config(
         ...globals.jest,
       },
     },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-empty": "warn",
+    },
+  },
+  {
+    files: ["src/renderer/**/*.{js,jsx,ts,tsx}"],
     settings: {
       react: {
         version: "detect",
@@ -41,13 +53,6 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       ...react.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
-      "@typescript-eslint/no-require-imports": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" },
-      ],
-      "@typescript-eslint/no-explicit-any": "warn",
-      "no-empty": "warn",
     },
   },
   {

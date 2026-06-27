@@ -14,15 +14,20 @@ jest.mock("node-pty", () => ({
   })),
 }));
 
-jest.mock("uuid", () => ({
-  v4: jest.fn(() => "mock-uuid-1234"),
+jest.mock("node:crypto", () => ({
+  randomUUID: jest.fn(() => "mock-uuid-1234"),
 }));
 
-jest.mock("fs", () => ({
-  promises: {
-    readlink: jest.fn(),
-  },
-}));
+jest.mock("fs", () => {
+  const actual = jest.requireActual("fs");
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      readlink: jest.fn(),
+    },
+  };
+});
 
 jest.mock("child_process", () => ({
   exec: jest.fn((_cmd, cb) => {

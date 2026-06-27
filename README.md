@@ -104,16 +104,16 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.0.5_amd64.deb
+  sudo apt install ./dist/vet_1.0.9_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.0.5.x86_64.rpm
+  sudo dnf install ./dist/vet-1.0.9.x86_64.rpm
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.0.5.AppImage
-  ./dist/Vet-1.0.5.AppImage
+  chmod +x dist/Vet-1.0.9.AppImage
+  ./dist/Vet-1.0.9.AppImage
   ```
 
 ---

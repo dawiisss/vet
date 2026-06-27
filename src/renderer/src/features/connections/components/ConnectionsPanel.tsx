@@ -113,7 +113,7 @@ export default function ConnectionsPanel({
       hasScrollableBody={false}
     >
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="app-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ marginBottom: 16 }}>
           <div
             style={{

@@ -43,6 +43,10 @@
   outline: none;
 }
 
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border) transparent;
+}
 .app-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -73,27 +77,37 @@ body,
   background: transparent;
 }
 
+.titlebar-btn {
+  background: transparent;
+  color: var(--app-fg);
+}
+
 .titlebar-btn:hover {
-  background: var(--app-border) !important;
+  background: var(--app-border);
+}
+
+.titlebar-close-btn {
+  background: transparent;
+  color: var(--app-fg);
 }
 
 .titlebar-close-btn:hover {
-  background: #e64553 !important;
-  color: #fff !important;
+  background: #e64553;
+  color: #fff;
 }
 
 .tab-close-btn:hover {
-  background: var(--app-border) !important;
-  color: var(--app-fg) !important;
+  background: var(--app-border);
+  color: var(--app-fg);
 }
 
 .tab-new-btn:hover {
-  background: var(--app-border) !important;
-  color: var(--app-fg) !important;
+  background: var(--app-border);
+  color: var(--app-fg);
 }
 
 .split-handle:hover {
-  background: var(--app-accent) !important;
+  background: var(--app-accent);
 }
 
 .extract-btn {
@@ -118,7 +132,7 @@ body,
   z-index: 10;
 }
 
-div:hover > .extract-btn {
+.terminal-container:hover > .extract-btn {
   opacity: 1;
 }
 

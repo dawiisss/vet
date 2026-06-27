@@ -118,7 +118,7 @@ export default function ScriptRunnerPanel({
       )}
 
       {scripts && (
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div className="app-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
           <div
             style={{
               fontSize: 11,

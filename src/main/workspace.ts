@@ -1,6 +1,46 @@
 import { ipcMain, shell } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as os from "os";
+import { sortDirectoryItems } from "../shared/utils/pathUtils";
+
+interface DirectoryItem {
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  ext: string;
+}
+
+function expandHome(inputPath: string): string {
+  if (inputPath === "~" || inputPath.startsWith("~/")) {
+    return path.join(os.homedir(), inputPath.slice(1));
+  }
+  if (inputPath.startsWith("~")) {
+    const sep = inputPath.indexOf("/");
+    if (sep === -1) {
+      return path.join(os.homedir(), inputPath.slice(1));
+    }
+    return path.join(os.homedir(), inputPath.slice(sep));
+  }
+  return inputPath;
+}
+
+function logSensitivePathAccess(resolvedPath: string): void {
+  const homeDir = os.homedir();
+  const sensitivePaths = [
+    path.join(homeDir, ".ssh"),
+    path.join(homeDir, ".gnupg"),
+    path.join(homeDir, ".aws"),
+    path.join(homeDir, ".config", "vet"),
+  ];
+
+  for (const sp of sensitivePaths) {
+    if (resolvedPath === sp || resolvedPath.startsWith(sp + path.sep)) {
+      console.warn(`[security] Accessing sensitive path: ${resolvedPath}`);
+      break;
+    }
+  }
+}
 
 class WorkspaceService {
   async getScripts(cwd?: string) {
@@ -31,13 +71,12 @@ class WorkspaceService {
 
   async listDir(dirPath: string) {
     try {
-      let targetPath = dirPath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(dirPath));
+
+      logSensitivePathAccess(targetPath);
 
       const files = await fs.readdir(targetPath);
-      const items: any[] = [];
+      const items: DirectoryItem[] = [];
 
       for (const file of files) {
         // Skip reading stats for heavy files to avoid PTY/Main blocks
@@ -65,15 +104,7 @@ class WorkspaceService {
         }
       }
 
-      // Sort: folders first, then alphabetically
-      items.sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) {
-          return a.isDirectory ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      return items;
+      return sortDirectoryItems(items);
     } catch (err) {
       console.error(`Failed to list directory: ${dirPath}`, err);
       return [];
@@ -82,10 +113,10 @@ class WorkspaceService {
 
   revealPath(itemPath: string) {
     try {
-      let targetPath = itemPath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(itemPath));
+
+      logSensitivePathAccess(targetPath);
+
       shell.showItemInFolder(targetPath);
     } catch (err) {
       console.error(`Failed to reveal path: ${itemPath}`, err);
@@ -94,12 +125,10 @@ class WorkspaceService {
 
   async readFileHead(filePath: string) {
     try {
-      let targetPath = filePath;
-      if (targetPath.startsWith("~") && process.env.HOME) {
-        targetPath = targetPath.replace(/^~/, process.env.HOME);
-      }
+      const targetPath = path.resolve(expandHome(filePath));
 
-      // Read first 50KB only to prevent main process memory bloat
+      logSensitivePathAccess(targetPath);
+
       const fileHandle = await fs.open(targetPath, "r");
       try {
         const buffer = Buffer.alloc(50 * 1024);

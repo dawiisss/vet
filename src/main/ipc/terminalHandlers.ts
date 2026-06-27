@@ -31,6 +31,16 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
     registerForwardTarget,
   } = options;
 
+  const isTerminalOwnedBySender = (
+    event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent,
+    id: string
+  ): boolean => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+    const owned = windowTerminals.get(win.id);
+    return !!(owned && owned.has(id));
+  };
+
   registerHandlers({
     "terminal:create": (event, { cwd, profileId, sshHostId }: { cwd?: string; profileId?: string; sshHostId?: string }) => {
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -40,7 +50,9 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
         try {
           const config = getConfig();
           const fontSize = config.fontSize || 13;
-          const [width, height] = win.getSize();
+          const size = win.getSize();
+          const width = size[0] ?? 1000;
+          const height = size[1] ?? 800;
 
           const charWidth = Math.max(5, fontSize * 0.6);
           const charHeight = Math.max(10, fontSize * 1.35);
@@ -51,7 +63,9 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
           cols = Math.max(40, Math.floor(usableWidth / charWidth));
           rows = Math.max(10, Math.floor(usableHeight / charHeight));
-        } catch {}
+        } catch (e) {
+          console.warn("Failed to calculate initial terminal cols/rows, using fallback:", e);
+        }
       }
 
       const id = createTerminal({
@@ -72,26 +86,51 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       return { id };
     },
     "terminal:enable-forwarding": (event, { id }: { id: string }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:enable-forwarding attempt for terminal ${id}`);
+        return;
+      }
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win) {
         registerForwardTarget(id, win);
       }
     },
-    "terminal:resize": (_event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
+    "terminal:resize": (event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:resize attempt for terminal ${id}`);
+        return;
+      }
       resizeTerminal(id, cols, rows);
     },
     "terminal:destroy": (event, { id }: { id: string }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:destroy attempt for terminal ${id}`);
+        return;
+      }
       destroyTerminal(id);
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win && windowTerminals.has(win.id)) {
         windowTerminals.get(win.id)!.delete(id);
       }
     },
-    "terminal:get-history": (_event, { id }: { id: string }) => {
+    "terminal:get-history": (event, { id }: { id: string }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:get-history attempt for terminal ${id}`);
+        return [];
+      }
       return getHistory(id);
     },
     "terminal:detach-tab": (event, { tabId, terminalIds }: { tabId: string; terminalIds: string[] }) => {
       const senderWin = BrowserWindow.fromWebContents(event.sender);
+      if (!senderWin) return { success: false };
+
+      for (const terminalId of terminalIds) {
+        if (!isTerminalOwnedBySender(event, terminalId)) {
+          console.warn(`Blocked unauthorized terminal:detach-tab attempt for terminal ${terminalId}`);
+          return { success: false };
+        }
+      }
+
       const detachedWin = createWindow();
 
       const params = new URLSearchParams();
@@ -114,6 +153,16 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       return { success: true };
     },
     "terminal:reattach-tab": (event, { terminalIds }: { terminalIds: string[] }) => {
+      const senderWin = BrowserWindow.fromWebContents(event.sender);
+      if (!senderWin) return { success: false };
+
+      for (const terminalId of terminalIds) {
+        if (!isTerminalOwnedBySender(event, terminalId)) {
+          console.warn(`Blocked unauthorized terminal:reattach-tab attempt for terminal ${terminalId}`);
+          return { success: false };
+        }
+      }
+
       const mainWindow = getMainWindow();
       if (mainWindow) {
         if (!windowTerminals.has(mainWindow.id)) {
@@ -125,7 +174,6 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
         }
       }
 
-      const senderWin = BrowserWindow.fromWebContents(event.sender);
       if (senderWin && windowTerminals.has(senderWin.id)) {
         for (const terminalId of terminalIds) {
           windowTerminals.get(senderWin.id)!.delete(terminalId);
@@ -139,17 +187,28 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
       return { success: true };
     },
-    "terminal:get-info": async (_event, { id }: { id: string }) => {
+    "terminal:get-info": async (event, { id }: { id: string }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:get-info attempt for terminal ${id}`);
+        return null;
+      }
       return await getTerminalInfo(id);
     },
     "terminal:set-foreground": (_event, { ids }: { ids: string[] }) => {
+      // Allow setting foreground without strict single ownership check as it's an array of IDs
+      // but let's filter to only verify sender owns them if we want maximum security.
+      // Since it's only used for rendering optimization, we keep it as is.
       setForegroundTerminals(ids);
     },
   });
 
   ipcMain.on(
     "terminal:write",
-    (_event, { id, data }: { id: string; data: string }) => {
+    (event, { id, data }: { id: string; data: string }) => {
+      if (!isTerminalOwnedBySender(event, id)) {
+        console.warn(`Blocked unauthorized terminal:write attempt for terminal ${id}`);
+        return;
+      }
       writeToTerminal(id, data);
     },
   );

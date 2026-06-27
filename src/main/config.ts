@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs/promises";
 import chokidar, { FSWatcher } from "chokidar";
 import JSON5 from "json5";
+import { DEFAULT_BROWSER_HOMEPAGE } from "../shared/utils/pathUtils";
 
 function encryptField(value: string): string {
   if (!value) return value;
@@ -84,7 +85,7 @@ const DEFAULT_CONFIG: any = {
     "ctrl+q": "app:quit",
     f12: "browser:devtools",
   },
-  browserHomepage: "https://duckduckgo.com",
+  browserHomepage: DEFAULT_BROWSER_HOMEPAGE,
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
   showIntroOnStartup: true,
@@ -217,7 +218,7 @@ export function sanitizeConfig(conf: any): any {
     !sanitized.browserHomepage ||
     typeof sanitized.browserHomepage !== "string"
   ) {
-    sanitized.browserHomepage = "https://duckduckgo.com";
+    sanitized.browserHomepage = DEFAULT_BROWSER_HOMEPAGE;
   }
   if (
     sanitized.browserSearchEngine !== "duckduckgo" &&
@@ -305,7 +306,7 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
       const success = await loadConfig();
       if (!mainWindow.isDestroyed()) {
         if (success) {
-          mainWindow.webContents.send("config:changed", currentConfig);
+          mainWindow.webContents.send("config:changed", sanitizeConfigForRenderer(currentConfig));
           mainWindow.webContents.send("config:error", null);
         } else {
           mainWindow.webContents.send("config:error", lastConfigError);
@@ -317,16 +318,35 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
   });
 
   // IPC Handlers
-  ipcMain.handle("config:get", () => currentConfig);
+  ipcMain.handle("config:get", () => sanitizeConfigForRenderer(currentConfig));
   ipcMain.handle("config:get-error", () => lastConfigError);
 
   ipcMain.handle("config:set", async (_event, partialConfig: any) => {
+    const mergedHosts = partialConfig.sshHosts;
+    if (mergedHosts && Array.isArray(mergedHosts)) {
+      for (const h of mergedHosts) {
+        if (h.password === "__redacted__" || h.passphrase === "__redacted__") {
+          const existing = currentConfig.sshHosts?.find((eh: any) => eh.id === h.id);
+          if (existing) {
+            if (h.password === "__redacted__") {
+              h.password = existing.password;
+            }
+            if (h.passphrase === "__redacted__") {
+              h.passphrase = existing.passphrase;
+            }
+          } else {
+            if (h.password === "__redacted__") delete h.password;
+            if (h.passphrase === "__redacted__") delete h.passphrase;
+          }
+        }
+      }
+    }
     currentConfig = sanitizeConfig({ ...currentConfig, ...partialConfig });
     await saveConfig();
     // The chokidar watcher will detect the save and emit to renderer.
     // However, to ensure immediate response, we can also return it or send it directly.
     if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("config:changed", currentConfig);
+      mainWindow.webContents.send("config:changed", sanitizeConfigForRenderer(currentConfig));
       mainWindow.webContents.send("config:error", null);
     }
   });
@@ -391,6 +411,38 @@ async function saveConfig(): Promise<void> {
   }
 }
 
+export function sanitizeConfigForRenderer(conf: any): any {
+  if (!conf) return conf;
+  try {
+    const sanitized = structuredClone(conf);
+    if (sanitized.sshHosts && Array.isArray(sanitized.sshHosts)) {
+      for (const h of sanitized.sshHosts) {
+        if (h.password) {
+          h.password = "__redacted__";
+        }
+        if (h.passphrase) {
+          h.passphrase = "__redacted__";
+        }
+      }
+    }
+    return sanitized;
+  } catch (err) {
+    console.error("Failed to sanitize config for renderer:", err);
+    return conf;
+  }
+}
+
 export function getConfig() {
   return currentConfig;
+}
+
+export function cleanupConfigManager() {
+  if (watcher) {
+    try {
+      watcher.close();
+    } catch (err) {
+      console.error("Error closing config watcher:", err);
+    }
+    watcher = null;
+  }
 }

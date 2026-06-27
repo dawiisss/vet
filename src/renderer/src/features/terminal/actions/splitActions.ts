@@ -13,10 +13,7 @@ import {
 import { destroyTerminalCache } from "../hooks/useTerminal";
 import { useConfigStore } from "@/features/settings/useConfigStore";
 import { useUIStore } from "@/shared/stores/useUIStore";
-
-function pathsEqual(a: number[], b: number[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
+import { pathsEqual, DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/utils/pathUtils";
 
 export async function splitTabAction(
   set: any,
@@ -46,14 +43,17 @@ export async function splitTabAction(
         const url = webviewEl.getURL();
         if (url && url !== "about:blank") currentUrl = url;
       }
-    } catch {}
+    } catch {
+      // webview element may not be mounted yet or getURL unavailable
+    }
 
     if (!currentUrl) {
       try {
         const cfg = useConfigStore.getState().config;
-        currentUrl = cfg?.browserHomepage || "https://duckduckgo.com";
-      } catch {
-        currentUrl = "https://duckduckgo.com";
+        currentUrl = cfg?.browserHomepage || DEFAULT_BROWSER_HOMEPAGE;
+      } catch (err) {
+        console.warn("Failed to retrieve config for browser homepage:", err);
+        currentUrl = DEFAULT_BROWSER_HOMEPAGE;
       }
     }
 
@@ -113,7 +113,9 @@ export async function splitTabAction(
               webviewEl.src = currentUrl;
             }
           }
-        } catch {}
+        } catch {
+          // webview state access is best-effort
+        }
       }, 0);
     }
   } else {
@@ -190,7 +192,9 @@ export async function unsplitTabAction(set: any, get: any) {
           try {
             const info = await api.getTerminalInfo(node.terminalId);
             if (info?.title) label = info.title;
-          } catch {}
+          } catch {
+            // terminal info may not be available during split
+          }
         }
         return newTabState(tabId, node.terminalId!, label);
       }
@@ -309,7 +313,9 @@ export async function extractToTabAction(
     try {
       const info = await api.getTerminalInfo(leafId);
       if (info?.title) label = info.title;
-    } catch {}
+    } catch {
+      // terminal info may not be available
+    }
   }
 
   const tIndex = prevTabs.findIndex((t: any) => t.id === tabId);
@@ -421,7 +427,9 @@ export function mergeTabAsSplitAction(
         const url = wv.getURL();
         if (url && url !== "about:blank") browserUrl = url;
       }
-    } catch {}
+    } catch {
+      // webview may not be available during drag merge
+    }
   }
 
   const newTerminalIds = collectLeafIds(fromTab.root);
