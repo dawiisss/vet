@@ -64,7 +64,7 @@ describe("adblocker", () => {
   });
 
   it("registers IPC handlers correctly", () => {
-    registerAdblockerIpcHandlers();
+    registerAdblockerIpcHandlers(() => null);
     expect(ipcMain.handle).toHaveBeenCalledWith("adblocker:toggle", expect.any(Function));
     expect(ipcMain.handle).toHaveBeenCalledWith("adblocker:get-stats", expect.any(Function));
     expect(ipcMain.handle).toHaveBeenCalledWith("adblocker:clear-stats", expect.any(Function));

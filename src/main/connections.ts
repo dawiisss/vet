@@ -81,7 +81,18 @@ export function initConnectionsManager() {
           .map((l) => l.trim())
           .filter(Boolean);
         const config = getConfig();
-        const shell = config.dockerDefaultShell || "/bin/bash";
+        const ALLOWED_SHELLS = [
+          "/bin/bash",
+          "/bin/sh",
+          "/bin/zsh",
+          "/usr/bin/fish",
+          "/usr/bin/bash",
+          "/usr/bin/zsh",
+          "/usr/bin/sh",
+        ];
+        const shell = ALLOWED_SHELLS.includes(config.dockerDefaultShell ?? "")
+          ? config.dockerDefaultShell!
+          : "/bin/bash";
 
         return lines.map((name) => ({
           name,

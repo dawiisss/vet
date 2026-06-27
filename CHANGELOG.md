@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9] - 2026-06-27
+
+### Fixed
+- **FTS5 query injection in history search**: User-provided search queries are now sanitized before being passed to the SQLite FTS5 `MATCH` operator. Each term is double-quote escaped and wrapped, preventing special characters (`"`, `*`, `(`, `)`, `OR`, `NOT`) from causing FTS5 syntax parse errors and silent search failures.
+- **Synchronous file I/O in updater handlers**: Replaced blocking `fs.existsSync` and `fs.writeFileSync` calls in `updaterHandlers.ts` with async `fs.promises.access` and `fs.promises.writeFile` to avoid blocking the Electron main thread during dev startup. Inline `require("fs")`/`require("path")` replaced with top-level ES imports.
+
+### Changed
+- **Docker shell allowlist validation**: The `dockerDefaultShell` config value in `connections.ts` is now validated against an allowlist of known shell paths (`/bin/bash`, `/bin/sh`, `/bin/zsh`, `/usr/bin/fish`, etc.) before interpolation into the Docker exec command string. Unrecognized values fall back to `/bin/bash`.
+- **Adblocker window notification optimization**: Replaced `BrowserWindow.getAllWindows()` iteration in the high-frequency `request-blocked` handler and navigation reset handler in `adblocker.ts` with a direct `getMainWindow()` reference, eliminating unnecessary window enumeration on every blocked ad request. The `registerAdblockerIpcHandlers` function now accepts a `getMainWindow` getter, matching the existing `registerUpdaterHandlers` pattern.
+
 ## [1.0.8] - 2026-06-20
 
 ### Added
