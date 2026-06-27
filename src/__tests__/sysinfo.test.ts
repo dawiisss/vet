@@ -10,11 +10,18 @@ let cpuCalls = 0;
 let netCalls = 0;
 let diskIoCalls = 0;
 
+const originalPlatform = process.platform;
+
 // Reset stateful mock counters before each test
 beforeEach(() => {
   cpuCalls = 0;
   netCalls = 0;
   diskIoCalls = 0;
+  Object.defineProperty(process, "platform", { value: "linux", writable: true });
+});
+
+afterEach(() => {
+  Object.defineProperty(process, "platform", { value: originalPlatform, writable: true });
 });
 
 process.getCPUUsage = jest.fn(() => ({ percentCPUUsage: 1.5, idleWakeupsPerSecond: 10 }));
