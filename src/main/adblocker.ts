@@ -16,6 +16,15 @@ const blockedCounts = new Map<string, number>();
 const lastHostname = new Map<string, string>();
 let isAdblockEnabled = true;
 let blockedListener: ((request: any) => void) | null = null;
+let getMainWindow: () => BrowserWindow | null = () => null;
+
+/** Send an IPC event to the main window without iterating all windows. */
+function sendToMainWindow(channel: string, ...args: unknown[]) {
+  const win = getMainWindow();
+  if (win && !win.isDestroyed()) {
+    win.webContents.send(channel, ...args);
+  }
+}
 
 const BLOCKER_CONFIG = {
   enableHtmlFiltering: true,
@@ -63,7 +72,10 @@ function patchScriptletsForYouTube(b: ElectronBlocker) {
  * Register IPC handlers and event listeners that don't depend on the engine.
  * Call this early so BrowserView can get the preload path before the engine loads.
  */
-export function registerAdblockerIpcHandlers() {
+export function registerAdblockerIpcHandlers(
+  mainWindowGetter: () => BrowserWindow | null,
+) {
+  getMainWindow = mainWindowGetter;
   // Listen for new WebContents creation to reset adblocker count when navigating
   app.on("web-contents-created", (_, wc) => {
     if (wc.getType() === "webview") {
@@ -82,16 +94,11 @@ export function registerAdblockerIpcHandlers() {
             lastHostname.set(wcId, newHost);
             blockedCounts.set(wcId, 0);
 
-            const windows = BrowserWindow.getAllWindows();
-            for (const win of windows) {
-              if (!win.isDestroyed()) {
-                win.webContents.send("adblocker:blocked-event", {
-                  webContentsId: wc.id,
-                  url: details.url,
-                  count: 0,
-                });
-              }
-            }
+            sendToMainWindow("adblocker:blocked-event", {
+              webContentsId: wc.id,
+              url: details.url,
+              count: 0,
+            });
           }
         }
       });
@@ -271,16 +278,11 @@ async function enableAdblocker() {
       blockedCounts.set(String(wcId), nextCount);
 
       // Notify the active window of the blocked request
-      const windows = BrowserWindow.getAllWindows();
-      for (const win of windows) {
-        if (!win.isDestroyed()) {
-          win.webContents.send("adblocker:blocked-event", {
-            webContentsId: wcId,
-            url: request.url,
-            count: nextCount,
-          });
-        }
-      }
+      sendToMainWindow("adblocker:blocked-event", {
+        webContentsId: wcId,
+        url: request.url,
+        count: nextCount,
+      });
     }
   };
 

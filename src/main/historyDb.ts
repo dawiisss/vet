@@ -202,6 +202,16 @@ function flushBuffer() {
 export function searchHistory(query: string): any[] {
   if (!db) return [];
   try {
+    // Sanitize for FTS5: escape double quotes and wrap each term in quotes
+    // to prevent special characters from being interpreted as FTS5 operators
+    const sanitized = query
+      .replace(/"/g, '""')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((term) => `"${term}"`)
+      .join(" ");
+    if (!sanitized) return [];
+
     const stmt = db.prepare(`
       SELECT 
         s.id, s.title, s.created_at, s.closed_at, s.connection_type, s.connection_target,
@@ -212,7 +222,7 @@ export function searchHistory(query: string): any[] {
       ORDER BY s.created_at DESC, s.id DESC
       LIMIT 100
     `);
-    const rows = stmt.all(query) as any[];
+    const rows = stmt.all(sanitized) as any[];
 
     const uniqueSessions: any[] = [];
     const seen = new Set<string>();
