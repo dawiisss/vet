@@ -99,4 +99,3 @@ dev-app-update.yml
 
 # Agent configs (should never be committed)
 .agents/
-.Jules/
