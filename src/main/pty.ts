@@ -1,5 +1,5 @@
 import { spawn } from "node-pty";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import * as fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
@@ -154,7 +154,7 @@ export function createTerminal(options: {
   cols?: number;
   rows?: number;
 }): string {
-  const id = uuidv4();
+  const id = randomUUID();
   if (options.sshHostId) {
     terminalSshHosts.set(id, options.sshHostId);
   }

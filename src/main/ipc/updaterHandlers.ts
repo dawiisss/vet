@@ -1,5 +1,7 @@
 import { BrowserWindow, app } from "electron";
 import { autoUpdater } from "electron-updater";
+import * as fs from "fs/promises";
+import * as path from "path";
 import { registerHandlers } from "./ipcUtils";
 
 let simulationInterval: NodeJS.Timeout | null = null;
@@ -15,19 +17,18 @@ export function registerUpdaterHandlers(
     autoUpdater.forceDevUpdateConfig = true;
     autoUpdater.logger = console;
 
-    const fs = require("fs");
-    const path = require("path");
     const devConfigPath = path.join(process.cwd(), "dev-app-update.yml");
-    if (!fs.existsSync(devConfigPath)) {
-      try {
-        fs.writeFileSync(
-          devConfigPath,
-          "provider: github\nowner: dawiisss\nrepo: vet\n",
-        );
-      } catch (err) {
-        console.error("Failed to create dev-app-update.yml:", err);
-      }
-    }
+    fs.access(devConfigPath)
+      .catch(() =>
+        fs
+          .writeFile(
+            devConfigPath,
+            "provider: github\nowner: dawiisss\nrepo: vet\n",
+          )
+          .catch((err) =>
+            console.error("Failed to create dev-app-update.yml:", err),
+          ),
+      );
   }
 
   // Helper to safely send IPC messages to the main window

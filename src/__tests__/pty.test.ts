@@ -14,8 +14,8 @@ jest.mock("node-pty", () => ({
   })),
 }));
 
-jest.mock("uuid", () => ({
-  v4: jest.fn(() => "mock-uuid-1234"),
+jest.mock("node:crypto", () => ({
+  randomUUID: jest.fn(() => "mock-uuid-1234"),
 }));
 
 jest.mock("fs", () => {

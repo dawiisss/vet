@@ -194,7 +194,7 @@ function registerIpcHandlers(): void {
     loadWindow,
     registerForwardTarget,
   });
-  registerAdblockerIpcHandlers();
+  registerAdblockerIpcHandlers(() => mainWindow);
   registerUpdaterHandlers(() => mainWindow);
 }
 

@@ -18,7 +18,7 @@ echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 # Define repository metadata
 REPO_OWNER="dawiisss"
 REPO_NAME="vet"
-FALLBACK_VERSION="1.0.8"
+FALLBACK_VERSION="1.0.9"
 
 # 1. Fetch latest release version from GitHub API
 echo -e "Checking latest release version..."
