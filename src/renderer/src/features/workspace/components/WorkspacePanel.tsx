@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
 import Panel from "@/shared/components/Panel";
+import ContextMenu, { ContextMenuAction } from "@/shared/components/ContextMenu";
 
 interface WorkspaceItem {
   name: string;
@@ -208,15 +209,21 @@ export default function WorkspacePanel({
     x: number;
     y: number;
     itemName: string;
+    isDirectory: boolean;
   } | null>(null);
 
-  const handleContextMenu = (e: React.MouseEvent, itemName: string) => {
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    itemName: string,
+    isDirectory: boolean,
+  ) => {
     e.preventDefault();
     setContextMenu({
       isOpen: true,
       x: e.clientX,
       y: e.clientY,
       itemName,
+      isDirectory,
     });
   };
 
@@ -291,6 +298,44 @@ export default function WorkspacePanel({
       {loading ? "Refreshing..." : "Refresh"}
     </button>
   );
+
+  const contextMenuActions: ContextMenuAction[] = contextMenu
+    ? [
+        ...(!contextMenu.isDirectory
+          ? [
+              {
+                id: "preview",
+                label: "Preview File",
+                onExecute: () => {
+                  const fullPath =
+                    cwd === "/"
+                      ? `/${contextMenu.itemName}`
+                      : `${cwd}/${contextMenu.itemName}`;
+                  onViewFile(fullPath, sshHostId || undefined);
+                },
+              },
+            ]
+          : []),
+        ...(!sshHostId
+          ? [
+              {
+                id: "reveal",
+                label: "Reveal in File Manager",
+                onExecute: () => {
+                  handleReveal(contextMenu.itemName);
+                },
+              },
+            ]
+          : []),
+        {
+          id: "copy-path",
+          label: "Copy Absolute Path",
+          onExecute: () => {
+            handleCopyPath(contextMenu.itemName);
+          },
+        },
+      ]
+    : [];
 
   return (
     <Panel
@@ -486,24 +531,23 @@ export default function WorkspacePanel({
                       key={item.name}
                       draggable
                       onDragStart={(e) => handleDragStart(e, item.name)}
-                      onDoubleClick={() =>
-                        item.isDirectory
-                          ? handleFolderDoubleClick(item.name)
-                          : onViewFile(
-                              cwd === "/"
-                                ? `/${item.name}`
-                                : `${cwd}/${item.name}`,
-                              sshHostId || undefined,
-                            )
+                      onDoubleClick={() => {
+                        if (item.isDirectory) {
+                          handleFolderDoubleClick(item.name);
+                        } else {
+                          const fullPath = cwd === "/"
+                            ? `/${item.name}`
+                            : `${cwd}/${item.name}`;
+                          window.dispatchEvent(
+                            new CustomEvent("vet:open-editor", {
+                              detail: { filePath: fullPath, sshHostId: sshHostId || null },
+                            })
+                          );
+                        }
+                      }}
+                      onContextMenu={(e) =>
+                        handleContextMenu(e, item.name, item.isDirectory)
                       }
-                      onClick={() =>
-                        !item.isDirectory &&
-                        onViewFile(
-                          cwd === "/" ? `/${item.name}` : `${cwd}/${item.name}`,
-                          sshHostId || undefined,
-                        )
-                      }
-                      onContextMenu={(e) => handleContextMenu(e, item.name)}
                       onMouseEnter={() => setKeyboardIndex(navIdx)}
                       data-active={isSel}
                       style={{
@@ -567,82 +611,13 @@ export default function WorkspacePanel({
         </>
       )}
 
-      {/* Glassmorphic Context Menu */}
-      {contextMenu?.isOpen && (
-        <>
-          <div
-            onClick={() => setContextMenu(null)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 9999,
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              left: contextMenu.x,
-              top: contextMenu.y,
-              background: "color-mix(in srgb, var(--app-bg) 95%, transparent)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: 6,
-              padding: "4px 0",
-              minWidth: 150,
-              zIndex: 10000,
-              boxShadow: "0 8px 16px rgba(0, 0, 0, 0.4)",
-              color: "var(--app-fg)",
-            }}
-          >
-            {!sshHostId && (
-              <div
-                onClick={() => {
-                  handleReveal(contextMenu.itemName);
-                  setContextMenu(null);
-                }}
-                style={{
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background =
-                    "rgba(255, 255, 255, 0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                Reveal in File Manager
-              </div>
-            )}
-            <div
-              onClick={() => {
-                handleCopyPath(contextMenu.itemName);
-                setContextMenu(null);
-              }}
-              style={{
-                padding: "8px 12px",
-                cursor: "pointer",
-                fontSize: 12,
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              Copy Absolute Path
-            </div>
-          </div>
-        </>
-      )}
+      <ContextMenu
+        x={contextMenu?.x || 0}
+        y={contextMenu?.y || 0}
+        isOpen={!!contextMenu?.isOpen}
+        onClose={() => setContextMenu(null)}
+        actions={contextMenuActions}
+      />
     </Panel>
   );
 }

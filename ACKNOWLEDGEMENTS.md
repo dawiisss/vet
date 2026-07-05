@@ -6,18 +6,22 @@ Below is a list of the primary third-party dependencies used in Vet, along with 
 
 | Dependency | Version | License | Homepage / Repository |
 | ---------- | ------- | ------- | --------------------- |
+| `@codemirror/language-data` | 6.5.2 | MIT | [Link](https://github.com/codemirror/language-data.git) |
 | `@electron-toolkit/utils` | 4.0.0 | MIT | [Link](https://github.com/alex8088/electron-toolkit/tree/master/packages/utils#readme) |
+| `@electron/rebuild` | 4.1.0 | MIT | [Link](https://github.com/electron/rebuild) |
 | `@eslint/js` | 9.39.4 | MIT | [Link](https://eslint.org) |
 | `@ghostery/adblocker-electron` | 2.18.0 | MPL-2.0 | [Link](https://github.com/ghostery/adblocker#readme) |
 | `@jest/globals` | 30.4.1 | MIT | [Link](https://github.com/jestjs/jest.git) |
 | `@testing-library/jest-dom` | 6.9.1 | MIT | [Link](https://github.com/testing-library/jest-dom#readme) |
 | `@testing-library/react` | 16.3.2 | MIT | [Link](https://github.com/testing-library/react-testing-library#readme) |
 | `@testing-library/user-event` | 14.6.1 | MIT | [Link](https://github.com/testing-library/user-event#readme) |
+| `@types/better-sqlite3` | 7.6.13 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/better-sqlite3) |
 | `@types/jest` | 30.0.0 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/jest) |
-| `@types/node` | 22.19.19 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
-| `@types/react` | 19.2.16 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react) |
+| `@types/node` | 22.19.21 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
+| `@types/react` | 19.2.17 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react) |
 | `@types/react-dom` | 19.2.3 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom) |
 | `@types/ssh2` | 1.15.5 | MIT | [Link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/ssh2) |
+| `@uiw/react-codemirror` | 4.25.10 | MIT | [Link](https://uiwjs.github.io/react-codemirror) |
 | `@vitejs/plugin-react` | 4.7.0 | MIT | [Link](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#readme) |
 | `@xterm/addon-fit` | 0.11.0 | MIT | [Link](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-fit) |
 | `@xterm/addon-image` | 0.9.0 | MIT | [Link](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-image) |
@@ -28,10 +32,12 @@ Below is a list of the primary third-party dependencies used in Vet, along with 
 | `@xterm/addon-web-links` | 0.12.0 | MIT | [Link](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-web-links) |
 | `@xterm/addon-webgl` | 0.19.0 | MIT | [Link](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-webgl) |
 | `@xterm/xterm` | 6.0.0 | MIT | [Link](https://github.com/xtermjs/xterm.js) |
+| `better-sqlite3` | 12.11.1 | MIT | [Link](http://github.com/WiseLibs/better-sqlite3) |
 | `chokidar` | 4.0.3 | MIT | [Link](https://github.com/paulmillr/chokidar) |
-| `dompurify` | 3.4.8 | (MPL-2.0 OR Apache-2.0) | [Link](https://github.com/cure53/DOMPurify) |
-| `electron` | 42.3.2 | MIT | [Link](https://github.com/electron/electron) |
-| `electron-builder` | 26.8.1 | MIT | [Link](https://github.com/electron-userland/electron-builder) |
+| `dompurify` | 3.4.11 | (MPL-2.0 OR Apache-2.0) | [Link](https://github.com/cure53/DOMPurify) |
+| `electron` | 43.0.0 | MIT | [Link](https://github.com/electron/electron) |
+| `electron-builder` | 26.15.3 | MIT | [Link](https://github.com/electron-userland/electron-builder) |
+| `electron-updater` | 6.8.9 | MIT | [Link](https://github.com/electron-userland/electron-builder) |
 | `electron-vite` | 5.0.0 | MIT | [Link](https://electron-vite.org) |
 | `eslint` | 9.39.4 | MIT | [Link](https://eslint.org) |
 | `eslint-plugin-react` | 7.37.5 | MIT | [Link](https://github.com/jsx-eslint/eslint-plugin-react) |
@@ -44,11 +50,10 @@ Below is a list of the primary third-party dependencies used in Vet, along with 
 | `react` | 19.2.7 | MIT | [Link](https://react.dev/) |
 | `react-dom` | 19.2.7 | MIT | [Link](https://react.dev/) |
 | `ssh2` | 1.17.0 | Unknown | [Link](http://github.com/mscdex/ssh2.git) |
-| `systeminformation` | 5.31.7 | MIT | [Link](https://systeminformation.io) |
+| `tldts-experimental` | 7.4.3 | MIT | [Link](https://github.com/remusao/tldts#readme) |
 | `ts-jest` | 29.4.11 | MIT | [Link](https://kulshekhar.github.io/ts-jest) |
 | `typescript` | 5.9.3 | Apache-2.0 | [Link](https://www.typescriptlang.org/) |
-| `typescript-eslint` | 8.60.1 | MIT | [Link](https://typescript-eslint.io/packages/typescript-eslint) |
-| `uuid` | 13.0.2 | MIT | [Link](https://github.com/uuidjs/uuid.git) |
+| `typescript-eslint` | 8.61.1 | MIT | [Link](https://typescript-eslint.io/packages/typescript-eslint) |
 | `zustand` | 5.0.14 | MIT | [Link](https://github.com/pmndrs/zustand) |
 
 ---

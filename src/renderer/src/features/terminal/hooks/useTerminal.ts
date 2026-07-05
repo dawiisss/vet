@@ -124,6 +124,32 @@ export function useTerminal({
       term.loadAddon(serializeAddon);
       term.loadAddon(sAddon);
 
+      // Register OSC 999 handler to open files in editor from terminal
+      if (term.parser) {
+        term.parser.registerOscHandler(999, (data) => {
+          const parts = data.split(";");
+          const action = parts[0];
+          const filePath = parts.slice(1).join(";");
+          if (action === "edit" && filePath) {
+            window.terminalApi.getTerminalInfo(terminalId).then((info) => {
+              window.dispatchEvent(
+                new CustomEvent("vet:open-editor", {
+                  detail: { filePath, sshHostId: info?.sshHostId || null },
+                })
+              );
+            }).catch((err) => {
+              console.error("Failed to get terminal info for editor open:", err);
+              window.dispatchEvent(
+                new CustomEvent("vet:open-editor", {
+                  detail: { filePath, sshHostId: null },
+                })
+              );
+            });
+          }
+          return true;
+        });
+      }
+
       const urlPathRegex =
         /(?:https?:\/\/[^\s]+)|(?:(?:[a-zA-Z]:[\\/]+|\/)?(?:[\w.-]+[\\/]+)+[\w.-]+(?::\d+)?)/;
       term.loadAddon(

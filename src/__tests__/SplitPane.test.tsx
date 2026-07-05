@@ -88,6 +88,14 @@ jest.mock("../renderer/src/features/browser/components/BrowserView", () => {
   };
 });
 
+jest.mock("../renderer/src/features/workspace/components/EditorView", () => {
+  return {
+    __esModule: true,
+    default: () => <div data-testid="mock-editor-view" />,
+    EditorView: () => <div data-testid="mock-editor-view" />,
+  };
+});
+
 jest.mock("../renderer/src/features/settings/useConfigStore", () => ({
   useConfig: () => ({
     config: {
@@ -183,6 +191,22 @@ describe("SplitPane", () => {
       />,
     );
     expect(container.querySelector('[style*="overflow"]')).toBeTruthy();
+  });
+
+  it("renders editor view for editor leaf node", () => {
+    const node = { editorId: "editor-1", filePath: "file.js" };
+    const { queryByTestId } = render(
+      <SplitPane
+        node={node}
+        path={[]}
+        focusedPath={[]}
+        isActive={true}
+        onFocus={onFocus}
+        onExit={onExit}
+        onResize={onResize}
+      />,
+    );
+    expect(queryByTestId("mock-editor-view")).toBeTruthy();
   });
 
   it("renders split container for split node", () => {

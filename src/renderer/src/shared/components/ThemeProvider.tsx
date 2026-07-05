@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
 import { resolveTheme } from "@/themes";
 
@@ -8,6 +8,37 @@ import { resolveTheme } from "@/themes";
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config } = useConfig();
   const themeObj = resolveTheme(config.theme, config.customThemes);
+
+  useEffect(() => {
+    const body = document.body;
+    body.style.setProperty("--app-bg", themeObj.background || "");
+    body.style.setProperty("--app-fg", themeObj.foreground || "");
+    body.style.setProperty(
+      "--app-border",
+      themeObj.selection || "rgba(255,255,255,0.1)",
+    );
+    body.style.setProperty(
+      "--app-accent",
+      themeObj.accent ||
+        themeObj.magenta ||
+        themeObj.cursor ||
+        "var(--app-accent)",
+    );
+    body.style.setProperty("--app-red", themeObj.red || "");
+    body.style.setProperty("--app-green", themeObj.green || "");
+    body.style.setProperty("--app-yellow", themeObj.yellow || "");
+    body.style.setProperty("--app-blue", themeObj.blue || "");
+    body.style.setProperty(
+      "--app-fg-subtle",
+      "color-mix(in srgb, var(--app-fg) 70%, transparent)",
+    );
+    body.style.setProperty(
+      "--app-fg-muted",
+      "color-mix(in srgb, var(--app-fg) 40%, transparent)",
+    );
+    body.style.setProperty("--app-panel-bg", "rgba(0,0,0,0.15)");
+    body.style.setProperty("--app-modal-bg", "rgba(0,0,0,0.25)");
+  }, [themeObj]);
 
   let appBg = "transparent";
   if (themeObj.background && typeof config.opacity === "number") {

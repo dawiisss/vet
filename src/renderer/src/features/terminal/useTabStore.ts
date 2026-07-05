@@ -23,6 +23,8 @@ import {
   onResizeAction,
   onFocusSplitAction,
   mergeTabAsSplitAction,
+  openEditorInSplitAction,
+  openEditorInNewTabAction,
 } from "./actions/splitActions";
 import { detachTabAction, reattachMeAction } from "./actions/windowActions";
 
@@ -57,6 +59,7 @@ interface TabStore {
   generateTabId: () => string;
   newTabState: (tabId: string, terminalId: string, label?: string) => TabState;
   newBrowserTabState: (tabId: string, browserId: string, label?: string) => TabState;
+  newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string) => TabState;
   getTabCounter: () => number;
 
   // UI state setters
@@ -96,6 +99,8 @@ interface TabStore {
   onFocusSplit: (tabId: string, path: number[]) => void;
   renameTab: (tabId: string, newLabel: string) => void;
   updateBrowserUrl: (browserId: string, url: string) => void;
+  openEditorInSplit: (filePath: string, sshHostId: string | null) => void;
+  openEditorInNewTab: (filePath: string, sshHostId: string | null) => void;
   handleRunScript: (cmd: string, cwd: string) => Promise<void>;
   handleInjectSnippet: (snippet: string) => void;
 }
@@ -132,6 +137,16 @@ export const useTabStore = create<TabStore>((set, get) => {
       id: tabId,
       label: label || "Web Browser",
       root: browserLeafNode(browserId),
+      focusedPath: [],
+    }),
+    newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string) => ({
+      id: tabId,
+      label: label || `Edit: ${filePath.split("/").pop() || "Untitled"}`,
+      root: {
+        editorId,
+        filePath,
+        sshHostId,
+      },
       focusedPath: [],
     }),
     getTabCounter: () => {
@@ -174,6 +189,8 @@ export const useTabStore = create<TabStore>((set, get) => {
     onFocusSplit: (tabId, path) => onFocusSplitAction(set, get, tabId, path),
     renameTab: (tabId, newLabel) => renameTabAction(set, get, tabId, newLabel),
     updateBrowserUrl: (browserId, url) => updateBrowserUrlAction(set, get, browserId, url),
+    openEditorInSplit: (filePath, sshHostId) => openEditorInSplitAction(set, get, filePath, sshHostId),
+    openEditorInNewTab: (filePath, sshHostId) => openEditorInNewTabAction(set, get, filePath, sshHostId),
     handleRunScript: (cmd, cwd) => handleRunScriptAction(set, get, cmd, cwd),
     handleInjectSnippet: (snippet) => handleInjectSnippetAction(set, get, snippet),
   };

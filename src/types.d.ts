@@ -74,6 +74,7 @@ interface Config {
   browserSearchEngine?: "duckduckgo" | "google" | "bing";
   browserAdblockEnabled?: boolean;
   showIntroOnStartup?: boolean;
+  editorMode?: "modal" | "split" | "tab";
 }
 
 interface TerminalApi {
@@ -174,12 +175,14 @@ interface WorkspaceApi {
   listDir: (dirPath: string) => Promise<WorkspaceItem[]>;
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;
+  writeFile: (filePath: string, content: string) => Promise<void>;
 }
 
 interface SftpApi {
   setTempPassword: (sshHostId: string, password: string) => Promise<void>;
   listDir: (sshHostId: string, dirPath: string) => Promise<WorkspaceItem[]>;
   readFileHead: (sshHostId: string, filePath: string) => Promise<string>;
+  writeFile: (sshHostId: string, filePath: string, content: string) => Promise<void>;
   getHomeDir: (sshHostId: string) => Promise<string>;
 }
 

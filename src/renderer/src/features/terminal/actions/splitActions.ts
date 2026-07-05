@@ -157,7 +157,8 @@ export async function unsplitTabAction(set: any, get: any) {
   const focusedNode = getNode(activeTab.root, activeTab.focusedPath);
   if (!focusedNode) return;
 
-  const targetId = focusedNode.terminalId || focusedNode.browserId;
+  const targetId =
+    focusedNode.terminalId || focusedNode.browserId || focusedNode.editorId;
   if (!targetId) return;
 
   const allPaths = leafPaths(activeTab.root);
@@ -165,9 +166,10 @@ export async function unsplitTabAction(set: any, get: any) {
     .map((p) => getNode(activeTab.root, p))
     .filter(
       (node) =>
-        (node.terminalId || node.browserId) &&
+        (node.terminalId || node.browserId || node.editorId) &&
         node.terminalId !== targetId &&
-        node.browserId !== targetId,
+        node.browserId !== targetId &&
+        node.editorId !== targetId,
     );
 
   if (toExtract.length === 0) return;
@@ -175,7 +177,12 @@ export async function unsplitTabAction(set: any, get: any) {
   const api = window.terminalApi;
   const baseLabel = activeTab.label.replace(/ \+ \d+$/, "");
 
-  const { newTabState, newBrowserTabState, generateTabId } = get();
+  const {
+    newTabState,
+    newBrowserTabState,
+    newEditorTabState,
+    generateTabId,
+  } = get();
 
   const extractedTabs: any[] = await Promise.all(
     toExtract.map(async (node) => {
@@ -186,6 +193,18 @@ export async function unsplitTabAction(set: any, get: any) {
           tab.root = { ...tab.root, url: node.url };
         }
         return tab;
+      } else if (node.editorId) {
+        const filename = node.filePath
+          ? node.filePath.split("/").pop()
+          : "Untitled";
+        const label = `Edit: ${filename}`;
+        return newEditorTabState(
+          tabId,
+          node.editorId,
+          node.filePath || "",
+          node.sshHostId || null,
+          label,
+        );
       } else {
         let label = baseLabel;
         if (api && node.terminalId) {
@@ -208,9 +227,15 @@ export async function unsplitTabAction(set: any, get: any) {
 
     next[tabIdx] = {
       ...next[tabIdx],
-      root: focusedNode.terminalId
-        ? leafNode(focusedNode.terminalId)
-        : browserLeafNode(focusedNode.browserId!),
+      root: focusedNode.editorId
+        ? {
+            editorId: focusedNode.editorId,
+            filePath: focusedNode.filePath,
+            sshHostId: focusedNode.sshHostId,
+          }
+        : focusedNode.browserId
+          ? browserLeafNode(focusedNode.browserId)
+          : leafNode(focusedNode.terminalId!),
       focusedPath: [],
     };
 
@@ -225,7 +250,7 @@ export function closeSplitAction(
   tabId: string,
   terminalId: string,
 ) {
-  if (!terminalId.startsWith("browser-")) {
+  if (!terminalId.startsWith("browser-") && !terminalId.startsWith("editor-")) {
     const api = window.terminalApi;
     if (api) {
       api.destroy(terminalId);
@@ -243,7 +268,11 @@ export function closeSplitAction(
 
   const foundPath = leafPaths(tab.root).find((p) => {
     const node = getNode(tab.root, p);
-    return node.terminalId === terminalId || node.browserId === terminalId;
+    return (
+      node.terminalId === terminalId ||
+      node.browserId === terminalId ||
+      node.editorId === terminalId
+    );
   });
 
   if (!foundPath) return;
@@ -303,11 +332,17 @@ export async function extractToTabAction(
   const targetNode = getNode(tab.root, path);
   if (!targetNode) return;
   const isBrowser = targetNode.browserId !== undefined;
-  const leafId = targetNode.terminalId || targetNode.browserId;
+  const isEditor = targetNode.editorId !== undefined;
+  const leafId = targetNode.terminalId || targetNode.browserId || targetNode.editorId;
   if (!leafId) return;
 
   let label = tab.label.replace(/ \+ \d+$/, "");
-  if (!isBrowser) {
+  if (isBrowser) {
+    label = "Web Browser";
+  } else if (isEditor) {
+    const filename = targetNode.filePath ? targetNode.filePath.split("/").pop() : "Untitled";
+    label = `Edit: ${filename}`;
+  } else {
     const api = window.terminalApi;
     if (!api) return;
     try {
@@ -328,7 +363,7 @@ export async function extractToTabAction(
   const updated = [...prevTabs];
   updated[tIndex] = { ...currentTab, root: newRoot, focusedPath: newPath };
 
-  const { newTabState, newBrowserTabState, generateTabId } = get();
+  const { newTabState, newBrowserTabState, newEditorTabState, generateTabId } = get();
 
   const extractedTabId = generateTabId();
   const extractedTab = isBrowser
@@ -339,7 +374,9 @@ export async function extractToTabAction(
         }
         return tab;
       })()
-    : newTabState(extractedTabId, leafId, label);
+    : isEditor
+      ? newEditorTabState(extractedTabId, leafId, targetNode.filePath || "", targetNode.sshHostId || null, label)
+      : newTabState(extractedTabId, leafId, label);
 
   updated.splice(tIndex + 1, 0, extractedTab);
   set({
@@ -469,5 +506,85 @@ export function mergeTabAsSplitAction(
       (t: any) => t !== fromTabId,
     ),
     hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== fromTabId),
+  });
+}
+
+export function openEditorInSplitAction(
+  set: any,
+  get: any,
+  filePath: string,
+  sshHostId: string | null,
+) {
+  const activeTabId = get().activeTabId;
+  if (!activeTabId) return;
+
+  const tab = get().tabs.find((t: any) => t.id === activeTabId);
+  if (!tab) return;
+
+  const path = tab.focusedPath;
+  const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  set((state: any) => {
+    const currentTab = state.tabs.find((t: any) => t.id === activeTabId);
+    if (!currentTab) return state;
+
+    // Split horizontally (editor on the right side)
+    const result = insertLeaves(currentTab.root, path, "horizontal", [editorId]);
+
+    // Find the newly inserted editor leaf path and set its filePath and sshHostId
+    const newPaths = leafPaths(result.root);
+    const editorPath = newPaths.find((p) => {
+      const n = getNode(result.root, p);
+      return n.editorId === editorId;
+    });
+
+    if (editorPath) {
+      const node = getNode(result.root, editorPath);
+      result.root = setNode(result.root, editorPath, {
+        ...node,
+        filePath,
+        sshHostId,
+      });
+    }
+
+    return {
+      tabs: state.tabs.map((t: any) => {
+        if (t.id !== activeTabId) return t;
+        return {
+          ...t,
+          root: result.root,
+          focusedPath: result.focusedPath,
+        };
+      }),
+    };
+  });
+}
+
+export function openEditorInNewTabAction(
+  set: any,
+  get: any,
+  filePath: string,
+  sshHostId: string | null,
+) {
+  const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  const tabId = get().generateTabId();
+  set((state: any) => {
+    const filename = filePath.split("/").pop() || "Untitled";
+    const label = `Edit: ${filename}`;
+    const editorTab = get().newEditorTabState(
+      tabId,
+      editorId,
+      filePath,
+      sshHostId,
+      label,
+    );
+    return {
+      tabs: [...state.tabs, editorTab],
+      activeTabId: tabId,
+      tabActivationOrder: [
+        tabId,
+        ...state.tabActivationOrder.filter((t: any) => t !== tabId),
+      ],
+    };
   });
 }

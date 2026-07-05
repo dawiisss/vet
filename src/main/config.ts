@@ -89,6 +89,7 @@ const DEFAULT_CONFIG: any = {
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
   showIntroOnStartup: true,
+  editorMode: "split",
   profiles: [
     {
       id: "default",
