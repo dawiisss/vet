@@ -11,6 +11,9 @@
 export interface SplitNode {
   terminalId?: string | undefined;
   browserId?: string | undefined;
+  editorId?: string | undefined;
+  filePath?: string | undefined;
+  sshHostId?: string | null | undefined;
   url?: string | undefined;
   direction?: "horizontal" | "vertical" | undefined;
   children?: SplitNode[] | undefined;
@@ -35,6 +38,16 @@ export function leafNode(terminalId: string): SplitNode {
  */
 export function browserLeafNode(browserId: string): SplitNode {
   return { browserId };
+}
+
+/**
+ * Creates a leaf node representing a single editor view.
+ *
+ * @param editorId - The unique identifier of the editor view.
+ * @returns An editor leaf node.
+ */
+export function editorLeafNode(editorId: string): SplitNode {
+  return { editorId };
 }
 
 /**
@@ -107,7 +120,7 @@ export function firstLeafId(root: SplitNode): string {
   while (node.children && node.children.length > 0) {
     node = node.children[0]!;
   }
-  return node.terminalId || node.browserId || "";
+  return node.terminalId || node.browserId || node.editorId || "";
 }
 
 export function collectTerminalIds(root: SplitNode): string[] {
@@ -130,6 +143,8 @@ export function collectLeafIds(root: SplitNode): string[] {
       ids.push(node.terminalId);
     } else if (node.browserId) {
       ids.push(node.browserId);
+    } else if (node.editorId) {
+      ids.push(node.editorId);
     } else if (node.children) {
       node.children.forEach(walk);
     }
@@ -139,7 +154,7 @@ export function collectLeafIds(root: SplitNode): string[] {
 }
 
 export function leafCount(root: SplitNode): number {
-  if (root.terminalId || root.browserId) return 1;
+  if (root.terminalId || root.browserId || root.editorId) return 1;
   if (root.children) {
     let count = 0;
     for (const child of root.children) count += leafCount(child);
@@ -151,7 +166,7 @@ export function leafCount(root: SplitNode): number {
 export function leafPaths(root: SplitNode): number[][] {
   const paths: number[][] = [];
   function walk(node: SplitNode, path: number[]): void {
-    if (node.terminalId || node.browserId) {
+    if (node.terminalId || node.browserId || node.editorId) {
       paths.push([...path]);
     } else if (node.children) {
       node.children.forEach((child, i) => walk(child, [...path, i]));
@@ -188,7 +203,11 @@ export function insertLeaves(
   newTerminalIds: string[],
 ): { root: SplitNode; focusedPath: number[] } {
   const toNode = (id: string) =>
-    id.startsWith("browser-") ? browserLeafNode(id) : leafNode(id);
+    id.startsWith("browser-")
+      ? browserLeafNode(id)
+      : id.startsWith("editor-")
+        ? editorLeafNode(id)
+        : leafNode(id);
 
   if (path.length === 0) {
     // Root leaf — wrap in new split

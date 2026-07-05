@@ -1,6 +1,9 @@
 export class Terminal {
   element: HTMLElement | null = null;
   options: Record<string, unknown> = {};
+  parser = {
+    registerOscHandler: jest.fn(() => ({ dispose: jest.fn() }))
+  };
 
   constructor(options?: Record<string, unknown>) {
     this.options = options || {};

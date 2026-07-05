@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { EditorModal } from "@/features/workspace/components/EditorModal";
 import TitleBar from "@/shared/components/TitleBar";
 import TabBar from "@/features/terminal/components/TabBar";
 import type { TabBarTab } from "@/features/terminal/components/TabBar";
@@ -53,6 +54,8 @@ function App() {
   const onResize = useTabStore((s) => s.onResize);
   const onFocusSplit = useTabStore((s) => s.onFocusSplit);
   const renameTab = useTabStore((s) => s.renameTab);
+  const openEditorInSplit = useTabStore((s) => s.openEditorInSplit);
+  const openEditorInNewTab = useTabStore((s) => s.openEditorInNewTab);
   const handleRunScript = useTabStore((s) => s.handleRunScript);
   const handleInjectSnippet = useTabStore((s) => s.handleInjectSnippet);
   const reattachMe = useTabStore((s) => s.reattachMe);
@@ -62,6 +65,38 @@ function App() {
 
   const terminalAreaRef = useRef<HTMLDivElement>(null);
   const hasTriggeredIntro = useRef(false);
+  const [editingFile, setEditingFile] = useState<{ filePath: string; sshHostId?: string | null } | null>(null);
+
+  // Listen for file editor trigger events (from terminal OSC commands or double-clicks)
+  useEffect(() => {
+    const handleOpenEditor = (e: Event) => {
+      const customEvent = e as CustomEvent<{ filePath: string; sshHostId?: string | null }>;
+      if (customEvent.detail && customEvent.detail.filePath) {
+        const mode = config.editorMode || "split";
+        if (mode === "tab") {
+          openEditorInNewTab(
+            customEvent.detail.filePath,
+            customEvent.detail.sshHostId || null
+          );
+        } else if (mode === "modal") {
+          setEditingFile({
+            filePath: customEvent.detail.filePath,
+            sshHostId: customEvent.detail.sshHostId || null,
+          });
+        } else {
+          openEditorInSplit(
+            customEvent.detail.filePath,
+            customEvent.detail.sshHostId || null
+          );
+        }
+      }
+    };
+
+    window.addEventListener("vet:open-editor", handleOpenEditor);
+    return () => {
+      window.removeEventListener("vet:open-editor", handleOpenEditor);
+    };
+  }, [config.editorMode, openEditorInSplit, openEditorInNewTab]);
 
   // Trigger onboarding welcome guide if configured
   useEffect(() => {
@@ -227,7 +262,7 @@ function App() {
       const tab = tabs.find((t) => t.id === tabId);
       if (tab) {
         const targetNode = getNode(tab.root, path);
-        const leafId = targetNode?.terminalId || targetNode?.browserId;
+        const leafId = targetNode?.terminalId || targetNode?.browserId || targetNode?.editorId;
         if (leafId) {
           closeSplit(tabId, leafId);
         }
@@ -467,6 +502,13 @@ function App() {
         )}
       </div>
       <ModalManager />
+      {editingFile && (
+        <EditorModal
+          filePath={editingFile.filePath}
+          sshHostId={editingFile.sshHostId}
+          onClose={() => setEditingFile(null)}
+        />
+      )}
       {toasts.length > 0 && (
         <div className="app-toast-container" id="toast-container">
           {toasts.map((toast) => (

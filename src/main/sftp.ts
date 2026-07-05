@@ -251,6 +251,28 @@ export function initSftpManager() {
     },
   );
 
+  ipcMain.handle(
+    "sftp:write-file",
+    async (_, sshHostId: string, filePath: string, content: string) => {
+      try {
+        const session = await getSftpSession(sshHostId);
+        return new Promise((resolve, reject) => {
+          let targetPath = filePath;
+          if (targetPath === "~" || targetPath.startsWith("~/")) {
+            targetPath = targetPath.replace(/^~/, session.homeDir);
+          }
+
+          session.sftp.writeFile(targetPath, content, "utf8", (err) => {
+            if (err) return reject(err);
+            resolve(true);
+          });
+        });
+      } catch (err: any) {
+        return { __ipcError: true, message: err.message };
+      }
+    },
+  );
+
   ipcMain.handle("sftp:get-home", async (_, sshHostId: string) => {
     try {
       const session = await getSftpSession(sshHostId);

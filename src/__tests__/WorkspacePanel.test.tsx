@@ -225,7 +225,7 @@ describe("WorkspacePanel Details", () => {
     );
   });
 
-  it("handles clicking on file to view it", async () => {
+  it("handles context menu preview file action to view it", async () => {
     const WorkspacePanel =
       require("../renderer/src/features/workspace/components/WorkspacePanel").default;
 
@@ -250,7 +250,12 @@ describe("WorkspacePanel Details", () => {
 
     await waitFor(() => {
       const fileEl = screen.getByText("test-file.txt");
-      fireEvent.click(fileEl);
+      fireEvent.contextMenu(fileEl);
+    });
+
+    await waitFor(() => {
+      const previewBtn = screen.getByText("Preview File");
+      fireEvent.click(previewBtn);
     });
 
     expect(onViewFileMock).toHaveBeenCalledWith(

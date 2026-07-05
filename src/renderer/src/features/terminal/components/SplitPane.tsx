@@ -1,6 +1,7 @@
 import React, { useCallback, useRef } from "react";
 import TerminalView from "./TerminalView";
 import BrowserView from "../../browser/components/BrowserView";
+import EditorView from "../../workspace/components/EditorView";
 import { getNode, firstLeafId } from "../splitTree";
 import type { SplitNode } from "../splitTree";
 
@@ -65,6 +66,29 @@ function SplitPane({
           isFocused={focused}
           onFocus={() => onFocus(path)}
           onExit={(id) => onExit(id)}
+          onExtract={onExtract ? () => onExtract(path) : undefined}
+          onContextMenuAction={
+            onContextMenuAction
+              ? (action) => onContextMenuAction(path, action)
+              : undefined
+          }
+        />
+      </div>
+    );
+  }
+
+  if (node.editorId) {
+    const focused = isActive && pathsEqual(path, focusedPath);
+    return (
+      <div style={{ flex: 1, overflow: "hidden", minWidth: 0, minHeight: 0 }}>
+        <EditorView
+          editorId={node.editorId}
+          filePath={node.filePath!}
+          sshHostId={node.sshHostId}
+          isActive={isActive}
+          isFocused={focused}
+          onFocus={() => onFocus(path)}
+          onExit={() => onExit(node.editorId!)}
           onExtract={onExtract ? () => onExtract(path) : undefined}
           onContextMenuAction={
             onContextMenuAction

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export interface ContextMenuAction {
   id: string;
@@ -34,7 +35,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: "fixed",
@@ -98,7 +99,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           </div>
         </React.Fragment>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 };
 

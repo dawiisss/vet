@@ -124,6 +124,8 @@ const workspaceApi = {
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
     invoke<string>("workspace:read-file-head")(filePath),
+  writeFile: (filePath: string, content: string) =>
+    invoke<void>("workspace:write-file")(filePath, content),
 };
 
 const connectionsApi = {
@@ -144,6 +146,8 @@ const sftpApi: SftpApi = {
     unwrap(invoke<WorkspaceItem[]>("sftp:list-dir")(sshHostId, dirPath)),
   readFileHead: (sshHostId: string, filePath: string) =>
     unwrap(invoke<string>("sftp:read-file-head")(sshHostId, filePath)),
+  writeFile: (sshHostId: string, filePath: string, content: string) =>
+    unwrap(invoke<void>("sftp:write-file")(sshHostId, filePath, content)),
   getHomeDir: (sshHostId: string) =>
     unwrap(invoke<string>("sftp:get-home")(sshHostId)),
 };

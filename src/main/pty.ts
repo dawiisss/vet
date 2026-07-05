@@ -4,7 +4,7 @@ import * as fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { platform } from "os";
+import { platform, homedir } from "os";
 import { getConfig } from "./config";
 import * as historyDb from "./historyDb";
 import { createSshPty } from "./sshPty";
@@ -241,6 +241,25 @@ export function createTerminal(options: {
             }
           }
         }
+      }
+
+      // Prepend ~/.config/vet/bin to PATH for local terminal commands (cross-platform safe)
+      try {
+        const isWin = platform() === "win32";
+        const home = typeof homedir === "function" ? homedir() : (process.env.HOME || process.env.USERPROFILE || "");
+        if (home) {
+          const binPath = path.join(home, ".config", "vet", "bin");
+          const delimiter = isWin ? ";" : ":";
+          const pathKey = Object.keys(cleanEnvLocal).find(k => k.toLowerCase() === "path") || "PATH";
+          const existingPath = cleanEnvLocal[pathKey] || "";
+          if (existingPath) {
+            cleanEnvLocal[pathKey] = `${binPath}${delimiter}${existingPath}`;
+          } else {
+            cleanEnvLocal[pathKey] = binPath;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to prepend ~/.config/vet/bin to PATH:", err);
       }
 
       pty = spawn(shell, args, {

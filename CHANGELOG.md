@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-07-05
+
+### Added
+- **Tiling Code Editor (CodeMirror 6)**: Integrated the CodeMirror 6 code editor directly into the split-pane layout manager. It features double-click file triggers in the workspace explorer (along with terminal command shortcuts like `e filename`), dynamic syntax highlighting supporting 50+ languages, auto-indentation, autocomplete, local filesystem reads/writes, and remote SSH/SFTP connection integrations.
+- **Editor Modes settings**: Added a configurable user setting in the settings panel ("Default Editor Layout") to let users choose how files are opened: "Split Pane (Tiling)" (default), "New Tab" (opens in a standalone tab), or "Floating Modal" (opens in the original modal popup).
+- **Tab split extraction and Unsplit integration**: Wired the editor node to the layout extraction actions (`extractToTab`) and unsplit actions (`unsplitTab`). Editor split panes can be extracted into their own standalone workspace tabs or preserved in the active tab root when unsplit is triggered, rather than being lost.
+- **Dedicated Editor View Component**: Created `EditorView.tsx` with a monospace header, save/unsaved change indicators, clean file naming, remote environment flags, context menu mappings (Horizontal/Vertical splitting, closing), and unsaved changes warnings.
+- **"Preview File" workspace sidebar context option**: Replaced direct single-click previews on files with an explicit "Preview File" action in the sidebar right-click context menu, preventing accidental preview panels from opening while navigating the file tree.
+- **Built-in Application Themes**: Added thirteen premium new themes to the application's built-in theme choices: Gruvbox Dark, Rose Pine, Github Dark, Catppuccin Latte, Catppuccin Macchiato, Catppuccin Frappe, Rose Pine Moon, Rose Pine Dawn, Everforest Dark, Synthwave '84, Monokai Pro, Night Owl, and Github Light.
+
+### Fixed
+- **Layout Tree Traversals (`editorId` support)**: Updated core split tree helpers (`leafPaths`, `leafCount`, `firstLeafId`, `collectLeafIds`) inside `splitTree.ts` to recognize `editorId` leaf nodes, resolving asynchronous state syncing bugs where splits rendered empty or "Untitled".
+- **Defensive File Path Safeguards**: Implemented defensive defaults and checks for `filePath` prop within `EditorView.tsx` to handle asynchronous state updates or layout persistence without throwing `TypeError: Cannot read properties of undefined (reading 'split')`.
+- **Close Actions Pipeline**: Resolved routing bugs in `closeSplitAction` and `handleContextMenuAction` to support editor pane termination via the close `x` button and pane-close menus.
+- **TS compiler warnings**: Cleared out warnings regarding `disabled` properties inside `ContextMenuAction` by conditionally loading options.
+- **Sidebar context menu clipping (`createPortal`)**: Wrapped the workspace explorer's context menu in a React portal to render at the document body level. This resolves containment offsets and clipping issues caused by `backdrop-filter: blur(10px)` on the parent sidebar container.
+- **Portalled CSS theme variables inheritance**: Synced CSS variables to `document.body` inside `ThemeProvider.tsx` to ensure that portalled overlays, modals, and context menus correctly inherit theme background, foreground, and accent styling rather than falling back to default black text.
+
+### Changed
+- **Electron 43**: Upgraded Electron from `42.x` to `43.0.0`, bringing the latest Chromium and Node.js runtime improvements, security patches, and API updates.
+- **electron-builder 26.15**: Updated `electron-builder` from `26.8.1` to `26.15.3` for improved build tooling and bug fixes.
+- **@electron/rebuild 4.1**: Updated `@electron/rebuild` from `4.0.4` to `4.1.0`.
+- **Native module rebuild**: Recompiled `better-sqlite3` and `node-pty` against the new Electron 43 Node.js ABI (`NODE_MODULE_VERSION 148`).
+- **Unified ContextMenu component reuse**: Refactored the custom context menu inside `WorkspacePanel.tsx` to consume the shared `ContextMenu` component directly, ensuring full alignment with the application's overall design, shadows, and hover styles.
+
+
 ## [1.0.9] - 2026-06-27
 
 ### Fixed

@@ -147,10 +147,54 @@ class WorkspaceService {
       return `Error: Failed to read file. ${err.message}`;
     }
   }
+
+  async writeFile(filePath: string, content: string) {
+    try {
+      const targetPath = path.resolve(expandHome(filePath));
+
+      logSensitivePathAccess(targetPath);
+
+      await fs.writeFile(targetPath, content, "utf8");
+      return true;
+    } catch (err: any) {
+      console.error(`Failed to write file: ${filePath}`, err);
+      return { __ipcError: true, message: err.message };
+    }
+  }
 }
 
-export function initWorkspaceManager() {
+export async function initWorkspaceManager() {
   const workspaceService = new WorkspaceService();
+
+  // Create ~/.config/vet/bin/e (skip if fs operations are stubbed/mocked in tests)
+  if (fs.mkdir && fs.writeFile && fs.chmod && fs.access) {
+    try {
+      const binDir = path.join(os.homedir(), ".config", "vet", "bin");
+      await fs.mkdir(binDir, { recursive: true });
+      const editScriptPath = path.join(binDir, "e");
+      
+      let exists = false;
+      try {
+        await fs.access(editScriptPath);
+        exists = true;
+      } catch {}
+
+      if (!exists) {
+        const scriptContent = `#!/bin/bash
+if [ -z "$1" ]; then
+  echo "Usage: e <filename>"
+  exit 1
+fi
+FILE_PATH=$(realpath "$1")
+printf "\\033]999;edit;%s\\007" "$FILE_PATH"
+`;
+        await fs.writeFile(editScriptPath, scriptContent, "utf8");
+        await fs.chmod(editScriptPath, 0o755);
+      }
+    } catch (err) {
+      console.error("Failed to initialize e command script:", err);
+    }
+  }
 
   ipcMain.handle("workspace:getScripts", async (_, cwd?: string) => {
     return workspaceService.getScripts(cwd);
@@ -166,5 +210,9 @@ export function initWorkspaceManager() {
 
   ipcMain.handle("workspace:read-file-head", async (_, filePath: string) => {
     return workspaceService.readFileHead(filePath);
+  });
+
+  ipcMain.handle("workspace:write-file", async (_, filePath: string, content: string) => {
+    return workspaceService.writeFile(filePath, content);
   });
 }

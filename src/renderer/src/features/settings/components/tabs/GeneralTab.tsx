@@ -118,6 +118,21 @@ export const GeneralTab: React.FC = () => {
         </SettingsField>
       </div>
 
+      <div style={{ display: 'flex', gap: 16 }}>
+        <SettingsField htmlFor="editor-mode-select" label="Default Editor Layout" flex={1}>
+          <FormSelect
+            id="editor-mode-select"
+            value={config.editorMode || 'split'}
+            onChange={(e) => updateConfig({ editorMode: e.target.value as 'modal' | 'split' | 'tab' })}
+          >
+            <option value="split" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Split Pane (Tiling)</option>
+            <option value="tab" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>New Tab</option>
+            <option value="modal" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Floating Modal</option>
+          </FormSelect>
+        </SettingsField>
+        <div style={{ flex: 1 }} />
+      </div>
+
       <div style={{ marginTop: 16 }}>
         <button
           onClick={openConfig}
