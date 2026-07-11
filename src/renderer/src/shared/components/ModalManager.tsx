@@ -222,6 +222,9 @@ export default function ModalManager() {
     detachTab,
     updateConfig,
     openConfig,
+    setIsAboutOpen,
+    setIsIntroOpen,
+    setIsSettingsOpen,
   ]);
 
   return (

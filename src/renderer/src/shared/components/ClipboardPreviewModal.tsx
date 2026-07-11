@@ -40,9 +40,7 @@ export default function ClipboardPreviewModal({
   const handleCopyAll = async () => {
     try {
       await navigator.clipboard.writeText(item.text);
-    } catch {
-      // ignore
-    }
+    } catch { /* intentional ignore */ }
   };
 
   const lines = item.text.split("\n");

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-07-10
+
+### Added
+- **Custom Error Logging**: Added a new background error logger utility (`logger.ts`) that safely catches and writes unhandled main process exceptions and rejections to `vet-error.log` in the application data directory. The logger automatically rotates out logs older than 7 days to prevent unbounded file growth.
+- **Error Log UI Integration**: Added a new "Open Error Log" button within the About Modal that seamlessly opens the log file inside a new built-in Editor Tab rather than an external application.
+
+### Fixed
+- **Scrollbar Consistency**: Applied the custom `.app-scrollbar` CSS class to multiple scrollable panels (Workspace, Theme Editor, Keybindings, Profile Tabs, Clipboard History, Connections, and SSH Profiles) to fix styling inconsistencies and align with UI guidelines.
+- **Markdown Headers**: Renamed the `Contributing & Community` section in `README.md` to use TOC-safe header characters.
+- **Empty Catch Blocks**: Enforced error-handling linting invariants by explicitly tagging over 15 empty catch blocks across the codebase with `/* intentional ignore */` to satisfy ESLint's `no-empty` rule.
+- **React Hook Dependencies (`exhaustive-deps`)**: Added missing dependencies and memoized helper functions using `useCallback` and `useMemo` in `HistoryPanel`, `KeybindingsManager`, `ModalManager`, `ClipboardHistoryPanel`, and `SshProfilesManager` to prevent stale state closures.
+- **Unused Variables (`no-unused-vars`)**: Cleaned up unused error variables and definitions across backend managers (`workspace.ts`, `connections.ts`, `historyDb.ts`, `windowHandlers.ts`) and test suites.
+
+
 ## [1.1.0] - 2026-07-05
 
 ### Added

@@ -36,7 +36,7 @@ export default function ClipboardHistoryPanel({
       containerRef.current.focus();
       setKeyboardIndex(0);
     }
-  }, [isActive]);
+  }, [isActive, setKeyboardIndex]);
 
   // Format timestamp nicely
   const formatTime = (timestamp: number) => {
@@ -163,6 +163,7 @@ export default function ClipboardHistoryPanel({
               }}
             >
               <div
+                className="app-scrollbar"
                 style={{
                   padding: "6px 10px",
                   background: "var(--app-panel-bg)",

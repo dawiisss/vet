@@ -43,9 +43,7 @@ export function initConnectionsManager() {
               }
             }
           }
-        } catch (err) {
-          // Ignore if ~/.ssh/config does not exist
-        }
+        } catch { /* intentional ignore */ }
       }
 
       if (config.sshHosts && Array.isArray(config.sshHosts)) {
@@ -99,7 +97,7 @@ export function initConnectionsManager() {
           command: `docker exec -it ${name} ${shell}`,
           source: "docker",
         }));
-      } catch (err) {
+      } catch {
         // Ignore if docker is not installed or not running
         return [];
       }

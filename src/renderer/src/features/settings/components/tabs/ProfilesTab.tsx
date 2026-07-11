@@ -117,7 +117,7 @@ export const ProfilesTab: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: 16, height: 350 }}>
       {/* Profiles List */}
-      <div style={{
+      <div className="app-scrollbar" style={{
         width: 200,
         borderRight: '1px solid rgba(255, 255, 255, 0.1)',
         paddingRight: 16,
@@ -190,7 +190,7 @@ export const ProfilesTab: React.FC = () => {
       </div>
 
       {/* Edit Form */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+      <div className="app-scrollbar" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
         <SettingsField htmlFor="profile-name-input" label="Profile Name">
           <FormInput
             id="profile-name-input"

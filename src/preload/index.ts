@@ -30,10 +30,10 @@ ipcRenderer.on("win:maximize-change", (_event, maximized: boolean) => {
   maximizeHandlers.forEach((h) => h(maximized));
 });
 
-const invoke = <T>(channel: string) => (...args: any[]): Promise<T> =>
+const invoke = <T>(channel: string) => (...args: unknown[]): Promise<T> =>
   ipcRenderer.invoke(channel, ...args);
 
-const send = (channel: string) => (...args: any[]) =>
+const send = (channel: string) => (...args: unknown[]) =>
   ipcRenderer.send(channel, ...args);
 
 const registerHandler = <T>(handlers: Set<T>) => (callback: T) => {
@@ -44,23 +44,23 @@ const registerHandler = <T>(handlers: Set<T>) => (callback: T) => {
 };
 
 const terminalApi: TerminalApi = {
-  create: (opts) => invoke<any>("terminal:create")(opts || {}),
+  create: (opts) => invoke<unknown>("terminal:create")(opts || {}),
   enableForwarding: (id) => invoke<void>("terminal:enable-forwarding")({ id }),
   write: (id, data) => send("terminal:write")({ id, data }),
   resize: (id, cols, rows) => invoke<void>("terminal:resize")({ id, cols, rows }),
   getHistory: (id) => invoke<string>("terminal:get-history")({ id }),
   destroy: (id) => invoke<void>("terminal:destroy")({ id }),
   detachTab: (tabId, terminalIds) =>
-    invoke<any>("terminal:detach-tab")({ tabId, terminalIds }),
+    invoke<unknown>("terminal:detach-tab")({ tabId, terminalIds }),
   reattachTab: (terminalIds) =>
-    invoke<any>("terminal:reattach-tab")({ terminalIds }),
-  getTerminalInfo: (id) => invoke<any>("terminal:get-info")({ id }),
+    invoke<unknown>("terminal:reattach-tab")({ terminalIds }),
+  getTerminalInfo: (id) => invoke<unknown>("terminal:get-info")({ id }),
   setForeground: (ids) => invoke<void>("terminal:set-foreground")({ ids }),
   onData: registerHandler(dataHandlers),
   onExit: registerHandler(exitHandlers),
   onReattachTab: registerHandler(reattachHandlers),
   saveSession: (state) => invoke<void>("session:save")(state),
-  getSession: () => invoke<any>("session:get")(),
+  getSession: () => invoke<unknown>("session:get")(),
 };
 
 const windowApi: WindowApi = {
@@ -72,9 +72,10 @@ const windowApi: WindowApi = {
   getVersion: invoke("app:getVersion"),
   isMaximized: invoke("win:is-maximized"),
   openExternal: invoke("win:open-external"),
+  getErrorLogPath: invoke<string | null>("win:get-error-log-path"),
   onMaximizeChange: registerHandler(maximizeHandlers),
   onWebviewKeydown: (callback) => {
-    const handler = (_event: any, data: any) => callback(data);
+    const handler = (_event: unknown, data: unknown) => callback(data);
     ipcRenderer.on("webview:keydown", handler);
     return () => {
       ipcRenderer.removeListener("webview:keydown", handler);
@@ -102,8 +103,8 @@ const configApi: ConfigApi = {
   onError: registerHandler(configErrorHandlers),
 };
 
-const sysinfoHandlers = new Set<(data: any) => void>();
-ipcRenderer.on("sysinfo:update", (_event, data: any) => {
+const sysinfoHandlers = new Set<(data: unknown) => void>();
+ipcRenderer.on("sysinfo:update", (_event, data: unknown) => {
   sysinfoHandlers.forEach((h) => h(data));
 });
 
@@ -119,7 +120,7 @@ const portsApi = {
 };
 
 const workspaceApi = {
-  getScripts: (cwd: string) => invoke<any>("workspace:getScripts")(cwd),
+  getScripts: (cwd: string) => invoke<unknown>("workspace:getScripts")(cwd),
   listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
@@ -129,11 +130,11 @@ const workspaceApi = {
 };
 
 const connectionsApi = {
-  getSshHosts: () => invoke<any[]>("connections:get-ssh-hosts")(),
-  getDockerContainers: () => invoke<any[]>("connections:get-docker")(),
+  getSshHosts: () => invoke<unknown[]>("connections:get-ssh-hosts")(),
+  getDockerContainers: () => invoke<unknown[]>("connections:get-docker")(),
 };
 
-const unwrap = async (promise: Promise<any>) => {
+const unwrap = async (promise: Promise<unknown>) => {
   const res = await promise;
   if (res && res.__ipcError) throw new Error(res.message);
   return res;
@@ -153,8 +154,8 @@ const sftpApi: SftpApi = {
 };
 
 const historyApi: HistoryApi = {
-  search: (query: string) => invoke<any[]>("history:search")(query),
-  getSessions: () => invoke<any[]>("history:get-sessions")(),
+  search: (query: string) => invoke<unknown[]>("history:search")(query),
+  getSessions: () => invoke<unknown[]>("history:get-sessions")(),
   getSessionTranscript: (id: string) =>
     invoke<string>("history:get-session-transcript")(id),
   getScrollbackChunk: (id: string, beforeTimestamp: number) =>
@@ -166,9 +167,9 @@ const historyApi: HistoryApi = {
   deleteSession: (id: string) => invoke<void>("history:delete-session")(id),
   addBrowserVisit: (url: string, title: string) =>
     invoke<void>("history:add-browser-visit")(url, title),
-  getBrowserHistory: () => invoke<any[]>("history:get-browser-history")(),
+  getBrowserHistory: () => invoke<unknown[]>("history:get-browser-history")(),
   searchBrowserHistory: (query: string) =>
-    invoke<any[]>("history:search-browser-history")(query),
+    invoke<unknown[]>("history:search-browser-history")(query),
   deleteBrowserVisit: (id: number) =>
     invoke<void>("history:delete-browser-visit")(id),
   clearBrowserHistory: () => invoke<void>("history:clear-browser-history")(),
@@ -196,7 +197,7 @@ const adblockerApi = {
     invoke<number>("adblocker:clear-stats")(webContentsId),
   onBlockedEvent: (
     callback: (
-      event: any,
+      event: unknown,
       data: { webContentsId: number; url: string; count: number },
     ) => void,
   ) => {
@@ -206,13 +207,13 @@ const adblockerApi = {
     };
   },
   getHtmlReplaceRules: (url: string) =>
-    invoke<any>("adblocker:get-html-replace-rules")(url),
+    invoke<unknown>("adblocker:get-html-replace-rules")(url),
   getAppPreloadPath: () =>
     invoke<string>("adblocker:get-app-preload-path")(),
 };
 
-const statusChangeHandlers = new Set<(status: any, info?: any) => void>();
-const downloadProgressHandlers = new Set<(progress: any) => void>();
+const statusChangeHandlers = new Set<(status: unknown, info?: unknown) => void>();
+const downloadProgressHandlers = new Set<(progress: unknown) => void>();
 
 ipcRenderer.on("updater:status", (_event, status, info) => {
   statusChangeHandlers.forEach((h) => h(status, info));
@@ -223,9 +224,9 @@ ipcRenderer.on("updater:progress", (_event, progress) => {
 });
 
 const updaterApi: UpdaterApi = {
-  checkForUpdates: () => invoke<any>("updater:check")(),
-  downloadUpdate: () => invoke<any>("updater:download")(),
-  quitAndInstall: () => invoke<any>("updater:install")(),
+  checkForUpdates: () => invoke<unknown>("updater:check")(),
+  downloadUpdate: () => invoke<unknown>("updater:download")(),
+  quitAndInstall: () => invoke<unknown>("updater:install")(),
   simulateUpdate: () => invoke<void>("updater:simulate")(),
   onStatusChange: registerHandler(statusChangeHandlers),
   onDownloadProgress: registerHandler(downloadProgressHandlers),
@@ -251,7 +252,7 @@ window.addEventListener("message", (e) => {
     if (e.data && e.data.__vetMouse) {
       ipcRenderer.sendToHost("vet-mouse", e.data.__vetMouse, e.data);
     }
-  } catch {}
+  } catch { /* intentional ignore */ }
 });
 
 // Inject XHR/fetch interceptor into main world before any page scripts execute.
@@ -446,10 +447,11 @@ webFrame.executeJavaScript(`
 
 // Bridge mouse events from the webview's main world to the host renderer
 // so tab drag-and-drop works over browser panes.
-window.addEventListener("__vet_mouse", (e: any) => {
+window.addEventListener("__vet_mouse", (e: Event) => {
   try {
-    if (e.detail) {
-      ipcRenderer.sendToHost("vet-mouse", e.detail);
+    const customEvent = e as CustomEvent;
+    if (customEvent.detail) {
+      ipcRenderer.sendToHost("vet-mouse", customEvent.detail);
     }
-  } catch {}
+  } catch { /* intentional ignore */ }
 });

@@ -161,14 +161,14 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
             bubbles: true,
           }),
         );
-      } catch {}
+      } catch { /* intentional ignore */ }
     };
 
     webview.addEventListener("ipc-message", onIpcMessage);
     return () => {
       try {
         webview.removeEventListener("ipc-message", onIpcMessage);
-      } catch {}
+      } catch { /* intentional ignore */ }
     };
   }, [appPreloadPath]);
 
@@ -177,7 +177,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       try {
         setCanGoBack(webviewRef.current.canGoBack());
         setCanGoForward(webviewRef.current.canGoForward());
-      } catch {}
+      } catch { /* intentional ignore */ }
     }
   };
 
@@ -208,7 +208,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
         let title = "";
         try {
           title = webview.getTitle();
-        } catch {}
+        } catch { /* intentional ignore */ }
         window.historyApi.addBrowserVisit(e.url, title);
       }
     };
@@ -228,7 +228,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           if (currentUrl) {
             window.historyApi.addBrowserVisit(currentUrl, title);
           }
-        } catch {}
+        } catch { /* intentional ignore */ }
       }
     };
 
@@ -262,31 +262,31 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     return () => {
       try {
         webview.removeEventListener("did-start-loading", onStartLoading);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("did-stop-loading", onStopLoading);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("dom-ready", onDomReady);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("did-navigate", onNavigate);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("did-navigate-in-page", onNavigate);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("page-title-updated", onTitleUpdate);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("found-in-page", onFoundInPage);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("focus", handleFocus);
-      } catch {}
+      } catch { /* intentional ignore */ }
       try {
         webview.removeEventListener("mousedown", handleFocus);
-      } catch {}
+      } catch { /* intentional ignore */ }
     };
   }, [appPreloadPath]);
 
@@ -301,7 +301,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           if (wcId && data.webContentsId === wcId) {
             setBlockedCount(data.count);
           }
-        } catch {}
+        } catch { /* intentional ignore */ }
       }
     });
 
@@ -315,7 +315,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     if (isFocused && webviewRef.current) {
       try {
         webviewRef.current.focus();
-      } catch {}
+      } catch { /* intentional ignore */ }
     }
   }, [isFocused]);
 
@@ -329,7 +329,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           setUrlInput(initialUrl);
           webviewRef.current.src = initialUrl;
         }
-      } catch {}
+      } catch { /* intentional ignore */ }
     }
   }, [appPreloadPath]);
 

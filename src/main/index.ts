@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, webContents, shell } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import JSON5 from "json5";
@@ -10,6 +10,17 @@ import { registerHistoryHandlers } from "./ipc/historyHandlers";
 import { registerTerminalHandlers } from "./ipc/terminalHandlers";
 import { registerUpdaterHandlers } from "./ipc/updaterHandlers";
 import { registerAdblockerIpcHandlers } from "./adblocker";
+import { logError } from "./logger";
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  logError(error, "uncaughtException");
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+  logError(String(reason), "unhandledRejection");
+});
 
 import icon from "../../resources/icon.png?asset";
 
@@ -97,7 +108,7 @@ function createWindow(isTransparent = false): BrowserWindow {
           `[security] Blocked attempt to open new window with unsafe URL: ${url}`,
         );
       }
-    } catch (e) {
+    } catch {
       console.warn(
         `[security] Blocked attempt to open new window with invalid URL: ${url}`,
       );
@@ -119,7 +130,7 @@ function createWindow(isTransparent = false): BrowserWindow {
 
       console.warn(`[security] Blocked unauthorized navigation to: ${url}`);
       event.preventDefault();
-    } catch (e) {
+    } catch {
       console.warn(
         `[security] Blocked unauthorized navigation to invalid URL: ${url}`,
       );
@@ -199,7 +210,7 @@ function registerIpcHandlers(): void {
 }
 
 import { initConfigManager, getConfig, cleanupConfigManager } from "./config";
-import { initSessionManager, getSessionData } from "./session";
+import { initSessionManager } from "./session";
 import { initSysInfoManager, cleanupSysInfo } from "./sysinfo";
 import { initPortsManager } from "./ports";
 import { initWorkspaceManager } from "./workspace";
@@ -244,9 +255,7 @@ app.whenReady().then(async () => {
       const opacity = typeof parsed.opacity === "number" ? parsed.opacity : 1.0;
       isTransparent = opacity < 1.0;
     }
-  } catch {
-    // Config file may not exist yet on first launch
-  }
+  } catch { /* intentional ignore */ }
 
   mainWindow = createWindow(isTransparent);
 

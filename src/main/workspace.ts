@@ -55,7 +55,7 @@ class WorkspaceService {
           if (pkg && pkg.scripts) {
             return { cwd: currentDir, scripts: pkg.scripts };
           }
-        } catch (err) {
+        } catch {
           // not found or not parsable, go up
           const parentDir = path.dirname(currentDir);
           if (parentDir === currentDir) break;
@@ -99,9 +99,7 @@ class WorkspaceService {
             size: stat.size,
             ext: path.extname(file).toLowerCase(),
           });
-        } catch {
-          // Ignore files that fail stat (e.g. broken symlinks)
-        }
+        } catch { /* intentional ignore */ }
       }
 
       return sortDirectoryItems(items);
@@ -177,7 +175,7 @@ export async function initWorkspaceManager() {
       try {
         await fs.access(editScriptPath);
         exists = true;
-      } catch {}
+      } catch { /* intentional ignore */ }
 
       if (!exists) {
         const scriptContent = `#!/bin/bash

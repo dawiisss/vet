@@ -62,7 +62,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
         setTimeout(() => {
           try {
             fitAddon.fit();
-          } catch {}
+          } catch { /* intentional ignore */ }
         }, 100);
       });
     });
@@ -73,7 +73,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
       resizeTimeout = setTimeout(() => {
         try {
           fitAddon.fit();
-        } catch {}
+        } catch { /* intentional ignore */ }
       }, 50);
     };
     window.addEventListener("resize", handleResize);
@@ -83,7 +83,14 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
       window.removeEventListener("resize", handleResize);
       term.dispose();
     };
-  }, [sessionId]);
+  }, [
+    sessionId,
+    config.customThemes,
+    config.fontFamily,
+    config.fontSize,
+    config.opacity,
+    config.theme,
+  ]);
 
   const handleCopy = () => {
     const sel = terminalRef.current?.getSelection();

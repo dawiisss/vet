@@ -104,7 +104,7 @@ function App() {
       hasTriggeredIntro.current = true;
       setIsIntroOpen(true);
     }
-  }, [isInitialized, config.showIntroOnStartup]);
+  }, [isInitialized, config, setIsIntroOpen]);
 
   // Initialize global keyboard shortcuts and webview key-forwarding
   useKeybindings();
@@ -116,12 +116,12 @@ function App() {
         setDbError(err);
       });
     }
-  }, []);
+  }, [setDbError]);
 
   // Initialize tabs from URL/IPC on mount
   useEffect(() => {
     initializeTabs();
-  }, []);
+  }, [initializeTabs]);
 
   // Initialize auto-updater subscription
   useEffect(() => {
@@ -131,12 +131,12 @@ function App() {
   // Listen for window reattach tab requests
   useEffect(() => {
     return onReattachTab();
-  }, []);
+  }, [onReattachTab]);
 
   // Poll foreground process names periodically to keep tab labels in sync
   useEffect(() => {
     return pollTabLabels();
-  }, []);
+  }, [pollTabLabels]);
 
   if (error) {
     return (

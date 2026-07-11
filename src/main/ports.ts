@@ -136,9 +136,7 @@ export function initPortsManager() {
           process.kill(numericPid, 0);
           // Still alive, force kill
           process.kill(numericPid, "SIGKILL");
-        } catch {
-          // Already exited or permission error
-        }
+        } catch { /* intentional ignore */ }
       } catch {
         // Fallback to SIGKILL
         process.kill(numericPid, "SIGKILL");

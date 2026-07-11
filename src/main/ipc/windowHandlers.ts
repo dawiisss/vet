@@ -49,10 +49,25 @@ export function registerWindowHandlers() {
             `[security] Blocked attempt to open external URL with unsafe protocol: ${url}`,
           );
         }
-      } catch (e) {
+      } catch {
         console.warn(
           `[security] Blocked attempt to open invalid external URL: ${url}`,
         );
+      }
+    },
+    "win:get-error-log-path": async () => {
+      const { join } = require("path");
+      const { existsSync, writeFileSync } = require("fs");
+      const logPath = join(app.getPath("userData"), "vet-error.log");
+      
+      try {
+        if (!existsSync(logPath)) {
+          writeFileSync(logPath, "=== Vet Error Log ===\n\n", "utf-8");
+        }
+        return logPath;
+      } catch (err) {
+        console.error("Failed to get error log path:", err);
+        return null;
       }
     },
   });
