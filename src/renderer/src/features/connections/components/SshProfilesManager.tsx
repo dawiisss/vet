@@ -53,7 +53,7 @@ export const SshProfilesManager: React.FC = () => {
     if (!selectedId && sshHosts.length > 0) {
       selectHost(sshHosts[0]);
     }
-  }, [sshHosts]);
+  }, [sshHosts, selectedId]);
 
   const saveHost = () => {
     if (!editName.trim() || !editHost.trim() || !editUser.trim()) {
@@ -104,6 +104,7 @@ export const SshProfilesManager: React.FC = () => {
     <div style={{ display: "flex", gap: 16, height: 350 }}>
       {/* List */}
       <div
+        className="app-scrollbar"
         style={{
           width: 200,
           borderRight: "1px solid rgba(255, 255, 255, 0.1)",
@@ -184,6 +185,7 @@ export const SshProfilesManager: React.FC = () => {
 
       {/* Edit Form */}
       <div
+        className="app-scrollbar"
         style={{
           flex: 1,
           display: "flex",

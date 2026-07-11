@@ -63,7 +63,7 @@ function patchScriptletsForYouTube(b: ElectronBlocker) {
         // Skip scripts for YouTube — they break video playback
         return;
       }
-    } catch {}
+    } catch { /* intentional ignore */ }
     return origInject(event, url, msg);
   };
 }
@@ -86,9 +86,7 @@ export function registerAdblockerIpcHandlers(
           let newHost = "";
           try {
             newHost = new URL(details.url).hostname;
-          } catch {
-            // URL parsing or hostname extraction failed — fall through to default injection
-          }
+          } catch { /* intentional ignore */ }
           const oldHost = lastHostname.get(wcId) || "";
           if (newHost && newHost !== oldHost) {
             lastHostname.set(wcId, newHost);
@@ -212,7 +210,7 @@ export async function initAdblocker(userDataPath: string) {
     console.log(
       "[adblocker] Loaded uBlock Origin and EasyList filters from local cache",
     );
-  } catch (e) {
+  } catch {
     console.log(
       "[adblocker] Local cache missing. Fetching uBlock Origin and EasyList filters...",
     );

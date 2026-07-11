@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
-import ContextMenu, {
-  ContextMenuAction,
-} from "@/shared/components/ContextMenu";
+import ContextMenu from "@/shared/components/ContextMenu";
 
 interface TabBarTab {
   id: string;
@@ -207,7 +205,7 @@ function TabBar({
                   setEditingLabel(tab.label);
                 }
               }}
-              onClick={(e) => {
+              onClick={() => {
                 // Don't select if we were dragging
                 if (!dragRef.current?.dragging) {
                   onSelect(tab.id);

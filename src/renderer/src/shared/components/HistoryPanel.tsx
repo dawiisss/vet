@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { useTabStore } from "@/features/terminal/useTabStore";
 import Panel from "./Panel";
@@ -38,7 +38,7 @@ export default function HistoryPanel({
 
   const newBrowserTab = useTabStore((s) => s.newBrowserTab);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       setIsSearching(true);
       const api = window.historyApi;
@@ -66,13 +66,13 @@ export default function HistoryPanel({
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [activeTab, query]);
 
   useEffect(() => {
     if (isActive) {
       loadHistory();
     }
-  }, [isActive, activeTab]);
+  }, [isActive, loadHistory]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -81,7 +81,7 @@ export default function HistoryPanel({
       }
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, isActive, loadHistory]);
 
   const handleDeleteTerminal = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();

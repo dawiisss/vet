@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ModalOverlay } from "./ModalOverlay";
 import { useUIStore } from "@/shared/stores/useUIStore";
+import { useTabStore } from "@/features/terminal/useTabStore";
 
 interface AboutModalProps {
   onClose: () => void;
@@ -10,6 +11,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [version, setVersion] = useState<string>("1.0.2");
   const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
+  const openEditorInNewTab = useTabStore((s) => s.openEditorInNewTab);
 
   useEffect(() => {
     // Focus modal for accessibility
@@ -331,6 +333,41 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
             }}
           >
             Welcome Guide
+          </button>
+          <button
+            className="vet-about-secondary-btn"
+            onClick={async () => {
+              try {
+                const logPath = await window.windowApi?.getErrorLogPath?.();
+                if (logPath) {
+                  openEditorInNewTab(logPath, null);
+                  onClose();
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--app-border)",
+              color: "var(--app-fg)",
+              padding: "8px 16px",
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#f38ba8";
+              e.currentTarget.style.background = "rgba(255, 0, 0, 0.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--app-border)";
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            Open Error Log
           </button>
           <button className="vet-about-action-btn" onClick={onClose}>
             Done

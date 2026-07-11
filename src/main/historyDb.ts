@@ -186,9 +186,7 @@ function flushBuffer() {
     for (const [sessionId, text] of sessionTextMap.entries()) {
       try {
         insertSearchStmt!.run(sessionId, text);
-      } catch {
-        // Ignore orphaned FTS entries
-      }
+      } catch { /* intentional ignore */ }
     }
   });
 
@@ -266,7 +264,7 @@ export function getSessionTranscript(id: string): string {
 export function getScrollbackChunk(
   id: string,
   beforeTimestamp: number,
-  limitLines: number = 1000,
+  _limitLines: number = 1000,
 ): { data: string; timestamp: number }[] {
   if (!db) return [];
   flushBuffer();

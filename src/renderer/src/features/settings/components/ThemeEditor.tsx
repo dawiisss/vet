@@ -98,6 +98,7 @@ export const ThemeEditor: React.FC = () => {
   if (editingThemeId && draftTheme) {
     return (
       <div
+        className="app-scrollbar"
         style={{
           display: "flex",
           flexDirection: "column",
@@ -400,6 +401,7 @@ export const ThemeEditor: React.FC = () => {
 
   return (
     <div
+      className="app-scrollbar"
       style={{
         display: "flex",
         flexDirection: "column",

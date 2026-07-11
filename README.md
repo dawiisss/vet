@@ -33,7 +33,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 5. [Default Keyboard Shortcuts](#default-keyboard-shortcuts)
 6. [Configuration](#configuration)
 7. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
-8. [Contributing & Community](#contributing--community)
+8. [Contributing and Community](#contributing-and-community)
 9. [License](#license)
 
 ---
@@ -109,16 +109,16 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.0.9_amd64.deb
+  sudo apt install ./dist/vet_1.2.0_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.0.9.x86_64.rpm
+  sudo dnf install ./dist/vet-1.2.0.x86_64.rpm
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.0.9.AppImage
-  ./dist/Vet-1.0.9.AppImage
+  chmod +x dist/Vet-1.2.0.AppImage
+  ./dist/Vet-1.2.0.AppImage
   ```
 
 ---
@@ -177,7 +177,7 @@ All terminal sessions are saved locally to an SQLite database on your machine (l
 
 ---
 
-## Contributing & Community
+## Contributing and Community
 
 Contributions to Vet are highly appreciated! Please review our **[Contributing Guidelines](./CONTRIBUTING.md)** for details on coding standards, local development workflows, and pull request submissions.
 

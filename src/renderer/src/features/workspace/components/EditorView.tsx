@@ -106,7 +106,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     if (isFocused && editorRef.current) {
       try {
         editorRef.current.focus();
-      } catch {}
+      } catch { /* intentional ignore */ }
     }
   }, [isFocused]);
 

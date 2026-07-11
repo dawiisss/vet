@@ -66,8 +66,6 @@ export const useClipboardStore = create<ClipboardStore>((set, get) => ({
       if (Array.isArray(items)) {
         set({ history: items });
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* intentional ignore */ }
   },
 }));

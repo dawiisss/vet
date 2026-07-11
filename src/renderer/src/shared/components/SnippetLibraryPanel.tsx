@@ -21,7 +21,7 @@ export default function SnippetLibraryPanel({
     if (saved) {
       try {
         setSnippets(JSON.parse(saved));
-      } catch (e) {}
+      } catch { /* intentional ignore */ }
     }
   }, []);
 

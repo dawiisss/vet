@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
 import { buildShortcutString } from "@/shared/utils/keybindings";
 
@@ -33,13 +33,19 @@ export const KeybindingsManager: React.FC = () => {
   const { config, updateConfig } = useConfig();
   const [recordingAction, setRecordingAction] = useState<string | null>(null);
 
-  const currentKeybindings = config.keybindings || {};
+  const currentKeybindings = useMemo(
+    () => config.keybindings || {},
+    [config.keybindings],
+  );
 
   // Invert the map: action -> shortcut
-  const actionToShortcut: Record<string, string> = {};
-  for (const [key, action] of Object.entries(currentKeybindings)) {
-    actionToShortcut[action] = key;
-  }
+  const actionToShortcut = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [key, action] of Object.entries(currentKeybindings)) {
+      map[action as string] = key;
+    }
+    return map;
+  }, [currentKeybindings]);
 
   useEffect(() => {
     if (!recordingAction) return;
@@ -98,6 +104,7 @@ export const KeybindingsManager: React.FC = () => {
 
   return (
     <div
+      className="app-scrollbar"
       style={{
         display: "flex",
         flexDirection: "column",

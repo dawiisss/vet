@@ -33,7 +33,7 @@ jest.mock("better-sqlite3", () => {
           fn(...args);
           this._db.exec("COMMIT");
         } catch (err) {
-          try { this._db.exec("ROLLBACK"); } catch {}
+          try { this._db.exec("ROLLBACK"); } catch { /* intentional ignore */ }
           throw err;
         }
       };

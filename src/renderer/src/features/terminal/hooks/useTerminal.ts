@@ -349,9 +349,7 @@ export function useTerminal({
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
-      } catch {
-        // ignore
-      }
+      } catch { /* intentional ignore */ }
     });
 
     const handleFocusIn = () => onFocus?.();
@@ -411,9 +409,7 @@ export function useTerminal({
         isFirstFit = false;
         try {
           fitAddon.fit();
-        } catch {
-          // ignore
-        }
+        } catch { /* intentional ignore */ }
         return;
       }
 
@@ -421,9 +417,7 @@ export function useTerminal({
       resizeTimeout = setTimeout(() => {
         try {
           fitAddon.fit();
-        } catch {
-          // ignore
-        }
+        } catch { /* intentional ignore */ }
       }, 50);
     }
 
@@ -443,9 +437,7 @@ export function useTerminal({
       requestAnimationFrame(() => {
         try {
           fitAddonRef.current?.fit();
-        } catch {
-          // ignore
-        }
+        } catch { /* intentional ignore */ }
       });
     }
   }, [isActive]);

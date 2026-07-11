@@ -103,9 +103,7 @@ async function getMounts(): Promise<MountInfo[]> {
       try {
         await access(drive + "\\", constants.R_OK);
         mounts.push({ device: drive, mount: drive });
-      } catch {
-        // Drive not accessible
-      }
+      } catch { /* intentional ignore */ }
     }
     return mounts;
   }
@@ -135,9 +133,7 @@ async function getDisksList(): Promise<DiskInfo[]> {
         used,
         use,
       });
-    } catch {
-      // Ignore un-statable disks
-    }
+    } catch { /* intentional ignore */ }
   }
   return list;
 }
@@ -228,7 +224,7 @@ async function getBatteryInfo(): Promise<{ hasBattery: boolean; percent: number;
           try {
             const onlineStr = await readFile(`/sys/class/power_supply/${acDir}/online`, "utf-8");
             acConnected = onlineStr.trim() === "1";
-          } catch {}
+          } catch { /* intentional ignore */ }
         } else {
           acConnected = status !== "discharging";
         }
@@ -239,7 +235,7 @@ async function getBatteryInfo(): Promise<{ hasBattery: boolean; percent: number;
           acConnected,
         };
       }
-    } catch {}
+    } catch { /* intentional ignore */ }
   }
   return {
     hasBattery: false,
@@ -285,9 +281,7 @@ async function getGpuInfo(): Promise<{ controllers: GpuController[] } | null> {
         }]
       };
     }
-  } catch {
-    // nvidia-smi failed or not installed
-  }
+  } catch { /* intentional ignore */ }
   return null;
 }
 
@@ -409,9 +403,7 @@ function scheduleNext(mainWindow: BrowserWindow) {
             const status = await readFile(`/proc/${pid}/status`, "utf-8");
             const match = status.match(/VmRSS:\s+(\d+)\s+kB/);
             if (match) totalMem += parseInt(match[1], 10) * 1024;
-          } catch {
-            // Process may have exited between listing and reading /proc/pid/status
-          }
+          } catch { /* intentional ignore */ }
         }
       }
       const totalCpu = electronMetrics.reduce(

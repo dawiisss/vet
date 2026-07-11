@@ -115,6 +115,7 @@ interface WindowApi {
   getVersion: () => Promise<string>;
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
+  getErrorLogPath: () => Promise<string | null>;
   onMaximizeChange: (callback: (maximized: boolean) => void) => () => void;
   onWebviewKeydown: (
     callback: (data: {
