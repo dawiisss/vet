@@ -2,7 +2,11 @@ import { ipcMain, shell } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
+
+const execFileAsync = promisify(execFile);
 
 interface DirectoryItem {
   name: string;
@@ -123,7 +127,8 @@ class WorkspaceService {
 
   async readFileHead(filePath: string) {
     try {
-      const targetPath = path.resolve(expandHome(filePath));
+      const cleanPath = filePath.split("#")[0]!;
+      const targetPath = path.resolve(expandHome(cleanPath));
 
       logSensitivePathAccess(targetPath);
 
@@ -142,13 +147,14 @@ class WorkspaceService {
       }
     } catch (err: any) {
       console.error(`Failed to read file head: ${filePath}`, err);
-      return `Error: Failed to read file. ${err.message}`;
+      return { __ipcError: true, message: err.message };
     }
   }
 
   async writeFile(filePath: string, content: string) {
     try {
-      const targetPath = path.resolve(expandHome(filePath));
+      const cleanPath = filePath.split("#")[0]!;
+      const targetPath = path.resolve(expandHome(cleanPath));
 
       logSensitivePathAccess(targetPath);
 
@@ -157,6 +163,73 @@ class WorkspaceService {
     } catch (err: any) {
       console.error(`Failed to write file: ${filePath}`, err);
       return { __ipcError: true, message: err.message };
+    }
+  }
+
+  async getGitStatus(cwd: string): Promise<Record<string, "M" | "U" | "A" | "D">> {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      let repoRoot = targetDir;
+      try {
+        const { stdout: rootOut } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: targetDir });
+        if (rootOut.trim()) repoRoot = rootOut.trim();
+      } catch { /* intentional ignore */ }
+
+      const relCwd = path.relative(repoRoot, targetDir);
+
+      const { stdout } = await execFileAsync("git", ["status", "--porcelain", "-u"], { cwd: repoRoot });
+      const statusMap: Record<string, "M" | "U" | "A" | "D"> = {};
+      const lines = stdout.split("\n");
+
+      for (const line of lines) {
+        if (!line || line.length < 4) continue;
+        const code = line.substring(0, 2);
+        const gitPath = line.substring(3).trim();
+
+        const fullGitPath = path.resolve(repoRoot, gitPath);
+        const computedRel = path.relative(targetDir, fullGitPath);
+        if (computedRel.startsWith("..") || path.isAbsolute(computedRel)) {
+          continue;
+        }
+        const relPath = computedRel;
+
+        let status: "M" | "U" | "A" | "D" = "M";
+        if (code.includes("M")) {
+          status = "M";
+        } else if (code.includes("A") || code === "??") {
+          status = code === "??" ? "U" : "A";
+        } else if (code.includes("D")) {
+          status = "D";
+        }
+
+        statusMap[relPath] = status;
+
+        if (relPath.includes("/")) {
+          const topFolder = relPath.split("/")[0]!;
+          if (!statusMap[topFolder]) {
+            statusMap[topFolder] = status;
+          }
+        }
+      }
+      return statusMap;
+    } catch {
+      return {};
+    }
+  }
+
+  async getGitDiff(cwd: string, filePath: string): Promise<string> {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const relPath = path.isAbsolute(filePath) ? path.relative(targetDir, filePath) : filePath;
+      try {
+        const { stdout } = await execFileAsync("git", ["diff", "HEAD", "--", relPath], { cwd: targetDir });
+        if (stdout.trim()) return stdout;
+      } catch { /* intentional ignore */ }
+
+      const { stdout: diffUntracked } = await execFileAsync("git", ["diff", "--", relPath], { cwd: targetDir });
+      return diffUntracked;
+    } catch {
+      return "";
     }
   }
 }
@@ -212,5 +285,13 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
 
   ipcMain.handle("workspace:write-file", async (_, filePath: string, content: string) => {
     return workspaceService.writeFile(filePath, content);
+  });
+
+  ipcMain.handle("workspace:get-git-status", async (_, cwd: string) => {
+    return workspaceService.getGitStatus(cwd);
+  });
+
+  ipcMain.handle("workspace:get-git-diff", async (_, cwd: string, filePath: string) => {
+    return workspaceService.getGitDiff(cwd, filePath);
   });
 }

@@ -61,7 +61,7 @@ async function getMounts(): Promise<MountInfo[]> {
         if (parts.length >= 2) {
           const device = parts[0];
           const mount = parts[1];
-          if (device.startsWith("/dev/")) {
+          if (device && mount && device.startsWith("/dev/")) {
             if (!seenDevices.has(device)) {
               seenDevices.add(device);
               mounts.push({ device, mount });
@@ -84,7 +84,7 @@ async function getMounts(): Promise<MountInfo[]> {
         if (parts.length >= 6) {
           const device = parts[0];
           const mount = parts[5];
-          if (device.startsWith("/dev/") && mount) {
+          if (device && mount && device.startsWith("/dev/")) {
             if (!seenDevices.has(device)) {
               seenDevices.add(device);
               mounts.push({ device, mount });
@@ -175,7 +175,7 @@ async function getNetworkStats(): Promise<{ rx_sec: number; tx_sec: number }> {
         const trimmed = line.trim();
         if (!trimmed || trimmed.includes("|") || trimmed.startsWith("Inter-")) continue;
         const parts = trimmed.split(/\s+/);
-        if (parts.length >= 10) {
+        if (parts.length >= 10 && parts[0] && parts[1] && parts[9]) {
           const iface = parts[0].replace(":", "");
           if (iface === "lo") continue;
           const rx = parseInt(parts[1], 10);
@@ -264,7 +264,7 @@ async function getGpuInfo(): Promise<{ controllers: GpuController[] } | null> {
     const line = stdout.trim();
     if (!line) return null;
     const parts = line.split(",").map(s => s.trim());
-    if (parts.length >= 5) {
+    if (parts.length >= 5 && parts[0] && parts[1] && parts[2] && parts[3] && parts[4]) {
       const model = parts[0];
       const temperatureGpu = parseInt(parts[1], 10);
       const utilizationGpu = parseInt(parts[2], 10);
@@ -304,7 +304,7 @@ async function getDiskIoStats(): Promise<{ rx_sec: number; wx_sec: number } | nu
         const trimmed = line.trim();
         if (!trimmed) continue;
         const parts = trimmed.split(/\s+/);
-        if (parts.length >= 10) {
+        if (parts.length >= 10 && parts[2] && parts[5] && parts[9]) {
           const dev = parts[2];
           const isPhysicalDisk = (dev.startsWith("sd") && dev.length === 3) || (dev.startsWith("nvme") && !dev.includes("p"));
           if (isPhysicalDisk) {
@@ -402,7 +402,7 @@ function scheduleNext(mainWindow: BrowserWindow) {
           try {
             const status = await readFile(`/proc/${pid}/status`, "utf-8");
             const match = status.match(/VmRSS:\s+(\d+)\s+kB/);
-            if (match) totalMem += parseInt(match[1], 10) * 1024;
+            if (match && match[1]) totalMem += parseInt(match[1], 10) * 1024;
           } catch { /* intentional ignore */ }
         }
       }

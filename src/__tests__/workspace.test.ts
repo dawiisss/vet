@@ -209,8 +209,26 @@ describe("workspace", () => {
       fs.open.mockRejectedValue(new Error("access denied"));
 
       const result = await readFileHeadHandler({}, "/file.txt");
-      expect(result).toContain("Error: Failed to read file");
+      expect(result).toEqual({ __ipcError: true, message: "access denied" });
       errorSpy.mockRestore();
+    });
+  });
+
+  describe("workspace:get-git-status handler", () => {
+    it("registers workspace:get-git-status handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:get-git-status",
+        expect.any(Function),
+      );
+    });
+  });
+
+  describe("workspace:get-git-diff handler", () => {
+    it("registers workspace:get-git-diff handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:get-git-diff",
+        expect.any(Function),
+      );
     });
   });
 });

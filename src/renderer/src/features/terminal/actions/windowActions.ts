@@ -42,7 +42,8 @@ export async function detachTabAction(
 
     await api.detachTab(tabId, terminalIds);
     terminalIds.forEach((id) => {
-      const cleanId = id.split(":")[0]!;
+      const sep = id.indexOf(":");
+      const cleanId = sep === -1 ? id : id.substring(0, sep);
       destroyTerminalCache(cleanId);
     });
 

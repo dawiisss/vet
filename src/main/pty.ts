@@ -58,7 +58,7 @@ const SAFE_COMMANDS = new Set([
   "wsl",
 ]);
 
-function isValidShell(shellPath: string): boolean {
+export function isValidShell(shellPath: string): boolean {
   if (!shellPath) return false;
   const baseName = path.basename(shellPath).toLowerCase();
   if (SAFE_COMMANDS.has(baseName)) {

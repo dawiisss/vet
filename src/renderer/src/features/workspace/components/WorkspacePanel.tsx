@@ -23,6 +23,7 @@ export default function WorkspacePanel({
   const [cwd, setCwd] = useState<string | null>(null);
   const [sshHostId, setSshHostId] = useState<string | null>(null);
   const [items, setItems] = useState<WorkspaceItem[]>([]);
+  const [gitStatus, setGitStatus] = useState<Record<string, "M" | "U" | "A" | "D">>({});
   const [loading, setLoading] = useState(false);
   const [keyboardIndex, setKeyboardIndex] = useState(0);
   const [authRequired, setAuthRequired] = useState(false);
@@ -118,6 +119,23 @@ export default function WorkspacePanel({
     };
 
     loadDir();
+  }, [cwd, sshHostId]);
+
+  // Fetch Git status for the active directory
+  useEffect(() => {
+    if (!cwd || sshHostId) {
+      setGitStatus({});
+      return;
+    }
+    const updateGit = () => {
+      window.workspaceApi
+        .getGitStatus(cwd)
+        .then(setGitStatus)
+        .catch(() => setGitStatus({}));
+    };
+    updateGit();
+    const interval = setInterval(updateGit, 3000);
+    return () => clearInterval(interval);
   }, [cwd, sshHostId]);
 
   // Focus container when tab changes or sidebar opens
@@ -312,6 +330,28 @@ export default function WorkspacePanel({
                       ? `/${contextMenu.itemName}`
                       : `${cwd}/${contextMenu.itemName}`;
                   onViewFile(fullPath, sshHostId || undefined);
+                },
+              },
+            ]
+          : []),
+        ...(!contextMenu.isDirectory && !sshHostId && gitStatus[contextMenu.itemName]
+          ? [
+              {
+                id: "git-diff",
+                label: "View Git Diff",
+                onExecute: () => {
+                  const fullPath =
+                    cwd === "/"
+                      ? `/${contextMenu.itemName}`
+                      : `${cwd}/${contextMenu.itemName}`;
+                  window.dispatchEvent(
+                    new CustomEvent("vet:open-editor", {
+                      detail: {
+                        filePath: `${fullPath}#git-diff`,
+                        sshHostId: null,
+                      },
+                    }),
+                  );
                 },
               },
             ]
@@ -590,18 +630,54 @@ export default function WorkspacePanel({
                           {item.name}
                         </span>
                       </div>
-                      {!item.isDirectory && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: "var(--app-fg-muted)",
-                            flexShrink: 0,
-                            marginLeft: 8,
-                          }}
-                        >
-                          {formatSize(item.size)}
-                        </span>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                        {!item.isDirectory && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: "var(--app-fg-muted)",
+                            }}
+                          >
+                            {formatSize(item.size)}
+                          </span>
+                        )}
+                        {gitStatus[item.name] && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "1px 5px",
+                              borderRadius: 3,
+                              fontFamily: "monospace",
+                              color:
+                                gitStatus[item.name] === "M"
+                                  ? "#f9e2af"
+                                  : gitStatus[item.name] === "U" || gitStatus[item.name] === "A"
+                                  ? "#a6e3a1"
+                                  : "#f38ba8",
+                              background:
+                                gitStatus[item.name] === "M"
+                                  ? "rgba(249, 226, 175, 0.15)"
+                                  : gitStatus[item.name] === "U" || gitStatus[item.name] === "A"
+                                  ? "rgba(166, 227, 161, 0.15)"
+                                  : "rgba(243, 139, 168, 0.15)",
+                            }}
+                            title={
+                              gitStatus[item.name] === "M"
+                                ? "Modified"
+                                : gitStatus[item.name] === "U"
+                                ? "Untracked"
+                                : gitStatus[item.name] === "A"
+                                ? "Added"
+                                : gitStatus[item.name] === "D"
+                                ? "Deleted"
+                                : gitStatus[item.name]
+                            }
+                          >
+                            {gitStatus[item.name]}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

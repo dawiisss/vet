@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "license": "MIT",
@@ -20,7 +20,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "jest --forceExit",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --forceExit",

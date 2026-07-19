@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import TerminalView from "./TerminalView";
 import BrowserView from "../../browser/components/BrowserView";
 import EditorView from "../../workspace/components/EditorView";
@@ -155,6 +155,7 @@ function SplitContainer({
   leafCount,
 }: SplitContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const draggingRef = useRef<{
     index: number;
     startSizes: number[];
@@ -173,6 +174,7 @@ function SplitContainer({
       const containerSize = isH ? rect.width : rect.height;
 
       draggingRef.current = { index, startSizes: [...sizes], startPos };
+      setDraggingIndex(index);
 
       const handleMouseMove = (ev: MouseEvent) => {
         const drag = draggingRef.current;
@@ -202,6 +204,7 @@ function SplitContainer({
 
       const handleMouseUp = () => {
         draggingRef.current = null;
+        setDraggingIndex(null);
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
         document.body.style.cursor = "";
@@ -225,13 +228,14 @@ function SplitContainer({
         flexDirection: direction === "horizontal" ? "row" : "column",
         width: "100%",
         height: "100%",
+        position: "relative",
       }}
     >
       {children.map((child, i) => (
         <React.Fragment key={firstLeafId(child)}>
           {i > 0 && (
             <div
-              className="split-handle"
+              className={`split-handle ${draggingIndex === i - 1 ? "dragging" : ""}`}
               onMouseDown={handleMouseDown(i - 1)}
               onDoubleClick={() => {
                 const eqSize = 1 / children.length;
@@ -240,6 +244,7 @@ function SplitContainer({
                   children.map(() => eqSize),
                 );
               }}
+              title="Drag to resize split, double-click to equalize"
               style={{
                 width: direction === "horizontal" ? 4 : "100%",
                 height: direction === "vertical" ? 4 : "100%",
@@ -247,10 +252,35 @@ function SplitContainer({
                   direction === "horizontal" ? "col-resize" : "row-resize",
                 background: "var(--app-border)",
                 flexShrink: 0,
-                zIndex: 1,
+                zIndex: 2,
+                position: "relative",
                 transition: "background 0.15s",
               }}
-            />
+            >
+              {draggingIndex === i - 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: direction === "horizontal" ? "50%" : "50%",
+                    top: direction === "vertical" ? "50%" : "50%",
+                    transform: "translate(-50%, -50%)",
+                    background: "var(--app-bg, #1e1e2e)",
+                    border: "1px solid var(--app-blue)",
+                    color: "var(--app-blue)",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    fontSize: 10,
+                    fontWeight: "bold",
+                    pointerEvents: "none",
+                    zIndex: 10,
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  {Math.round((sizes[i - 1] || 0) * 100)}% / {Math.round((sizes[i] || 0) * 100)}%
+                </div>
+              )}
+            </div>
           )}
           <div
             style={{

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-07-19
+
+### Added
+- **Git Status Indicators in Workspace**: File and directory items in the Workspace explorer now display color-coded status badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) aligned to the right edge with friendly hover tooltips.
+- **Line-Numbered Git Diff Viewer**: Added an **"Edit / Diff"** toggle in CodeMirror editor tabs and modals to view line-numbered Git diffs with syntax-highlighted additions and deletions.
+- **Interactive Split Resizing Handles**: Dragging split pane handles now displays glowing visual feedback and a live percentage ratio overlay (`40% / 60%`), with double-click handle equalization.
+
+### Fixed
+- **Application Window Re-Activation**: Fixed an issue where re-opening the application window when all windows were closed displayed a blank window.
+- **SFTP Stability & Connection Pooling**: Resolved connection race conditions and fixed stale session caching when navigating remote files over SFTP.
+- **IPC & Config Security**: Improved safe credential fallback defaults when encryption is unavailable and standardized error payload formats across IPC bridges.
+- **Type Safety & Build Infrastructure**: Restored strict type-checking in CI and fixed optional property handling across modal and editor components.
+
+
+
 ## [1.2.0] - 2026-07-10
 
 ### Added

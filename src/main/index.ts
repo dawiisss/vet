@@ -18,8 +18,14 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason) => {
+  if (
+    reason instanceof Error &&
+    reason.message.includes("Script failed to execute")
+  ) {
+    return;
+  }
   console.error("Unhandled Rejection:", reason);
-  logError(String(reason), "unhandledRejection");
+  logError(reason instanceof Error ? reason : String(reason), "unhandledRejection");
 });
 
 import icon from "../../resources/icon.png?asset";
@@ -45,7 +51,7 @@ function createWindow(isTransparent = false): BrowserWindow {
     minWidth: 400,
     minHeight: 300,
     title: "Vet",
-    ...(process.platform === "linux" ? { icon } : { icon }),
+    icon,
     frame: false,
     transparent: isTransparent,
     backgroundColor: isTransparent ? "#00000000" : "#1e1e2e",
@@ -225,16 +231,6 @@ if (process.platform === "linux" && app.commandLine) {
   app.commandLine.appendSwitch("disable-accelerated-video-decode");
 }
 
-process.on("unhandledRejection", (reason) => {
-  if (
-    reason instanceof Error &&
-    reason.message.includes("Script failed to execute")
-  ) {
-    return;
-  }
-  console.error("[unhandledRejection]", reason);
-});
-
 import { EventEmitter } from "events";
 EventEmitter.defaultMaxListeners = 50;
 // Note: Prefer setting .setMaxListeners() on specific emitters that need it,
@@ -296,6 +292,7 @@ app.whenReady().then(async () => {
       if (conf.vibrancy && conf.vibrancy !== "none") {
         mainWindow.setVibrancy(conf.vibrancy);
       }
+      loadWindow(mainWindow);
     }
   });
 });
