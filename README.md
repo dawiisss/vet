@@ -28,6 +28,7 @@ Windows build is provided, but no support will be provided for it at the moment.
    * [7. Interactive Onboarding](#7-interactive-onboarding-and-real-time-customizer)
    * [8. Automated Application Updates](#8-automated-application-updates)
    * [9. Integrated CodeMirror 6 Code Editor](#9-integrated-codemirror-6-code-editor)
+   * [10. Git Status Integration and Diff Viewer](#10-git-status-integration-and-diff-viewer)
 3. [Technology Stack](#technology-stack)
 4. [Installation](#installation)
 5. [Default Keyboard Shortcuts](#default-keyboard-shortcuts)
@@ -42,8 +43,9 @@ Windows build is provided, but no support will be provided for it at the moment.
 
 * **GPU-Accelerated Command-Line**: Powered by `xterm.js` and WebGL rendering for ultra-low-latency text output, supporting font ligatures, Unicode 11, Sixel graphics, and advanced regex text search.
 * **Workspace Session Persistence**: Automatically saves and restores your complex tiling layouts, active tabs, split panes, and web browser sessions across application restarts.
-* **Flexible Window Tiling**: Arrange tabs and split-panes dynamically. Easily drag-and-drop tabs, split terminal panes horizontally or vertically, and extract split panes into separate tabs.
-* **Tiling Code Editor**: Built-in CodeMirror 6 text editor supporting 50+ languages, syntax highlighting, local/remote saving, and adjustable layout modes (split-pane tiling, standalone tab, or floating modal).
+* **Flexible Window Tiling**: Arrange tabs and split-panes dynamically. Drag-and-drop split handles feature glowing visual feedback and live percentage overlays (`40% / 60%`), with double-click split size equalization.
+* **Tiling Code Editor & Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes, and a built-in line-numbered Git diff viewer.
+* **Git Status Integration**: Workspace explorer automatically polls Git status and displays color-coded badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) for files and folders with human-readable tooltips.
 * **Interactive Onboarding Welcome Guide**: A multi-slide introductory carousel (`IntroModal`) displaying key app features on startup, complete with an interactive theme selector to customize Vet's styling in real time.
 * **Built-in SSH & SFTP Manager**: Securely save SSH hosts, connect to remote servers, and transfer files via an integrated SFTP client.
 * **Integrated Ad-Blocking Browser**: Browse documentation and web applications side-by-side with your terminal in a sandboxed browser powered by `@ghostery/adblocker-electron`.
@@ -60,7 +62,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 Vet provides a fast, responsive command-line interface on Linux, macOS, and Windows. Utilizing WebGL rendering, it handles high-throughput logs and text processing without lag. Features include URL/path detection, customizable scrollback limits, and native node-pty integrations.
 
 ### 2. Multi-Tab and Split-Pane Layouts (Tiling Manager)
-Customize your terminal layout dynamically. Split panes vertically or horizontally, resize panels with smooth drag handles, and extract individual panes to standalone tabs instantly to stay organized.
+Customize your terminal layout dynamically. Split panes vertically or horizontally, resize panels with interactive drag handles displaying live percentage overlays (`40% / 60%`), and extract individual panes to standalone tabs instantly to stay organized.
 
 ### 3. Integrated SSH and SFTP Client
 Ditch standalone SSH managers. Vet includes a secure connection manager allowing you to configure SSH profiles, launch remote terminal sessions, and use the integrated SFTP panel to upload and download files.
@@ -81,7 +83,10 @@ New users are introduced to Vet's features upon launch with a beautiful welcome 
 Vet includes a secure, user-controlled auto-updater for Windows (NSIS/ZIP) and Linux (AppImage). When a new release is published, a pulsing green update badge appears in the TitleBar. Click it to open the dedicated Update Modal, view release notes, and track the download progress (percentage, transfer speed, and downloaded bytes) before hot-relaunching.
 
 ### 9. Integrated CodeMirror 6 Code Editor
-Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup. The editor fully integrates with both the local filesystem and remote SSH/SFTP workspace paths, and features split extraction tools to organize your workspaces dynamically.
+Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes Tab-key autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup. The editor fully integrates with both the local filesystem and remote SSH/SFTP workspace paths, and features split extraction tools to organize your workspaces dynamically.
+
+### 10. Git Status Integration and Diff Viewer
+Stay on top of code changes directly from the Workspace explorer panel. Vet automatically detects Git repositories and displays color-coded status badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) for both files and directories. Right-clicking a modified file or clicking the **"Edit / Diff"** header button opens a line-numbered Git diff viewer with syntax-highlighted additions and deletions.
 
 ---
 
@@ -109,16 +114,16 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.2.0_amd64.deb
+  sudo apt install ./dist/vet_1.2.1_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.2.0.x86_64.rpm
+  sudo dnf install ./dist/vet-1.2.1.x86_64.rpm
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.2.0.AppImage
-  ./dist/Vet-1.2.0.AppImage
+  chmod +x dist/Vet-1.2.1.AppImage
+  ./dist/Vet-1.2.1.AppImage
   ```
 
 ---
