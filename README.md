@@ -12,6 +12,7 @@
 Vet (Very Easy Terminal) is a free, open-source, high-performance, cross-platform(Linux mainly) terminal emulator and developer productivity workspace built on **Electron**, **React**, and **TypeScript**. Designed for software engineers, systems administrators, DevOps professionals, and power users, Vet combines a GPU-accelerated command-line interface (CLI) with a suite of integrated tools—including a secure ad-blocking web browser, a remote SSH/SFTP connection manager, and live system monitoring—to deliver a unified, zero-config workspace.
 
 Windows build is provided, but no support will be provided for it at the moment.
+<img width="998" height="699" alt="vet110" src="https://github.com/user-attachments/assets/f0cf18a9-2339-4de6-8ef8-05b55a26f32a" />
 
 ---
 
