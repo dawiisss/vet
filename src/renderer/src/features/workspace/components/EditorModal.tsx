@@ -2,22 +2,40 @@ import React, { useEffect, useState, useRef } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
 import CodeMirror from "@uiw/react-codemirror";
 import { languages } from "@codemirror/language-data";
+import { acceptCompletion } from "@codemirror/autocomplete";
+import { keymap } from "@codemirror/view";
+import { Prec } from "@codemirror/state";
+import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
+
+const tabCompletionExtension = Prec.highest(
+  keymap.of([
+    {
+      key: "Tab",
+      run: acceptCompletion,
+    },
+  ]),
+);
 
 interface EditorModalProps {
   filePath: string;
-  sshHostId?: string | null;
+  sshHostId?: string | null | undefined;
   onClose: () => void;
 }
 
 export const EditorModal: React.FC<EditorModalProps> = ({
-  filePath,
+  filePath: rawFilePath,
   sshHostId,
   onClose,
 }) => {
+  const isGitDiffInitial = rawFilePath.includes("#git-diff");
+  const filePath = rawFilePath.split("#")[0]!;
+
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [isDiffMode, setIsDiffMode] = useState<boolean>(isGitDiffInitial);
+  const [diffContent, setDiffContent] = useState<string>("");
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: "info" | "success" | "error" } | null>(null);
   const [langExtensions, setLangExtensions] = useState<any[]>([]);
 
@@ -81,6 +99,26 @@ export const EditorModal: React.FC<EditorModalProps> = ({
       active = false;
     };
   }, [filePath, sshHostId]);
+
+  // Fetch Git diff content if in diff mode
+  useEffect(() => {
+    if (!isDiffMode || !filePath || sshHostId) return;
+    let active = true;
+    const parts = filePath.split("/");
+    parts.pop();
+    const dir = parts.join("/") || "/";
+    window.workspaceApi
+      .getGitDiff(dir, filePath)
+      .then((diff) => {
+        if (active) setDiffContent(diff || "No git changes detected.");
+      })
+      .catch(() => {
+        if (active) setDiffContent("Failed to load git diff.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [isDiffMode, filePath, sshHostId]);
 
   // Restore focus on close
   useEffect(() => {
@@ -214,6 +252,26 @@ export const EditorModal: React.FC<EditorModalProps> = ({
               </span>
             )}
 
+            {!sshHostId && (
+              <button
+                onClick={() => setIsDiffMode((prev) => !prev)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 4,
+                  border: "1px solid var(--app-border)",
+                  backgroundColor: isDiffMode ? "var(--app-blue)" : "rgba(255,255,255,0.08)",
+                  color: isDiffMode ? "#000" : "var(--app-fg-subtle)",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                title="Toggle Git Diff view"
+              >
+                {isDiffMode ? "Edit" : "Diff"}
+              </button>
+            )}
+
             <button
               onClick={() => handleSave()}
               disabled={loading || saving || !isDirty}
@@ -269,12 +327,97 @@ export const EditorModal: React.FC<EditorModalProps> = ({
             >
               Loading content...
             </div>
+          ) : isDiffMode ? (
+            <div
+              className="app-scrollbar"
+              style={{
+                flex: 1,
+                overflow: "auto",
+                padding: 16,
+                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                fontSize: 12,
+                lineHeight: 1.5,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+                background: "rgba(0, 0, 0, 0.3)",
+                color: "var(--app-fg)",
+              }}
+            >
+              {diffContent ? (
+                parseDiffLines(diffContent).map((item, idx) => {
+                  let color = "var(--app-fg)";
+                  let bg = "transparent";
+                  if (item.type === "add") {
+                    color = "#a6e3a1";
+                    bg = "rgba(166, 227, 161, 0.12)";
+                  } else if (item.type === "delete") {
+                    color = "#f38ba8";
+                    bg = "rgba(243, 139, 168, 0.12)";
+                  } else if (item.type === "hunk") {
+                    color = "#cba6f7";
+                    bg = "rgba(203, 166, 247, 0.15)";
+                  } else if (item.type === "header") {
+                    color = "#89dceb";
+                    bg = "rgba(137, 220, 235, 0.1)";
+                  }
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "stretch",
+                        color,
+                        background: bg,
+                        padding: "1px 4px",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 32,
+                          textAlign: "right",
+                          color: "var(--app-fg-muted)",
+                          opacity: 0.5,
+                          userSelect: "none",
+                          paddingRight: 6,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {item.oldNum}
+                      </span>
+                      <span
+                        style={{
+                          width: 32,
+                          textAlign: "right",
+                          color: "var(--app-fg-muted)",
+                          opacity: 0.5,
+                          userSelect: "none",
+                          paddingRight: 8,
+                          marginRight: 8,
+                          borderRight: "1px solid rgba(255, 255, 255, 0.1)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {item.newNum}
+                      </span>
+                      <span style={{ flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                        {item.line}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ color: "var(--app-fg-subtle)", fontStyle: "italic" }}>
+                  No git diff available for this file.
+                </div>
+              )}
+            </div>
           ) : (
             <CodeMirror
               value={content}
               height="100%"
               theme="dark"
-              extensions={langExtensions}
+              extensions={[...langExtensions, tabCompletionExtension]}
               onChange={(value) => {
                 setContent(value);
                 setIsDirty(true);

@@ -5,6 +5,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import os from "os";
 import { getConfig } from "./config";
+import { isValidShell } from "./pty";
 
 const execFileAsync = promisify(execFile);
 
@@ -20,7 +21,7 @@ export function initConnectionsManager() {
     "connections:get-ssh-hosts",
     async (): Promise<ConnectionInfo[]> => {
       const config = getConfig();
-      const hosts: ConnectionInfo[] = [];
+      const hosts: ConnectionInfo[] = []; 
 
       if (config.sshParseGlobal) {
         try {
@@ -79,18 +80,8 @@ export function initConnectionsManager() {
           .map((l) => l.trim())
           .filter(Boolean);
         const config = getConfig();
-        const ALLOWED_SHELLS = [
-          "/bin/bash",
-          "/bin/sh",
-          "/bin/zsh",
-          "/usr/bin/fish",
-          "/usr/bin/bash",
-          "/usr/bin/zsh",
-          "/usr/bin/sh",
-        ];
-        const shell = ALLOWED_SHELLS.includes(config.dockerDefaultShell ?? "")
-          ? config.dockerDefaultShell!
-          : "/bin/bash";
+        const dockerShell = config.dockerDefaultShell ?? "/bin/bash";
+        const shell = isValidShell(dockerShell) ? dockerShell : "/bin/bash";
 
         return lines.map((name) => ({
           name,

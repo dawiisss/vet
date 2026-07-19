@@ -280,3 +280,14 @@ body,
     opacity: 1;
   }
 }
+
+.split-handle {
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.split-handle:hover,
+.split-handle.dragging {
+  background: var(--app-blue) !important;
+  box-shadow: 0 0 6px var(--app-blue);
+}

@@ -3,6 +3,7 @@
  */
 
 jest.mock("electron", () => ({
+  app: { getPath: jest.fn(() => "/mock/home") },
   ipcMain: { handle: jest.fn() },
 }));
 

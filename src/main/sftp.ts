@@ -13,12 +13,27 @@ interface SftpSession {
 }
 
 const sftpSessions = new Map<string, SftpSession>();
+const sftpPromises = new Map<string, Promise<SftpSession>>();
 const tempPasswords = new Map<string, string>();
 
 async function getSftpSession(sshHostId: string): Promise<SftpSession> {
   const existing = sftpSessions.get(sshHostId);
   if (existing) return existing;
 
+  const inFlight = sftpPromises.get(sshHostId);
+  if (inFlight) return inFlight;
+
+  const promise = createSftpSession(sshHostId);
+  sftpPromises.set(sshHostId, promise);
+  try {
+    const session = await promise;
+    return session;
+  } finally {
+    sftpPromises.delete(sshHostId);
+  }
+}
+
+async function createSftpSession(sshHostId: string): Promise<SftpSession> {
   const config = getConfig();
   let hostConfig = config.sshHosts?.find((h: any) => h.id === sshHostId);
 
@@ -119,6 +134,12 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
       tempPasswords.delete(sshHostId);
     };
 
+    const setupEviction = () => {
+      client.on("close", () => sftpSessions.delete(sshHostId));
+      client.on("end", () => sftpSessions.delete(sshHostId));
+      client.on("error", () => sftpSessions.delete(sshHostId));
+    };
+
     client.on("ready", () => {
       client.sftp((err, sftp) => {
         if (err) {
@@ -134,6 +155,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
             cleanupTempPassword();
             const session = { client, sftp, homeDir };
             sftpSessions.set(sshHostId, session);
+            setupEviction();
             safeResolve(session);
             return;
           }
@@ -144,6 +166,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
             homeDir = data.trim() || "/";
             const session = { client, sftp, homeDir };
             sftpSessions.set(sshHostId, session);
+            setupEviction();
             safeResolve(session);
           });
         });
@@ -151,6 +174,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
     });
     client.on("error", (err) => {
       cleanupTempPassword();
+      sftpSessions.delete(sshHostId);
       safeReject(err);
     });
     client.on("close", () => {
@@ -165,6 +189,7 @@ async function getSftpSession(sshHostId: string): Promise<SftpSession> {
       client.connect(connOpts);
     } catch (err: any) {
       cleanupTempPassword();
+      sftpSessions.delete(sshHostId);
       safeReject(err);
     }
   });

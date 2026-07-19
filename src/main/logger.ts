@@ -3,6 +3,7 @@ import { join } from "path";
 import { appendFile, stat, writeFile } from "fs/promises";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_LOG_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function logError(error: Error | string, context: string = "Global"): Promise<void> {
   try {
@@ -10,7 +11,10 @@ export async function logError(error: Error | string, context: string = "Global"
     
     try {
       const stats = await stat(logPath);
-      if (stats.birthtimeMs !== 0 && Date.now() - stats.birthtimeMs > SEVEN_DAYS_MS) {
+      if (
+        stats.size > MAX_LOG_SIZE_BYTES ||
+        (stats.birthtimeMs !== 0 && Date.now() - stats.birthtimeMs > SEVEN_DAYS_MS)
+      ) {
         await writeFile(logPath, "=== Vet Error Log ===\n\n", "utf-8");
       }
     } catch {

@@ -81,6 +81,9 @@ const workspaceApi = {
   listDir: jest.fn(() => Promise.resolve([] as WorkspaceItem[])),
   revealPath: jest.fn(() => Promise.resolve()),
   readFileHead: jest.fn(() => Promise.resolve("")),
+  writeFile: jest.fn(() => Promise.resolve()),
+  getGitStatus: jest.fn(() => Promise.resolve({} as Record<string, "M" | "U" | "A" | "D">)),
+  getGitDiff: jest.fn(() => Promise.resolve("")),
 };
 
 const sysinfoApi = {

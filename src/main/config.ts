@@ -23,7 +23,7 @@ function decryptField(value: string): string {
   if (!value.startsWith("encrypted:")) return value;
   if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
     console.warn("Encryption not available, cannot decrypt field");
-    return value;
+    return "";
   }
   try {
     const base64Data = value.substring("encrypted:".length);
@@ -394,7 +394,7 @@ async function loadConfig(): Promise<boolean> {
 async function saveConfig(): Promise<void> {
   try {
     // Clone config to encrypt passwords for saving without modifying the in-memory config
-    const configToSave = JSON.parse(JSON.stringify(currentConfig));
+    const configToSave = structuredClone(currentConfig);
     if (configToSave.sshHosts && Array.isArray(configToSave.sshHosts)) {
       for (const h of configToSave.sshHosts) {
         if (h.password) {

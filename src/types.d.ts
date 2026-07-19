@@ -75,6 +75,8 @@ interface Config {
   browserAdblockEnabled?: boolean;
   showIntroOnStartup?: boolean;
   editorMode?: "modal" | "split" | "tab";
+  allowedShells?: string[];
+  vibrancy?: string;
 }
 
 interface TerminalApi {
@@ -177,6 +179,8 @@ interface WorkspaceApi {
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<void>;
+  getGitStatus: (cwd: string) => Promise<Record<string, "M" | "U" | "A" | "D">>;
+  getGitDiff: (cwd: string, filePath: string) => Promise<string>;
 }
 
 interface SftpApi {

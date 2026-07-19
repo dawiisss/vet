@@ -44,17 +44,18 @@ const registerHandler = <T>(handlers: Set<T>) => (callback: T) => {
 };
 
 const terminalApi: TerminalApi = {
-  create: (opts) => invoke<unknown>("terminal:create")(opts || {}),
+  create: (opts) => invoke<{ id: string }>("terminal:create")(opts || {}),
   enableForwarding: (id) => invoke<void>("terminal:enable-forwarding")({ id }),
   write: (id, data) => send("terminal:write")({ id, data }),
   resize: (id, cols, rows) => invoke<void>("terminal:resize")({ id, cols, rows }),
   getHistory: (id) => invoke<string>("terminal:get-history")({ id }),
   destroy: (id) => invoke<void>("terminal:destroy")({ id }),
   detachTab: (tabId, terminalIds) =>
-    invoke<unknown>("terminal:detach-tab")({ tabId, terminalIds }),
+    invoke<{ success: boolean }>("terminal:detach-tab")({ tabId, terminalIds }),
   reattachTab: (terminalIds) =>
-    invoke<unknown>("terminal:reattach-tab")({ terminalIds }),
-  getTerminalInfo: (id) => invoke<unknown>("terminal:get-info")({ id }),
+    invoke<{ success: boolean }>("terminal:reattach-tab")({ terminalIds }),
+  getTerminalInfo: (id) =>
+    invoke<{ title: string; cwd: string; sshHostId?: string }>("terminal:get-info")({ id }),
   setForeground: (ids) => invoke<void>("terminal:set-foreground")({ ids }),
   onData: registerHandler(dataHandlers),
   onExit: registerHandler(exitHandlers),
@@ -75,7 +76,17 @@ const windowApi: WindowApi = {
   getErrorLogPath: invoke<string | null>("win:get-error-log-path"),
   onMaximizeChange: registerHandler(maximizeHandlers),
   onWebviewKeydown: (callback) => {
-    const handler = (_event: unknown, data: unknown) => callback(data);
+    const handler = (
+      _event: unknown,
+      data: {
+        key: string;
+        code: string;
+        ctrlKey: boolean;
+        shiftKey: boolean;
+        altKey: boolean;
+        metaKey: boolean;
+      },
+    ) => callback(data);
     ipcRenderer.on("webview:keydown", handler);
     return () => {
       ipcRenderer.removeListener("webview:keydown", handler);
@@ -124,9 +135,13 @@ const workspaceApi = {
   listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
-    invoke<string>("workspace:read-file-head")(filePath),
+    unwrap(invoke<string>("workspace:read-file-head")(filePath)),
   writeFile: (filePath: string, content: string) =>
-    invoke<void>("workspace:write-file")(filePath, content),
+    unwrap(invoke<void>("workspace:write-file")(filePath, content)),
+  getGitStatus: (cwd: string) =>
+    invoke<Record<string, "M" | "U" | "A" | "D">>("workspace:get-git-status")(cwd),
+  getGitDiff: (cwd: string, filePath: string) =>
+    invoke<string>("workspace:get-git-diff")(cwd, filePath),
 };
 
 const connectionsApi = {
@@ -134,10 +149,17 @@ const connectionsApi = {
   getDockerContainers: () => invoke<unknown[]>("connections:get-docker")(),
 };
 
-const unwrap = async (promise: Promise<unknown>) => {
-  const res = await promise;
-  if (res && res.__ipcError) throw new Error(res.message);
-  return res;
+interface IpcError {
+  __ipcError: true;
+  message: string;
+}
+
+const unwrap = async <T>(promise: Promise<T>): Promise<T> => {
+  const res = (await promise) as T | IpcError;
+  if (res && typeof res === "object" && "__ipcError" in res) {
+    throw new Error((res as IpcError).message);
+  }
+  return res as T;
 };
 
 const sftpApi: SftpApi = {
@@ -212,21 +234,38 @@ const adblockerApi = {
     invoke<string>("adblocker:get-app-preload-path")(),
 };
 
-const statusChangeHandlers = new Set<(status: unknown, info?: unknown) => void>();
-const downloadProgressHandlers = new Set<(progress: unknown) => void>();
+type UpdaterStatus =
+  | "idle"
+  | "checking"
+  | "available"
+  | "uptodate"
+  | "downloading"
+  | "downloaded"
+  | "error";
 
-ipcRenderer.on("updater:status", (_event, status, info) => {
-  statusChangeHandlers.forEach((h) => h(status, info));
-});
+const statusChangeHandlers = new Set<
+  (status: UpdaterStatus, info?: UpdateInfo | string) => void
+>();
+const downloadProgressHandlers = new Set<(progress: UpdateProgress) => void>();
 
-ipcRenderer.on("updater:progress", (_event, progress) => {
+ipcRenderer.on(
+  "updater:status",
+  (_event, status: UpdaterStatus, info?: UpdateInfo | string) => {
+    statusChangeHandlers.forEach((h) => h(status, info));
+  },
+);
+
+ipcRenderer.on("updater:progress", (_event, progress: UpdateProgress) => {
   downloadProgressHandlers.forEach((h) => h(progress));
 });
 
 const updaterApi: UpdaterApi = {
-  checkForUpdates: () => invoke<unknown>("updater:check")(),
-  downloadUpdate: () => invoke<unknown>("updater:download")(),
-  quitAndInstall: () => invoke<unknown>("updater:install")(),
+  checkForUpdates: () =>
+    invoke<{ success: boolean; error?: string }>("updater:check")(),
+  downloadUpdate: () =>
+    invoke<{ success: boolean; error?: string }>("updater:download")(),
+  quitAndInstall: () =>
+    invoke<{ success: boolean; error?: string }>("updater:install")(),
   simulateUpdate: () => invoke<void>("updater:simulate")(),
   onStatusChange: registerHandler(statusChangeHandlers),
   onDownloadProgress: registerHandler(downloadProgressHandlers),
