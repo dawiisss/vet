@@ -10,6 +10,7 @@ import { useConfig } from "@/features/settings/useConfigStore";
 import { resolveTheme, toXtermTheme } from "@/themes";
 import { buildShortcutString } from "@/shared/utils/keybindings";
 import { useClipboardStore } from "@/features/clipboard/useClipboardStore";
+import { useStatusBarStore } from "@/shared/stores/useStatusBarStore";
 export interface TerminalCacheEntry {
   term: Terminal;
   fitAddon: FitAddon;
@@ -313,6 +314,10 @@ export function useTerminal({
 
       term.onResize(({ cols, rows }) => {
         api.resize(terminalId, cols, rows);
+        useStatusBarStore.getState().updateTerminalStatus(terminalId, {
+          cols,
+          rows,
+        });
       });
 
       const newEntry: TerminalCacheEntry = {
@@ -352,7 +357,10 @@ export function useTerminal({
       } catch { /* intentional ignore */ }
     });
 
-    const handleFocusIn = () => onFocus?.();
+    const handleFocusIn = () => {
+      onFocus?.();
+      useStatusBarStore.getState().setActivePane("terminal", terminalId);
+    };
     container.addEventListener("focusin", handleFocusIn);
 
     // Shortcuts via xterm attachCustomKeyEventHandler
@@ -446,8 +454,48 @@ export function useTerminal({
   useEffect(() => {
     if (isFocused && terminal) {
       terminal.focus();
+      useStatusBarStore.getState().setActivePane("terminal", terminalId);
     }
-  }, [isFocused, terminal]);
+  }, [isFocused, terminal, terminalId]);
+
+  // Poll terminal CWD and process info when focused and active
+  useEffect(() => {
+    if (!isActive || !isFocused) return;
+
+    let active = true;
+    const updateInfo = () => {
+      if (!active) return;
+      window.terminalApi
+        .getTerminalInfo(terminalId)
+        .then((info) => {
+          if (!active) return;
+          const parts = (info?.title || "").split(" : ");
+          const command = parts[parts.length - 1] || "shell";
+          
+          useStatusBarStore.getState().updateTerminalStatus(terminalId, {
+            cwd: info?.cwd || "",
+            command,
+            sshHostId: info?.sshHostId || null,
+          });
+        })
+        .catch(() => {});
+
+      if (terminal) {
+        useStatusBarStore.getState().updateTerminalStatus(terminalId, {
+          cols: terminal.cols,
+          rows: terminal.rows,
+        });
+      }
+
+      setTimeout(updateInfo, 2000);
+    };
+
+    updateInfo();
+
+    return () => {
+      active = false;
+    };
+  }, [isActive, isFocused, terminalId, terminal]);
 
   // 4. Focus when sidebar closes
   useEffect(() => {

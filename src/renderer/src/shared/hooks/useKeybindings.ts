@@ -76,8 +76,11 @@ export function useKeybindings() {
           case "settings:toggle":
             useUIStore.getState().setIsSettingsOpen((prev) => !prev);
             break;
+          case "command-palette:file-search":
+            useUIStore.getState().openCommandPalette("files");
+            break;
           case "command-palette:toggle":
-            useUIStore.getState().setIsCommandPaletteOpen((prev) => !prev);
+            useUIStore.getState().openCommandPalette("commands");
             break;
           case "tabbar:toggle-position": {
             const currentPos = currentConfig.tabBarPosition || "top";
@@ -136,7 +139,11 @@ export function useKeybindings() {
       } else if (e.ctrlKey && e.shiftKey && (e.key === "P" || e.key === "p")) {
         e.preventDefault();
         e.stopPropagation();
-        uiStore.setIsCommandPaletteOpen((prev) => !prev);
+        uiStore.openCommandPalette("commands");
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "P" || e.key === "p")) {
+        e.preventDefault();
+        e.stopPropagation();
+        uiStore.openCommandPalette("files");
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown, { capture: true });

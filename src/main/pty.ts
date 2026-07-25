@@ -14,6 +14,8 @@ const execFileAsync = promisify(execFile);
 interface PtyProcess {
   pty: ReturnType<typeof spawn>;
   id: string;
+  initialCwd?: string | undefined;
+  lastCwd?: string | undefined;
 }
 
 const terminals: Map<string, PtyProcess> = new Map();
@@ -361,7 +363,7 @@ export function createTerminal(options: {
     }
   });
 
-  terminals.set(id, { pty, id });
+  terminals.set(id, { pty, id, initialCwd: resolvedCwd, lastCwd: resolvedCwd });
   return id;
 }
 
@@ -421,7 +423,7 @@ export async function getTerminalInfo(
   const sshHostId = terminalSshHosts.get(id);
   if (!terminal) return { title: "Terminal", cwd: "", sshHostId };
 
-  let cwd = "";
+  let cwd = terminal.lastCwd || terminal.initialCwd || "";
   let dynamicSshTarget = "";
   let finalProcName = path.basename(terminal.pty.process || "shell");
 
@@ -477,6 +479,7 @@ export async function getTerminalInfo(
   try {
     if (platform() === "linux") {
       cwd = await fs.promises.readlink(`/proc/${terminal.pty.pid}/cwd`);
+      terminal.lastCwd = cwd;
     } else if (platform() === "darwin") {
       const { stdout } = await execFileAsync("lsof", [
         "-a",
@@ -490,12 +493,15 @@ export async function getTerminalInfo(
       for (const line of lines) {
         if (line.startsWith("n")) {
           cwd = line.slice(1);
+          terminal.lastCwd = cwd;
           break;
         }
       }
     }
-  } catch (err) {
-    console.warn("Failed to resolve terminal cwd path:", err);
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") {
+      console.warn("Failed to resolve terminal cwd path:", err);
+    }
   }
 
   const resolvedCwd = cwd || process.cwd();

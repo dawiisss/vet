@@ -130,7 +130,16 @@ export const GeneralTab: React.FC = () => {
             <option value="modal" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Floating Modal</option>
           </FormSelect>
         </SettingsField>
-        <div style={{ flex: 1 }} />
+        <SettingsField htmlFor="show-statusbar-select" label="Status Bar Visibility" flex={1}>
+          <FormSelect
+            id="show-statusbar-select"
+            value={config.showStatusBar !== false ? 'show' : 'hide'}
+            onChange={(e) => updateConfig({ showStatusBar: e.target.value === 'show' })}
+          >
+            <option value="show" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Show</option>
+            <option value="hide" style={{ background: 'var(--app-bg)', color: 'var(--app-fg)' }}>Hide</option>
+          </FormSelect>
+        </SettingsField>
       </div>
 
       <div style={{ marginTop: 16 }}>

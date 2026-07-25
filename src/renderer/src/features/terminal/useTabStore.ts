@@ -13,6 +13,7 @@ import {
   updateBrowserUrlAction,
   handleRunScriptAction,
   handleInjectSnippetAction,
+  reorderTabsAction,
 } from "./actions/tabActions";
 import {
   splitTabAction,
@@ -103,6 +104,7 @@ interface TabStore {
   openEditorInNewTab: (filePath: string, sshHostId: string | null) => void;
   handleRunScript: (cmd: string, cwd: string) => Promise<void>;
   handleInjectSnippet: (snippet: string) => void;
+  reorderTabs: (draggedTabId: string, targetTabId: string) => void;
 }
 
 export const useTabStore = create<TabStore>((set, get) => {
@@ -193,5 +195,6 @@ export const useTabStore = create<TabStore>((set, get) => {
     openEditorInNewTab: (filePath, sshHostId) => openEditorInNewTabAction(set, get, filePath, sshHostId),
     handleRunScript: (cmd, cwd) => handleRunScriptAction(set, get, cmd, cwd),
     handleInjectSnippet: (snippet) => handleInjectSnippetAction(set, get, snippet),
+    reorderTabs: (draggedTabId, targetTabId) => reorderTabsAction(set, get, draggedTabId, targetTabId),
   };
 });

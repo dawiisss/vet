@@ -18,6 +18,7 @@ interface TabBarProps {
   onDragEnd?: (tabId: string, x: number, y: number) => void;
   onRenameTab?: (id: string, newLabel: string) => void;
   onDoubleClickTab?: (id: string) => void;
+  onReorderTab?: (draggedTabId: string, targetTabId: string) => void;
 }
 
 function TabBar({
@@ -31,11 +32,13 @@ function TabBar({
   onDragEnd,
   onRenameTab,
   onDoubleClickTab,
+  onReorderTab,
 }: TabBarProps) {
   const { config, updateConfig } = useConfig();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState<string>("");
+  const [dropTargetTabId, setDropTargetTabId] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     tabId: string;
@@ -58,9 +61,11 @@ function TabBar({
   const onDragStartRef = useRef(onDragStart);
   const onDragMoveRef = useRef(onDragMove);
   const onDragEndRef = useRef(onDragEnd);
+  const onReorderTabRef = useRef(onReorderTab);
   onDragStartRef.current = onDragStart;
   onDragMoveRef.current = onDragMove;
   onDragEndRef.current = onDragEnd;
+  onReorderTabRef.current = onReorderTab;
 
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
@@ -123,6 +128,14 @@ function TabBar({
         drag.ghost.style.left = `${e.clientX + 10}px`;
         drag.ghost.style.top = `${e.clientY + 10}px`;
         onDragMoveRef.current?.(e.clientX, e.clientY);
+
+        const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-tabid]") as HTMLElement;
+        const targetTabId = targetEl?.getAttribute("data-tabid");
+        if (targetTabId && targetTabId !== drag.tabId) {
+          setDropTargetTabId(targetTabId);
+        } else {
+          setDropTargetTabId(null);
+        }
       }
     };
 
@@ -132,9 +145,18 @@ function TabBar({
 
       drag.ghost.remove();
 
-      if (drag.dragging && onDragEndRef.current) {
-        onDragEndRef.current(drag.tabId, e.clientX, e.clientY);
+      if (drag.dragging) {
+        const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-tabid]") as HTMLElement;
+        const targetTabId = targetEl?.getAttribute("data-tabid");
+
+        if (targetTabId && targetTabId !== drag.tabId && onReorderTabRef.current) {
+          onReorderTabRef.current(drag.tabId, targetTabId);
+        } else if (onDragEndRef.current) {
+          onDragEndRef.current(drag.tabId, e.clientX, e.clientY);
+        }
       }
+
+      setDropTargetTabId(null);
 
       setTimeout(() => {
         dragRef.current = null;
@@ -220,7 +242,11 @@ function TabBar({
                 boxSizing: "border-box",
                 cursor: "grab",
                 background:
-                  tab.id === activeTabId ? "var(--app-bg)" : "transparent",
+                  tab.id === dropTargetTabId
+                    ? "color-mix(in srgb, var(--app-accent) 25%, transparent)"
+                    : tab.id === activeTabId
+                    ? "var(--app-bg)"
+                    : "transparent",
                 borderRight: !isVertical
                   ? "1px solid var(--app-border)"
                   : "none",
@@ -228,11 +254,11 @@ function TabBar({
                   ? "1px solid rgba(255, 255, 255, 0.05)"
                   : "none",
                 borderTop:
-                  !isVertical && tab.id === activeTabId
+                  !isVertical && (tab.id === activeTabId || tab.id === dropTargetTabId)
                     ? "2px solid var(--app-accent)"
                     : "2px solid transparent",
                 borderLeft:
-                  isVertical && tab.id === activeTabId
+                  isVertical && (tab.id === activeTabId || tab.id === dropTargetTabId)
                     ? "2px solid var(--app-accent)"
                     : "2px solid transparent",
                 color:

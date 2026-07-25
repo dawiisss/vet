@@ -229,4 +229,29 @@ describe("useTabStore", () => {
       });
     });
   });
+
+  it("openEditorInSplit falls back to opening in a new tab when no tabs exist", () => {
+    const store = useTabStore.getState();
+    expect(store.tabs).toHaveLength(0);
+
+    store.openEditorInSplit("/path/to/main.ts", null);
+
+    const tabs = useTabStore.getState().tabs;
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0].label).toBe("Edit: main.ts");
+  });
+
+  it("reorderTabs correctly changes tab positions", () => {
+    const store = useTabStore.getState();
+    store.setTabs([
+      { id: "tab-1", label: "Tab One", root: leafNode("term-1"), focusedPath: [] },
+      { id: "tab-2", label: "Tab Two", root: leafNode("term-2"), focusedPath: [] },
+      { id: "tab-3", label: "Tab Three", root: leafNode("term-3"), focusedPath: [] },
+    ]);
+
+    store.reorderTabs("tab-3", "tab-1");
+
+    const tabs = useTabStore.getState().tabs;
+    expect(tabs.map((t) => t.id)).toEqual(["tab-3", "tab-1", "tab-2"]);
+  });
 });

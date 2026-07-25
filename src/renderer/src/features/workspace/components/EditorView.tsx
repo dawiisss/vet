@@ -2,10 +2,11 @@ import React, { useEffect, useState, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { languages } from "@codemirror/language-data";
 import { acceptCompletion } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { keymap, EditorView as CMEditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import ContextMenu, { ContextMenuAction } from "@/shared/components/ContextMenu";
 import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
+import { useStatusBarStore } from "@/shared/stores/useStatusBarStore";
 
 const tabCompletionExtension = Prec.highest(
   keymap.of([
@@ -82,12 +83,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
       if (lang) {
         lang.load()
           .then((le) => {
-            if (active) setLangExtensions([le]);
+            if (active) {
+              setLangExtensions([le]);
+              useStatusBarStore.getState().updateEditorStatus(_editorId, {
+                language: lang.name,
+              });
+            }
           })
           .catch((err) => {
             console.warn("Failed to load language extensions:", err);
           });
+      } else {
+        useStatusBarStore.getState().updateEditorStatus(_editorId, {
+          language: "Plain Text",
+        });
       }
+    } else {
+      useStatusBarStore.getState().updateEditorStatus(_editorId, {
+        language: "Plain Text",
+      });
     }
 
     const readPromise = sshHostId
@@ -139,7 +153,31 @@ export const EditorView: React.FC<EditorViewProps> = ({
     };
   }, [isDiffMode, filePath, sshHostId]);
 
-  // 2. Focus editor when isFocused changes
+  // Set active pane when focused
+  useEffect(() => {
+    if (isFocused) {
+      useStatusBarStore.getState().setActivePane("editor", _editorId);
+    }
+  }, [isFocused, _editorId]);
+
+  // Sync general editor state metadata
+  useEffect(() => {
+    const ext = filePath.split(".").pop()?.toLowerCase() || "";
+    const lang = languages.find(
+      (l) =>
+        (l.extensions && l.extensions.includes(ext)) ||
+        (l.alias && l.alias.includes(ext)) ||
+        (l.name && l.name.toLowerCase() === ext)
+    );
+    useStatusBarStore.getState().updateEditorStatus(_editorId, {
+      filePath,
+      sshHostId,
+      isDirty,
+      language: lang ? lang.name : "Plain Text",
+    });
+  }, [_editorId, filePath, sshHostId, isDirty]);
+
+  // Focus editor when isFocused changes
   useEffect(() => {
     if (isFocused && editorRef.current) {
       try {
@@ -209,6 +247,22 @@ export const EditorView: React.FC<EditorViewProps> = ({
       onExecute: handleCloseAttempt,
     },
   );
+
+  // Listener for CM selection and document updates to push coordinates to status store
+  const updateListener = useRef<any>(null);
+  if (!updateListener.current) {
+    updateListener.current = CMEditorView.updateListener.of((update) => {
+      if (update.selectionSet || update.docChanged) {
+        const pos = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(pos);
+        const col = pos - line.from + 1;
+        useStatusBarStore.getState().updateEditorStatus(_editorId, {
+          line: line.number,
+          col,
+        });
+      }
+    });
+  }
 
   return (
     <div
@@ -499,7 +553,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             value={content}
             height="100%"
             theme="dark"
-            extensions={[...langExtensions, tabCompletionExtension]}
+            extensions={[...langExtensions, tabCompletionExtension, updateListener.current]}
             onChange={(value) => {
               setContent(value);
               setIsDirty(true);

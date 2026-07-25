@@ -113,6 +113,67 @@ class WorkspaceService {
     }
   }
 
+  async searchFiles(dirPath: string, query: string = "", maxResults: number = 100) {
+    try {
+      const targetDir = dirPath ? expandHome(dirPath) : process.cwd();
+      const rootPath = path.resolve(targetDir);
+      logSensitivePathAccess(rootPath);
+
+      const results: Array<{ relativePath: string; absolutePath: string }> = [];
+      const lowerQuery = query.toLowerCase().trim();
+
+      const IGNORE_DIRS = new Set([
+        ".git",
+        "node_modules",
+        "dist",
+        "out",
+        "build",
+        ".next",
+        ".cache",
+        "coverage",
+        ".gemini",
+        ".agents",
+      ]);
+
+      const walk = async (currentDir: string, depth: number) => {
+        if (depth > 6 || results.length >= maxResults) return;
+
+        let entries;
+        try {
+          entries = await fs.readdir(currentDir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+
+        for (const entry of entries) {
+          if (results.length >= maxResults) break;
+
+          const fullPath = path.join(currentDir, entry.name);
+          const relPath = path.relative(rootPath, fullPath);
+
+          if (entry.isDirectory()) {
+            if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
+              await walk(fullPath, depth + 1);
+            }
+          } else if (entry.isFile()) {
+            if (!lowerQuery || relPath.toLowerCase().includes(lowerQuery) || entry.name.toLowerCase().includes(lowerQuery)) {
+              results.push({
+                relativePath: relPath,
+                absolutePath: fullPath,
+              });
+            }
+          }
+        }
+      };
+
+      await walk(rootPath, 0);
+      return results;
+    } catch (err) {
+      console.error(`Failed to search files in directory: ${dirPath}`, err);
+      return [];
+    }
+  }
+
   revealPath(itemPath: string) {
     try {
       const targetPath = path.resolve(expandHome(itemPath));
@@ -273,6 +334,10 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
 
   ipcMain.handle("workspace:list-dir", async (_, dirPath: string) => {
     return workspaceService.listDir(dirPath);
+  });
+
+  ipcMain.handle("workspace:search-files", async (_, dirPath: string, query: string) => {
+    return workspaceService.searchFiles(dirPath, query);
   });
 
   ipcMain.handle("workspace:reveal-path", async (_, itemPath: string) => {

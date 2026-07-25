@@ -133,6 +133,8 @@ const portsApi = {
 const workspaceApi = {
   getScripts: (cwd: string) => invoke<unknown>("workspace:getScripts")(cwd),
   listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
+  searchFiles: (dirPath: string, query: string) =>
+    invoke<Array<{ relativePath: string; absolutePath: string }>>("workspace:search-files")(dirPath, query),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
     unwrap(invoke<string>("workspace:read-file-head")(filePath)),

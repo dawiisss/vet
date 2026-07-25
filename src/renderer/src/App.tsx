@@ -18,6 +18,7 @@ import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
 import ThemeProvider from "@/shared/components/ThemeProvider";
 import ModalManager from "@/shared/components/ModalManager";
 import { useKeybindings } from "@/shared/hooks/useKeybindings";
+import { StatusBar } from "@/shared/components/StatusBar";
 
 /**
  * Main application scaffold component (AppShell).
@@ -54,6 +55,7 @@ function App() {
   const onResize = useTabStore((s) => s.onResize);
   const onFocusSplit = useTabStore((s) => s.onFocusSplit);
   const renameTab = useTabStore((s) => s.renameTab);
+  const reorderTabs = useTabStore((s) => s.reorderTabs);
   const openEditorInSplit = useTabStore((s) => s.openEditorInSplit);
   const openEditorInNewTab = useTabStore((s) => s.openEditorInNewTab);
   const handleRunScript = useTabStore((s) => s.handleRunScript);
@@ -243,6 +245,7 @@ function App() {
             );
           })}
         </div>
+        <StatusBar />
       </ThemeProvider>
     );
   }
@@ -322,6 +325,7 @@ function App() {
             handleDragEnd(tabId, x, y, terminalAreaRef.current)
           }
           onRenameTab={renameTab}
+          onReorderTab={reorderTabs}
         />
       )}
       <div
@@ -349,6 +353,7 @@ function App() {
               handleDragEnd(tabId, x, y, terminalAreaRef.current)
             }
             onRenameTab={renameTab}
+            onReorderTab={reorderTabs}
           />
         )}
         {config.sidebarOpen && config.sidebarPlacement === "left" && (
@@ -498,9 +503,11 @@ function App() {
               handleDragEnd(tabId, x, y, terminalAreaRef.current)
             }
             onRenameTab={renameTab}
+            onReorderTab={reorderTabs}
           />
         )}
       </div>
+      <StatusBar />
       <ModalManager />
       {editingFile && (
         <EditorModal

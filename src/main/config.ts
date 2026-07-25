@@ -79,6 +79,7 @@ const DEFAULT_CONFIG: any = {
     "ctrl+shift+v": "terminal:paste",
     "ctrl+f": "terminal:search",
     "ctrl+,": "settings:toggle",
+    "ctrl+p": "command-palette:file-search",
     "ctrl+shift+p": "command-palette:toggle",
     "ctrl+shift+f": "app:toggle-fullscreen",
     "ctrl+shift+m": "app:maximize",
@@ -89,6 +90,7 @@ const DEFAULT_CONFIG: any = {
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
   showIntroOnStartup: true,
+  showStatusBar: true,
   editorMode: "split",
   profiles: [
     {
@@ -214,6 +216,11 @@ export function sanitizeConfig(conf: any): any {
 
   if (sanitized.browserAdblockEnabled === undefined) {
     sanitized.browserAdblockEnabled = true;
+  }
+  if (sanitized.showStatusBar === undefined) {
+    sanitized.showStatusBar = true;
+  } else {
+    sanitized.showStatusBar = Boolean(sanitized.showStatusBar);
   }
   if (
     !sanitized.browserHomepage ||

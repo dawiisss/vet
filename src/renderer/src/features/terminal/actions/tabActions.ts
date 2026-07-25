@@ -519,3 +519,27 @@ export function handleInjectSnippetAction(set: any, get: any, snippet: string) {
     api.write(node.terminalId, snippet);
   }
 }
+
+export function reorderTabsAction(
+  set: any,
+  get: any,
+  draggedTabId: string,
+  targetTabId: string,
+) {
+  if (draggedTabId === targetTabId) return;
+
+  set((state: any) => {
+    const currentTabs = [...state.tabs];
+    const fromIndex = currentTabs.findIndex((t) => t.id === draggedTabId);
+    const toIndex = currentTabs.findIndex((t) => t.id === targetTabId);
+
+    if (fromIndex === -1 || toIndex === -1) return state;
+
+    const [movedTab] = currentTabs.splice(fromIndex, 1);
+    currentTabs.splice(toIndex, 0, movedTab);
+
+    return {
+      tabs: currentTabs,
+    };
+  });
+}

@@ -506,10 +506,14 @@ export function openEditorInSplitAction(
   sshHostId: string | null,
 ) {
   const activeTabId = get().activeTabId;
-  if (!activeTabId) return;
+  const tab = activeTabId
+    ? get().tabs.find((t: any) => t.id === activeTabId)
+    : null;
 
-  const tab = get().tabs.find((t: any) => t.id === activeTabId);
-  if (!tab) return;
+  if (!activeTabId || !tab) {
+    openEditorInNewTabAction(set, get, filePath, sshHostId);
+    return;
+  }
 
   const path = tab.focusedPath;
   const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;

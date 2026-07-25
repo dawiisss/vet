@@ -5,6 +5,7 @@ import { leafCount } from "@/features/terminal/splitTree";
 import SearchOverlay from "@/shared/components/SearchOverlay";
 import { buildShortcutString } from "@/shared/utils/keybindings";
 import { DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/utils/pathUtils";
+import { useStatusBarStore } from "@/shared/stores/useStatusBarStore";
 
 interface BrowserViewProps {
   browserId: string;
@@ -91,6 +92,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const isAdblockEnabled = config.browserAdblockEnabled !== false;
 
   const [initialUrlResolved] = useState(() => initialUrl || homepage);
+  const [loadedUrl, setLoadedUrl] = useState(initialUrlResolved);
   const [urlInput, setUrlInput] = useState(initialUrlResolved);
   const [isLoading, setIsLoading] = useState(false);
   const [pageTitle, setPageTitle] = useState("Web Browser");
@@ -200,9 +202,15 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       updateNavigationButtons();
     };
     const onNavigate = (e: any) => {
+      setLoadedUrl(e.url);
       setUrlInput(e.url);
       updateNavigationButtons();
       updateBrowserUrl(browserId, e.url);
+
+      useStatusBarStore.getState().updateBrowserStatus(browserId, {
+        url: e.url,
+        isHttps: e.url.startsWith("https://"),
+      });
 
       if (window.historyApi?.addBrowserVisit) {
         let title = "";
@@ -214,6 +222,10 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     };
     const onTitleUpdate = (e: any) => {
       const title = e.title || "Web Browser";
+      setPageTitle(title);
+      useStatusBarStore.getState().updateBrowserStatus(browserId, {
+        title,
+      });
       if (
         !hasSplitsRef.current &&
         isActiveRef.current &&
@@ -300,6 +312,9 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           const wcId = webviewRef.current.getWebContentsId();
           if (wcId && data.webContentsId === wcId) {
             setBlockedCount(data.count);
+            useStatusBarStore.getState().updateBrowserStatus(browserId, {
+              blockedCount: data.count,
+            });
           }
         } catch { /* intentional ignore */ }
       }
@@ -318,6 +333,23 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       } catch { /* intentional ignore */ }
     }
   }, [isFocused]);
+
+  // Set active pane when focused
+  useEffect(() => {
+    if (isFocused) {
+      useStatusBarStore.getState().setActivePane("browser", browserId);
+    }
+  }, [isFocused, browserId]);
+
+  // Sync general browser state changes
+  useEffect(() => {
+    useStatusBarStore.getState().updateBrowserStatus(browserId, {
+      url: loadedUrl,
+      title: pageTitle,
+      blockedCount,
+      isHttps: loadedUrl.startsWith("https://"),
+    });
+  }, [browserId, loadedUrl, pageTitle, blockedCount]);
 
   // When the webview becomes available (appPreloadPath resolves), check if
   // its current URL matches the desired URL and navigate if needed.
@@ -779,6 +811,10 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
           }}
           onFocus={(e) => {
             e.currentTarget.style.borderColor = "var(--app-accent)";
+            const target = e.currentTarget;
+            requestAnimationFrame(() => {
+              target.select();
+            });
           }}
           onBlur={(e) => {
             e.currentTarget.style.borderColor = "var(--app-border)";
