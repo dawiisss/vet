@@ -9,6 +9,7 @@ export default tseslint.config(
     ignores: [
       "out/",
       "dist/",
+      "src/renderer/dist/",
       "coverage/",
       "node_modules/",
       ".Jules/",

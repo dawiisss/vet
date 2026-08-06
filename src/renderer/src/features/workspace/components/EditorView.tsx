@@ -2,10 +2,11 @@ import React, { useEffect, useState, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { languages } from "@codemirror/language-data";
 import { acceptCompletion } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { keymap, EditorView as CMEditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import ContextMenu, { ContextMenuAction } from "@/shared/components/ContextMenu";
 import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
+import { useStatusBarStore } from "@/shared/stores/useStatusBarStore";
 
 const tabCompletionExtension = Prec.highest(
   keymap.of([
@@ -39,8 +40,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onExtract,
   onContextMenuAction,
 }) => {
-  const isGitDiffInitial = rawFilePath.includes("#git-diff");
-  const filePath = rawFilePath.replace(/#git-diff$/, "");
+  const safeRawPath = rawFilePath || "";
+  const isGitDiffInitial = safeRawPath.includes("#git-diff");
+  const lineMatch = safeRawPath.match(/#L(\d+)/i);
+  const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
+  const filePath = safeRawPath.split("#")[0]!;
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -82,12 +86,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
       if (lang) {
         lang.load()
           .then((le) => {
-            if (active) setLangExtensions([le]);
+            if (active) {
+              setLangExtensions([le]);
+              useStatusBarStore.getState().updateEditorStatus(_editorId, {
+                language: lang.name,
+              });
+            }
           })
           .catch((err) => {
             console.warn("Failed to load language extensions:", err);
           });
+      } else {
+        useStatusBarStore.getState().updateEditorStatus(_editorId, {
+          language: "Plain Text",
+        });
       }
+    } else {
+      useStatusBarStore.getState().updateEditorStatus(_editorId, {
+        language: "Plain Text",
+      });
     }
 
     const readPromise = sshHostId
@@ -119,6 +136,29 @@ export const EditorView: React.FC<EditorViewProps> = ({
     };
   }, [filePath, sshHostId]);
 
+  const jumpToLine = (lineNum: number) => {
+    const view = editorRef.current;
+    if (!view) return;
+    setTimeout(() => {
+      try {
+        const lineCount = view.state?.doc?.lines || 1;
+        const validLine = Math.max(1, Math.min(lineNum, lineCount));
+        const lineObj = view.state.doc.line(validLine);
+        view.dispatch({
+          selection: { anchor: lineObj.from, head: lineObj.from },
+          effects: CMEditorView.scrollIntoView(lineObj.from, { y: "center" }),
+        });
+      } catch { /* intentional ignore */ }
+    }, 100);
+  };
+
+  // Scroll to target line when file finishes loading or line changes
+  useEffect(() => {
+    if (!loading && targetLine) {
+      jumpToLine(targetLine);
+    }
+  }, [loading, targetLine, rawFilePath]);
+
   // 2. Fetch Git diff content if in diff mode
   useEffect(() => {
     if (!isDiffMode || !filePath || sshHostId) return;
@@ -139,7 +179,31 @@ export const EditorView: React.FC<EditorViewProps> = ({
     };
   }, [isDiffMode, filePath, sshHostId]);
 
-  // 2. Focus editor when isFocused changes
+  // Set active pane when focused
+  useEffect(() => {
+    if (isFocused) {
+      useStatusBarStore.getState().setActivePane("editor", _editorId);
+    }
+  }, [isFocused, _editorId]);
+
+  // Sync general editor state metadata
+  useEffect(() => {
+    const ext = filePath.split(".").pop()?.toLowerCase() || "";
+    const lang = languages.find(
+      (l) =>
+        (l.extensions && l.extensions.includes(ext)) ||
+        (l.alias && l.alias.includes(ext)) ||
+        (l.name && l.name.toLowerCase() === ext)
+    );
+    useStatusBarStore.getState().updateEditorStatus(_editorId, {
+      filePath,
+      sshHostId,
+      isDirty,
+      language: lang ? lang.name : "Plain Text",
+    });
+  }, [_editorId, filePath, sshHostId, isDirty]);
+
+  // Focus editor when isFocused changes
   useEffect(() => {
     if (isFocused && editorRef.current) {
       try {
@@ -209,6 +273,22 @@ export const EditorView: React.FC<EditorViewProps> = ({
       onExecute: handleCloseAttempt,
     },
   );
+
+  // Listener for CM selection and document updates to push coordinates to status store
+  const updateListener = useRef<any>(null);
+  if (!updateListener.current) {
+    updateListener.current = CMEditorView.updateListener.of((update) => {
+      if (update.selectionSet || update.docChanged) {
+        const pos = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(pos);
+        const col = pos - line.from + 1;
+        useStatusBarStore.getState().updateEditorStatus(_editorId, {
+          line: line.number,
+          col,
+        });
+      }
+    });
+  }
 
   return (
     <div
@@ -499,7 +579,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             value={content}
             height="100%"
             theme="dark"
-            extensions={[...langExtensions, tabCompletionExtension]}
+            extensions={[...langExtensions, tabCompletionExtension, updateListener.current]}
             onChange={(value) => {
               setContent(value);
               setIsDirty(true);
@@ -511,6 +591,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
               editorRef.current = view;
               if (isFocused) {
                 view.focus();
+              }
+              if (targetLine) {
+                jumpToLine(targetLine);
               }
             }}
             style={{

@@ -3,7 +3,7 @@ import { ModalOverlay } from "@/shared/components/ModalOverlay";
 import CodeMirror from "@uiw/react-codemirror";
 import { languages } from "@codemirror/language-data";
 import { acceptCompletion } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { keymap, EditorView as CMEditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
 
@@ -27,8 +27,11 @@ export const EditorModal: React.FC<EditorModalProps> = ({
   sshHostId,
   onClose,
 }) => {
-  const isGitDiffInitial = rawFilePath.includes("#git-diff");
-  const filePath = rawFilePath.split("#")[0]!;
+  const safeRawPath = rawFilePath || "";
+  const isGitDiffInitial = safeRawPath.includes("#git-diff");
+  const lineMatch = safeRawPath.match(/#L(\d+)/i);
+  const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
+  const filePath = safeRawPath.split("#")[0]!;
 
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -99,6 +102,29 @@ export const EditorModal: React.FC<EditorModalProps> = ({
       active = false;
     };
   }, [filePath, sshHostId]);
+
+  const jumpToLine = (lineNum: number) => {
+    const view = editorRef.current;
+    if (!view) return;
+    setTimeout(() => {
+      try {
+        const lineCount = view.state?.doc?.lines || 1;
+        const validLine = Math.max(1, Math.min(lineNum, lineCount));
+        const lineObj = view.state.doc.line(validLine);
+        view.dispatch({
+          selection: { anchor: lineObj.from, head: lineObj.from },
+          effects: CMEditorView.scrollIntoView(lineObj.from, { y: "center" }),
+        });
+      } catch { /* intentional ignore */ }
+    }, 100);
+  };
+
+  // Scroll to target line when file finishes loading or line changes
+  useEffect(() => {
+    if (!loading && targetLine) {
+      jumpToLine(targetLine);
+    }
+  }, [loading, targetLine, rawFilePath]);
 
   // Fetch Git diff content if in diff mode
   useEffect(() => {
@@ -428,6 +454,9 @@ export const EditorModal: React.FC<EditorModalProps> = ({
               onCreateEditor={(view) => {
                 editorRef.current = view;
                 view.focus();
+                if (targetLine) {
+                  jumpToLine(targetLine);
+                }
               }}
               style={{
                 flex: 1,

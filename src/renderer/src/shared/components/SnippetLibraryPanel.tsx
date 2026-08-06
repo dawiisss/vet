@@ -20,7 +20,21 @@ export default function SnippetLibraryPanel({
     const saved = localStorage.getItem("vet:snippets");
     if (saved) {
       try {
-        setSnippets(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every(
+            (s: any) =>
+              s &&
+              typeof s.id === "string" &&
+              typeof s.name === "string" &&
+              typeof s.code === "string",
+          )
+        ) {
+          setSnippets(parsed);
+        } else {
+          localStorage.removeItem("vet:snippets");
+        }
       } catch { /* intentional ignore */ }
     }
   }, []);

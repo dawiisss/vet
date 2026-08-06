@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dawiisss/vet?color=blue&logo=github)](https://github.com/dawiisss/vet/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg?logo=node.js&logoColor=white)](https://nodejs.org)
-[![Electron Version](https://img.shields.io/badge/electron-%5E42.3.2-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
+[![Electron Version](https://img.shields.io/badge/electron-%5E43.3.0-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
 [![React Version](https://img.shields.io/badge/react-%5E19.0.0-61dafb?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript Version](https://img.shields.io/badge/typescript-%5E5.7.0-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Adblock Engine](https://img.shields.io/badge/adblocker-ghostery-brightgreen.svg?logo=ghostery)](https://github.com/ghostery/adblocker)
@@ -45,11 +45,12 @@ Windows build is provided, but no support will be provided for it at the moment.
 * **GPU-Accelerated Command-Line**: Powered by `xterm.js` and WebGL rendering for ultra-low-latency text output, supporting font ligatures, Unicode 11, Sixel graphics, and advanced regex text search.
 * **Workspace Session Persistence**: Automatically saves and restores your complex tiling layouts, active tabs, split panes, and web browser sessions across application restarts.
 * **Flexible Window Tiling**: Arrange tabs and split-panes dynamically. Drag-and-drop split handles feature glowing visual feedback and live percentage overlays (`40% / 60%`), with double-click split size equalization.
-* **Tiling Code Editor & Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes, and a built-in line-numbered Git diff viewer.
+* **Command Palette Autocomplete and Line Navigation**: Fast fuzzy file/command search with `Ctrl+Shift+P`, featuring `Right Arrow` prefilling and instant line-number jumping (`filename:line`) across all editor modes.
+* **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes, and a line-numbered Git diff viewer.
 * **Git Status Integration**: Workspace explorer automatically polls Git status and displays color-coded badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) for files and folders with human-readable tooltips.
 * **Interactive Onboarding Welcome Guide**: A multi-slide introductory carousel (`IntroModal`) displaying key app features on startup, complete with an interactive theme selector to customize Vet's styling in real time.
-* **Built-in SSH & SFTP Manager**: Securely save SSH hosts, connect to remote servers, and transfer files via an integrated SFTP client.
-* **Integrated Ad-Blocking Browser**: Browse documentation and web applications side-by-side with your terminal in a sandboxed browser powered by `@ghostery/adblocker-electron`.
+* **Built-in SSH and SFTP Manager**: Securely save SSH hosts with TOFU (Trust-On-First-Use) host-key verification, connect to remote servers, and transfer files via an integrated SFTP client.
+* **Isolated Ad-Blocking Web Browser**: Browse documentation and web applications side-by-side with your terminal in a sandboxed browser using a dedicated minimal preload shim (`preload/browser.js`) and Ghostery adblocker.
 * **Developer Productivity Toolbelt**: Monitor active network ports, view live CPU/RAM metrics, access clipboard history, manage snippets, and run project scripts directly from the sidebar.
 * **SQLite Session Transcripts**: Automatically log full terminal transcripts to a local SQLite database for search, audit trails, and historical playback.
 * **Automated Update Engine**: Secure background updates with `electron-updater`, custom TitleBar notifications, download progress monitoring, and seamless hot-relaunching.
@@ -69,7 +70,7 @@ Customize your terminal layout dynamically. Split panes vertically or horizontal
 Ditch standalone SSH managers. Vet includes a secure connection manager allowing you to configure SSH profiles, launch remote terminal sessions, and use the integrated SFTP panel to upload and download files.
 
 ### 4. Sandboxed Web Browser with Ghostery Adblocker
-Search developer documentation, Stack Overflow, or local web servers directly inside Vet. The sandboxed webview browser comes equipped with a Ghostery-powered adblocker that blocks tracking scripts, cookie popups, and ads automatically. Supports in-page text searching (`Ctrl+F` search overlay with match counters) and developer tools inspection (`F12` or the toolbar button `</>`).
+Search developer documentation, Stack Overflow, or local web servers directly inside Vet. The webview browser runs with a dedicated minimal preload shim (`preload/browser.js`), isolating guest web content from main-process system APIs. Equipped with a Ghostery-powered adblocker that blocks tracking scripts, cookie popups, and ads automatically. Supports in-page text searching (`Ctrl+F` search overlay with match counters) and developer tools inspection (`F12` or the toolbar button `</>`).
 
 ### 5. Developer Sidebar and Port Monitor
 Stay updated on your environment. The developer sidebar provides a clipboards cache, a snippets manager, a live system diagnostics panel, an active network ports inspector, a script launcher for running `npm`/`pnpm`/`yarn` scripts, and a unified terminal/browser **History Panel** with search and tab toggles.
@@ -115,16 +116,16 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.2.1_amd64.deb
+  sudo apt install ./dist/vet_1.3.0_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.2.1.x86_64.rpm
+  sudo dnf install ./dist/vet-1.3.0.x86_64.rpm
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.2.1.AppImage
-  ./dist/Vet-1.2.1.AppImage
+  chmod +x dist/Vet-1.3.0.AppImage
+  ./dist/Vet-1.3.0.AppImage
   ```
 
 ---

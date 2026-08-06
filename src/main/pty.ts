@@ -14,6 +14,8 @@ const execFileAsync = promisify(execFile);
 interface PtyProcess {
   pty: ReturnType<typeof spawn>;
   id: string;
+  initialCwd?: string | undefined;
+  lastCwd?: string | undefined;
 }
 
 const terminals: Map<string, PtyProcess> = new Map();
@@ -361,7 +363,7 @@ export function createTerminal(options: {
     }
   });
 
-  terminals.set(id, { pty, id });
+  terminals.set(id, { pty, id, initialCwd: resolvedCwd, lastCwd: resolvedCwd });
   return id;
 }
 
@@ -395,6 +397,20 @@ export function destroyTerminal(id: string): void {
       clearTimeout(timeout);
       outputTimeouts.delete(id);
     }
+    // Flush any buffered output (up to 10ms of data) before destroying,
+    // mirroring the onExit flush, so it is not silently lost.
+    const bufferedData = outputBuffers.get(id);
+    if (bufferedData) {
+      const target = forwardTargets.get(id);
+      if (target) {
+        target("terminal:data", { id, data: bufferedData });
+      }
+      try {
+        historyDb.logOutput(id, bufferedData);
+      } catch (e) {
+        console.error("Failed to log terminal output on destroy:", e);
+      }
+    }
     outputBuffers.delete(id);
 
     try {
@@ -421,7 +437,7 @@ export async function getTerminalInfo(
   const sshHostId = terminalSshHosts.get(id);
   if (!terminal) return { title: "Terminal", cwd: "", sshHostId };
 
-  let cwd = "";
+  let cwd = terminal.lastCwd || terminal.initialCwd || "";
   let dynamicSshTarget = "";
   let finalProcName = path.basename(terminal.pty.process || "shell");
 
@@ -477,6 +493,7 @@ export async function getTerminalInfo(
   try {
     if (platform() === "linux") {
       cwd = await fs.promises.readlink(`/proc/${terminal.pty.pid}/cwd`);
+      terminal.lastCwd = cwd;
     } else if (platform() === "darwin") {
       const { stdout } = await execFileAsync("lsof", [
         "-a",
@@ -490,12 +507,15 @@ export async function getTerminalInfo(
       for (const line of lines) {
         if (line.startsWith("n")) {
           cwd = line.slice(1);
+          terminal.lastCwd = cwd;
           break;
         }
       }
     }
-  } catch (err) {
-    console.warn("Failed to resolve terminal cwd path:", err);
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") {
+      console.warn("Failed to resolve terminal cwd path:", err);
+    }
   }
 
   const resolvedCwd = cwd || process.cwd();

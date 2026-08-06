@@ -127,7 +127,9 @@ export function registerAdblockerIpcHandlers(
   });
 
   ipcMain.handle("adblocker:get-app-preload-path", () => {
-    return `file://${join(__dirname, "../preload/index.js")}`;
+    // Dedicated browser-only preload shim — NEVER the full app preload.
+    // The full preload exposes terminal/workspace/config/sftp APIs to guest pages.
+    return `file://${join(__dirname, "../preload/browser.js")}`;
   });
 
   ipcMain.handle("adblocker:get-html-replace-rules", async (_, url: string) => {

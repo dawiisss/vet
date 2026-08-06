@@ -18,6 +18,7 @@ import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
 import ThemeProvider from "@/shared/components/ThemeProvider";
 import ModalManager from "@/shared/components/ModalManager";
 import { useKeybindings } from "@/shared/hooks/useKeybindings";
+import { StatusBar } from "@/shared/components/StatusBar";
 
 /**
  * Main application scaffold component (AppShell).
@@ -54,6 +55,7 @@ function App() {
   const onResize = useTabStore((s) => s.onResize);
   const onFocusSplit = useTabStore((s) => s.onFocusSplit);
   const renameTab = useTabStore((s) => s.renameTab);
+  const reorderTabs = useTabStore((s) => s.reorderTabs);
   const openEditorInSplit = useTabStore((s) => s.openEditorInSplit);
   const openEditorInNewTab = useTabStore((s) => s.openEditorInNewTab);
   const handleRunScript = useTabStore((s) => s.handleRunScript);
@@ -70,23 +72,31 @@ function App() {
   // Listen for file editor trigger events (from terminal OSC commands or double-clicks)
   useEffect(() => {
     const handleOpenEditor = (e: Event) => {
-      const customEvent = e as CustomEvent<{ filePath: string; sshHostId?: string | null }>;
+      const customEvent = e as CustomEvent<{
+        filePath: string;
+        line?: number;
+        sshHostId?: string | null;
+      }>;
       if (customEvent.detail && customEvent.detail.filePath) {
+        let targetFilePath = customEvent.detail.filePath;
+        if (customEvent.detail.line && !targetFilePath.includes("#L")) {
+          targetFilePath = `${targetFilePath}#L${customEvent.detail.line}`;
+        }
         const mode = config.editorMode || "split";
         if (mode === "tab") {
           openEditorInNewTab(
-            customEvent.detail.filePath,
-            customEvent.detail.sshHostId || null
+            targetFilePath,
+            customEvent.detail.sshHostId || null,
           );
         } else if (mode === "modal") {
           setEditingFile({
-            filePath: customEvent.detail.filePath,
+            filePath: targetFilePath,
             sshHostId: customEvent.detail.sshHostId || null,
           });
         } else {
           openEditorInSplit(
-            customEvent.detail.filePath,
-            customEvent.detail.sshHostId || null
+            targetFilePath,
+            customEvent.detail.sshHostId || null,
           );
         }
       }
@@ -243,6 +253,7 @@ function App() {
             );
           })}
         </div>
+        <StatusBar />
       </ThemeProvider>
     );
   }
@@ -322,6 +333,7 @@ function App() {
             handleDragEnd(tabId, x, y, terminalAreaRef.current)
           }
           onRenameTab={renameTab}
+          onReorderTab={reorderTabs}
         />
       )}
       <div
@@ -349,6 +361,7 @@ function App() {
               handleDragEnd(tabId, x, y, terminalAreaRef.current)
             }
             onRenameTab={renameTab}
+            onReorderTab={reorderTabs}
           />
         )}
         {config.sidebarOpen && config.sidebarPlacement === "left" && (
@@ -498,9 +511,11 @@ function App() {
               handleDragEnd(tabId, x, y, terminalAreaRef.current)
             }
             onRenameTab={renameTab}
+            onReorderTab={reorderTabs}
           />
         )}
       </div>
+      <StatusBar />
       <ModalManager />
       {editingFile && (
         <EditorModal

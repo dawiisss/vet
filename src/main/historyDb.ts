@@ -343,15 +343,36 @@ function pruneHistory() {
   try {
     const cutoffTime = Date.now() - keepDays * 24 * 60 * 60 * 1000;
 
+    // Collect sessions being pruned by age so their FTS rows are deleted too
+    // (session_search has no FK cascade, so it would otherwise grow unbounded).
+    const oldSessionIds = (
+      db.prepare(
+        "SELECT id FROM sessions WHERE created_at < ?",
+      ).all(cutoffTime) as { id: string }[]
+    ).map((row) => row.id);
+
     const pruneDaysStmt = db.prepare(
       "DELETE FROM sessions WHERE created_at < ?",
     );
-    pruneDaysStmt.run(cutoffTime);
-
     const pruneBrowserStmt = db.prepare(
       "DELETE FROM browser_history WHERE timestamp < ?",
     );
-    pruneBrowserStmt.run(cutoffTime);
+    const deleteSearchStmt = oldSessionIds.length
+      ? db.prepare(
+          `DELETE FROM session_search WHERE session_id IN (${oldSessionIds
+            .map(() => "?")
+            .join(",")})`,
+        )
+      : null;
+
+    const pruneTrx = db.transaction(() => {
+      pruneDaysStmt.run(cutoffTime);
+      pruneBrowserStmt.run(cutoffTime);
+      if (deleteSearchStmt) {
+        deleteSearchStmt.run(...oldSessionIds);
+      }
+    });
+    pruneTrx();
 
     let sizeMb = getLogicalDatabaseSizeMb();
     if (sizeMb > limitMb) {

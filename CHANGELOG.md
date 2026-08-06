@@ -2,38 +2,100 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.3.0] - 2026-08-06
+
+### Added
+
+- **Command Palette Right Arrow Autocomplete**: Pressing the Right Arrow key in the Command Palette prefills the highlighted file path or command into the search query, allowing quick path editing and line-number appending.
+
+### Security
+
+- **Browser Webview Preload Isolation**: Guest browser tabs now load a dedicated minimal preload shim (`preload/browser.js`) exposing only the adblocker rule API, instead of the full application preload. Arbitrary websites can no longer reach `terminal`, `workspace`, `config`, `sftp`, `history`, `clipboard`, or `updater` IPC channels from inside the built-in browser.
+- **Workspace IPC Sender Validation**: All `workspace:*` handlers now reject requests from untrusted senders (webview guests) and validate path/query input types and lengths before any filesystem access.
+- **Sensitive Path Write Protection**: `workspace:write-file` now blocks writes to sensitive directories (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config/vet`) instead of only logging them, and caps content size at 10 MB.
+- **Navigation Hardening**: `will-navigate` now permits `file:` navigation only to the app's own built `renderer/index.html`, preventing attacker-planted local HTML pages from inheriting the full preload API surface.
+- **Webview Popup Governance**: Guest webviews now deny popup window creation and route `http`/`https`/`mailto` links through the OS browser, matching the main window's protocol allowlist.
+- **Terminal Create Authorization**: `terminal:create` rejects non-window senders and validates `cwd`/`profileId`/`sshHostId` input bounds, closing the renderer-driven shell spawn chain.
+- **Config Set Validation**: `config:set` now rejects non-object payloads and caps `profiles`, `sshHosts`, `allowedShells`, `keybindings`, and `customThemes` sizes before persisting.
+- **SFTP Host-Key Verification**: SFTP connections now use Trust-On-First-Use host-key pinning persisted in the application data directory, rejecting connections whose host key changes (MITM protection).
+
+### Fixed
+
+- **Command Palette Line Number Jump**: Fixed line number target parsing (`filename:line`) and viewport scrolling across Split Tab, New Tab, and Floating Modal editor modes so opening files jumps and centers directly on specified line numbers.
+- **Command Palette File Search**: Fixed `workspace:search-files` IPC path validation so requesting empty directory paths searches the active workspace root directory instead of returning empty results.
+- **Tab Hibernation Data Loss**: Terminal-count-based hibernation no longer evicts browser and editor tabs (which contain no PTYs), preventing webview state loss (page scroll, forms) when `maxActiveTerminals` is exceeded.
+- **Shortcut Recording Key Hijack**: The keybinding recorder now requires a modifier (or function key) before committing a binding, so bare keys like `a` can no longer be saved and globally intercept typing.
+- **History FTS Index Growth**: Day-based history pruning now deletes the corresponding `session_search` rows in the same transaction as `sessions`, preventing unbounded full-text search index growth.
+- **Terminal Output Loss on Close**: `destroyTerminal` now flushes buffered output (up to 10 ms) to the live view and history database before killing the PTY process, mirroring the `onExit` flush instead of silently dropping it.
+- **First Session History Loss**: The history database now initializes before the window loads rather than after a 100 ms delay, so the first terminal session's start and output are no longer silently dropped.
+- **History Viewer Write-after-Dispose**: Session transcript loading is now guarded by a disposed flag, preventing `term.write`/`fit` calls on a disposed xterm when the modal closes before the fetch resolves.
+- **History Panel Query Race**: History loading now uses a single debounced loader with a request-sequence guard, eliminating the duplicate initial fetch and stale responses overwriting newer results.
+- **Hibernation Accounting after Unsplit/Close**: Extracted tabs from unsplit and closed splits are now correctly registered in (or removed from) the tab activation order, keeping `maxActiveTerminals` hibernation math accurate.
+- **Snippet Library Corrupt Storage**: `vet:snippets` localStorage data is now shape-validated before use; malformed payloads are discarded instead of crashing the panel.
+- **Update Size Display**: `formatBytes` now handles sizes ≥ 1 TB instead of rendering `undefined`.
+- **Editor Fragment Paths**: Editor file paths are now cleaned with `split("#")[0]` consistently with the main process, so non-`#git-diff` fragments no longer cause read failures.
+
+### Changed
+
+- **Lint Scope**: `eslint.config.mjs` now ignores the renderer build output (`src/renderer/dist/`), so `npm run lint` reports source issues instead of thousands of errors from compiled bundles.
+- **Scrollbar Consistency**: Applied the `.app-scrollbar` CSS class to the vertical tab bar list, the Command Palette results list, and the clipboard preview code view, aligning with the UI scrollbar guideline.
+
+## [1.2.2] - 2026-07-25
+
+### Added
+
+- **Context-Aware Status Bar**: Added a persistent, theme-aligned Status Bar component (`StatusBar.tsx`) positioned at the bottom of the workspace shell in standard and detached layouts.
+- **Dynamic Status Bar State Store**: Created `useStatusBarStore.ts` to manage active pane metadata across terminal, browser, and code editor splits.
+- **Code Editor Caret and Selection Tracking**: Integrated CodeMirror 6 update listeners to display real-time line and column coordinates, syntax language names, and modified save state indicators.
+- **Browser Address Bar Auto-Selection**: Address bar input now automatically selects the full URL string when clicked/focused.
+- **Status Bar Toggle Setting**: Added a **Status Bar Visibility** (`showStatusBar`) toggle control under **Settings -> General** and `config.json5` to hide or show the workspace status bar.
+- **Fuzzy File Search and Command Palette Enhancements (`Ctrl+P`)**: Added workspace-wide fuzzy file searching, line number navigation (`:42`), mode switching (`📄 Files` vs `⚡ Commands`), recent items history, and global `Ctrl+P` hotkey support.
+- **Tab Drag-and-Drop Reordering**: Added drag-and-drop tab reordering within the TabBar layout across top, left, and right tab bar placements with live drop target indicators.
+
+### Fixed
+
+- **Browser Security Indicator Persistence**: Security status (`🔒 Secure` vs `⚠️ Insecure`) and status bar URL tracking are now bound to the active loaded page (`loadedUrl`) rather than transient text in the address bar input.
+- **Terminal CWD Readlink Fallback**: Fixed `/proc/PID/cwd` `readlink` `ENOENT` errors on process termination by caching initial/last-known working directories and ignoring expected process exit race conditions while preserving `console.warn` for genuine system errors.
+- **Dependency Vulnerability Overrides**: Added a nested dependency override for `brace-expansion` (`^5.0.7`) in `package.json` to resolve legacy 1.x/2.x ReDoS vulnerabilities across build, test, and lint dependencies.
+- **Editor Split Fallback**: Updated `openEditorInSplitAction` so that attempting to open a file in split mode when all workspace tabs are closed automatically falls back to creating a new editor tab.
+- **SplitContainer Detach Guard**: Added nullish guards and `childrenNodes` array checking in `SplitPane.tsx` to prevent `TypeError: Cannot read properties of undefined (reading 'map')` when detaching split tabs.
+
 ## [1.2.1] - 2026-07-19
 
 ### Added
+
 - **Git Status Indicators in Workspace**: File and directory items in the Workspace explorer now display color-coded status badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) aligned to the right edge with friendly hover tooltips.
 - **Line-Numbered Git Diff Viewer**: Added an **"Edit / Diff"** toggle in CodeMirror editor tabs and modals to view line-numbered Git diffs with syntax-highlighted additions and deletions.
 - **Interactive Split Resizing Handles**: Dragging split pane handles now displays glowing visual feedback and a live percentage ratio overlay (`40% / 60%`), with double-click handle equalization.
 
 ### Fixed
+
 - **Application Window Re-Activation**: Fixed an issue where re-opening the application window when all windows were closed displayed a blank window.
 - **SFTP Stability & Connection Pooling**: Resolved connection race conditions and fixed stale session caching when navigating remote files over SFTP.
 - **IPC & Config Security**: Improved safe credential fallback defaults when encryption is unavailable and standardized error payload formats across IPC bridges.
 - **Type Safety & Build Infrastructure**: Restored strict type-checking in CI and fixed optional property handling across modal and editor components.
 
-
-
 ## [1.2.0] - 2026-07-10
 
 ### Added
+
 - **Custom Error Logging**: Added a new background error logger utility (`logger.ts`) that safely catches and writes unhandled main process exceptions and rejections to `vet-error.log` in the application data directory. The logger automatically rotates out logs older than 7 days to prevent unbounded file growth.
 - **Error Log UI Integration**: Added a new "Open Error Log" button within the About Modal that seamlessly opens the log file inside a new built-in Editor Tab rather than an external application.
 
 ### Fixed
+
 - **Scrollbar Consistency**: Applied the custom `.app-scrollbar` CSS class to multiple scrollable panels (Workspace, Theme Editor, Keybindings, Profile Tabs, Clipboard History, Connections, and SSH Profiles) to fix styling inconsistencies and align with UI guidelines.
 - **Markdown Headers**: Renamed the `Contributing & Community` section in `README.md` to use TOC-safe header characters.
 - **Empty Catch Blocks**: Enforced error-handling linting invariants by explicitly tagging over 15 empty catch blocks across the codebase with `/* intentional ignore */` to satisfy ESLint's `no-empty` rule.
 - **React Hook Dependencies (`exhaustive-deps`)**: Added missing dependencies and memoized helper functions using `useCallback` and `useMemo` in `HistoryPanel`, `KeybindingsManager`, `ModalManager`, `ClipboardHistoryPanel`, and `SshProfilesManager` to prevent stale state closures.
 - **Unused Variables (`no-unused-vars`)**: Cleaned up unused error variables and definitions across backend managers (`workspace.ts`, `connections.ts`, `historyDb.ts`, `windowHandlers.ts`) and test suites.
 
-
 ## [1.1.0] - 2026-07-05
 
 ### Added
+
 - **Tiling Code Editor (CodeMirror 6)**: Integrated the CodeMirror 6 code editor directly into the split-pane layout manager. It features double-click file triggers in the workspace explorer (along with terminal command shortcuts like `e filename`), dynamic syntax highlighting supporting 50+ languages, auto-indentation, autocomplete, local filesystem reads/writes, and remote SSH/SFTP connection integrations.
 - **Editor Modes settings**: Added a configurable user setting in the settings panel ("Default Editor Layout") to let users choose how files are opened: "Split Pane (Tiling)" (default), "New Tab" (opens in a standalone tab), or "Floating Modal" (opens in the original modal popup).
 - **Tab split extraction and Unsplit integration**: Wired the editor node to the layout extraction actions (`extractToTab`) and unsplit actions (`unsplitTab`). Editor split panes can be extracted into their own standalone workspace tabs or preserved in the active tab root when unsplit is triggered, rather than being lost.
@@ -42,6 +104,7 @@ All notable changes to this project will be documented in this file.
 - **Built-in Application Themes**: Added thirteen premium new themes to the application's built-in theme choices: Gruvbox Dark, Rose Pine, Github Dark, Catppuccin Latte, Catppuccin Macchiato, Catppuccin Frappe, Rose Pine Moon, Rose Pine Dawn, Everforest Dark, Synthwave '84, Monokai Pro, Night Owl, and Github Light.
 
 ### Fixed
+
 - **Layout Tree Traversals (`editorId` support)**: Updated core split tree helpers (`leafPaths`, `leafCount`, `firstLeafId`, `collectLeafIds`) inside `splitTree.ts` to recognize `editorId` leaf nodes, resolving asynchronous state syncing bugs where splits rendered empty or "Untitled".
 - **Defensive File Path Safeguards**: Implemented defensive defaults and checks for `filePath` prop within `EditorView.tsx` to handle asynchronous state updates or layout persistence without throwing `TypeError: Cannot read properties of undefined (reading 'split')`.
 - **Close Actions Pipeline**: Resolved routing bugs in `closeSplitAction` and `handleContextMenuAction` to support editor pane termination via the close `x` button and pane-close menus.
@@ -50,26 +113,29 @@ All notable changes to this project will be documented in this file.
 - **Portalled CSS theme variables inheritance**: Synced CSS variables to `document.body` inside `ThemeProvider.tsx` to ensure that portalled overlays, modals, and context menus correctly inherit theme background, foreground, and accent styling rather than falling back to default black text.
 
 ### Changed
+
 - **Electron 43**: Upgraded Electron from `42.x` to `43.0.0`, bringing the latest Chromium and Node.js runtime improvements, security patches, and API updates.
 - **electron-builder 26.15**: Updated `electron-builder` from `26.8.1` to `26.15.3` for improved build tooling and bug fixes.
 - **@electron/rebuild 4.1**: Updated `@electron/rebuild` from `4.0.4` to `4.1.0`.
 - **Native module rebuild**: Recompiled `better-sqlite3` and `node-pty` against the new Electron 43 Node.js ABI (`NODE_MODULE_VERSION 148`).
 - **Unified ContextMenu component reuse**: Refactored the custom context menu inside `WorkspacePanel.tsx` to consume the shared `ContextMenu` component directly, ensuring full alignment with the application's overall design, shadows, and hover styles.
 
-
 ## [1.0.9] - 2026-06-27
 
 ### Fixed
+
 - **FTS5 query injection in history search**: User-provided search queries are now sanitized before being passed to the SQLite FTS5 `MATCH` operator. Each term is double-quote escaped and wrapped, preventing special characters (`"`, `*`, `(`, `)`, `OR`, `NOT`) from causing FTS5 syntax parse errors and silent search failures.
 - **Synchronous file I/O in updater handlers**: Replaced blocking `fs.existsSync` and `fs.writeFileSync` calls in `updaterHandlers.ts` with async `fs.promises.access` and `fs.promises.writeFile` to avoid blocking the Electron main thread during dev startup. Inline `require("fs")`/`require("path")` replaced with top-level ES imports.
 
 ### Changed
+
 - **Docker shell allowlist validation**: The `dockerDefaultShell` config value in `connections.ts` is now validated against an allowlist of known shell paths (`/bin/bash`, `/bin/sh`, `/bin/zsh`, `/usr/bin/fish`, etc.) before interpolation into the Docker exec command string. Unrecognized values fall back to `/bin/bash`.
 - **Adblocker window notification optimization**: Replaced `BrowserWindow.getAllWindows()` iteration in the high-frequency `request-blocked` handler and navigation reset handler in `adblocker.ts` with a direct `getMainWindow()` reference, eliminating unnecessary window enumeration on every blocked ad request. The `registerAdblockerIpcHandlers` function now accepts a `getMainWindow` getter, matching the existing `registerUpdaterHandlers` pattern.
 
 ## [1.0.8] - 2026-06-20
 
 ### Added
+
 - **better-sqlite3 migration**: Replaced `node:sqlite` (`DatabaseSync`) with `better-sqlite3` for the history database, providing ~5-10x faster synchronous SQLite operations and significantly reduced main thread blocking.
 - **WAL journal mode**: History database now uses WAL (Write-Ahead Logging) for improved concurrent read performance.
 - **SQLite write performance (`synchronous = NORMAL`)**: Added `db.pragma("synchronous = NORMAL")` to database initialization to bypass immediate disk synchronization under WAL mode, dramatically optimizing write speeds.
@@ -80,6 +146,7 @@ All notable changes to this project will be documented in this file.
 - **`.agents/` and `.Jules/` in `.gitignore`**: Added per project's own convention.
 
 ### Fixed
+
 - **Config password redaction for new SSH hosts**: New SSH hosts submitted with `__redacted__` passwords now have the key deleted rather than set to `""`, preventing accidental credential loss.
 - **Docker shell `connectionTarget` off-by-one**: `args.indexOf("-it")` returning `-1` caused `args[0]` to be used as the container name. Now correctly handles missing `-it` flag.
 - **`useConfigStore` race condition**: `isInitialized` was set to `true` synchronously before `configApi.get()` resolved. Moved into the `.then()` callback so the state reflects actual initialization.
@@ -102,6 +169,7 @@ All notable changes to this project will be documented in this file.
 - **Prune batch deletes wrapped in transaction**: Size-based deletes now use `db.transaction()` for atomicity.
 
 ### Changed
+
 - **Workspace `DirectoryItem` interface**: Replaced `any[]` with a typed `DirectoryItem` interface in workspace directory listings.
 - **`flushBuffer` transaction**: Manual `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK` replaced with `better-sqlite3`'s `db.transaction()` for automatic rollback on errors.
 - **PRAGMA API**: All `db.exec("PRAGMA ...")` calls replaced with `db.pragma()` (better-sqlite3 idiomatic API; `getLogicalDatabaseSizeMb` now uses `{ simple: true }` for direct number returns).
@@ -112,12 +180,14 @@ All notable changes to this project will be documented in this file.
 ## [1.0.7] - 2026-06-20
 
 ### Added
+
 - **Dedicated Test Suites**: Added new test suites [adblocker.test.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/__tests__/adblocker.test.ts) and [sftp.test.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/__tests__/sftp.test.ts) to cover critical adblocking and SFTP connection logic.
 - **Cross-Platform CI**: Added Windows (matrix) testing to [ci.yml](file:///home/dawiisss/Documents/GitHub/vet2/.github/workflows/ci.yml) to detect cross-platform compile/runtime errors.
 - **Advanced System Metrics**: Expanded the System Metrics tab to monitor real-time network speeds, disk read/write throughput rates, graphics (GPU) usage and temperature, battery charging levels, and Vet's own CPU/RAM resource footprint.
 - **Visual Dashboard Cards**: Redesigned the metrics panel into beautiful, theme-aligned dashboard cards with clean progress indicators and custom scrollbars.
 
 ### Fixed
+
 - **History Database Pruning**: Resolved the infinite loop and size-based pruning bug using logical database page metrics and replaced synchronous blocking `VACUUM` commands with incremental vacuuming.
 - **IPC Security Redaction**: Redacted plaintext SSH passwords/passphrases sent over IPC in renderer config queries, and securely merged them in the main process when setting configurations.
 - **Path Traversal Warnings**: Enforced warning telemetry on sensitive path operations (such as `.ssh` and `.gnupg` access) inside workspace directory listings.
@@ -131,6 +201,7 @@ All notable changes to this project will be documented in this file.
 - **Disk Space Partition Deduplication**: Filtered out non-physical virtual filesystems (e.g. `efivarfs`, `tmpfs`, loop/FUSE mounts) and deduplicated multiple mounts mapping to the same physical device partition (such as Btrfs subvolumes).
 
 ### Changed
+
 - **Shared Utilities Refactoring**: Extracted duplicated `pathsEqual`, directory sort, and default browser homepage strings into a single shared utility [pathUtils.ts](file:///home/dawiisss/Documents/GitHub/vet2/src/shared/utils/pathUtils.ts) consumed by both main and renderer processes.
 - **Removed macOS targets**: Excluded unsupported macOS build tasks from `package.json` and workflow scripts.
 - **Top-Level Imports**: Cleaned up inline require statements in `index.ts` and `session.ts` to improve dependency loading performance.
@@ -138,16 +209,19 @@ All notable changes to this project will be documented in this file.
 ## [1.0.5] - 2026-06-18
 
 ### Added
+
 - **User Onboarding Welcome Guide**: Designed and implemented an interactive, multi-slide onboarding welcome guide (`IntroModal`) to showcase key features on startup (Multi-Pane Splits, Web Browser, Sidebar panels, Command Palette, SQLite History, and Keyboard Shortcuts).
 - **Live Theme Customizer**: Added a live theme selector on the final onboarding slide to let users preview and select built-in application themes (Dracula, Nord, Catppuccin, One Dark) in real time.
 - **Onboarding Config Persistence**: Saved the onboarding state (`showIntroOnStartup`) to `config.json5` so the welcome guide won't reappear on launch once skipped or completed, but remains replayable via the About Modal and Command Palette.
 
 ### Fixed
+
 - **Session Layout Persistence**: Wired up window terminal API session saving and loading to automatically persist and restore complex tab and split-pane layouts across app restarts.
 - **React Key Collision & Tab Counters**: Fixed duplicate tab key warnings (e.g. duplicate `tab-2` keys) on session restoration by migrating tab ID and shell counters to Zustand state, resolving circular dependency initialization issues between `useTabStore.ts` and `tabActions.ts`.
 - **Fastfetch/Startup Size Persistence**: Fixed rendering layout artifacts and horizontal clipping on startup commands (like `fastfetch`) in narrow/midsize terminals by calculating estimated dimensions from Electron window bounds on spawn and executing initial ResizeObserver layouts instantly (without 50ms debounces).
 
 ### Changed
+
 - **Major Refactoring and Architecture Improvements**:
   - **Preload Isolation & Dry IPC**: Reduced preload code by 150+ lines using declarative factory helpers (`invoke`, `send`, `on`).
   - **God Component Decompositions**: Split the giant 800+ lines `App.tsx` into clean components: `AppShell` container, `ThemeProvider` CSS injector, `ModalManager`, and a `useKeybindings` hook.
@@ -165,6 +239,7 @@ All notable changes to this project will be documented in this file.
 ## [1.0.4] - 2026-06-17
 
 ### Added
+
 - **Persistent Browser History**: Implemented automated web browsing history tracking. Visited pages are persisted in the SQLite history database with automatic deduplication of consecutive identical URLs and automatic database pruning.
 - **Unified Sidebar History Panel**: Integrated a high-fidelity toggle control (`[ Terminal ] [ Browser ]`) in the sidebar **History** panel. Users can view, search (by URL or title), clear, and delete specific visited page records. Clicking a history item opens a new Web Browser tab navigated to that URL.
 - **Browser Find-in-Page Overlay**: Integrated the reusable `SearchOverlay` component inside the sandboxed Web Browser view, enabling unified `Ctrl+F` text searching with match counts, Next/Previous controls, case-sensitivity toggles, and smooth dark-theme styling.
@@ -174,6 +249,7 @@ All notable changes to this project will be documented in this file.
 - **Community Standard Files**: Added a repository Code of Conduct (`CODE_OF_CONDUCT.md`) based on Contributor Covenant v2.1 and a Pull Request template (`.github/pull_request_template.md`).
 
 ### Fixed
+
 - **Dependency Security Vulnerabilities**: Resolved all 18 moderate-security warnings for `js-yaml` (Dependabot Alert #4), the high-severity alert for `form-data` (Dependabot Alert #5), and the high-severity RCE alert for `esbuild` (Dependabot Alert #3) by adding nested dependency overrides.
 - **pnpm v11 Configuration**: Migrated package overrides and build scripts allowance into a root `pnpm-workspace.yaml` to comply with pnpm v11 specification, resolving package manager warnings.
 - **Detached Window Styling**: Fixed a bug where detached tabs lost the theme's CSS variables, resulting in an unstyled top bar layout. The detached container now receives the exact same theme variables style mapping.
@@ -188,10 +264,12 @@ All notable changes to this project will be documented in this file.
 ## [1.0.3] - 2026-06-16
 
 ### Added
+
 - **Auto-Updater Integration**: Implemented a secure, user-controlled auto-updater for Windows (NSIS/ZIP) and Linux (AppImage) using `electron-updater`.
 - **TitleBar Update Notification**: Added a download icon with a pulsing green notification badge next to the "About" button in the TitleBar that appears only when an update is available.
 - **Dedicated Update Modal**: Created a high-fidelity modal that presents release details, release notes, and a live download progress bar (displaying percentage, download speed, and bytes transferred).
 - **Update Simulator**: Added a simulation mode in development environments (accessible via "About Vet" developer controls) to allow end-to-end testing of the update flow (including live download animations and hot-relaunching).
 
 ### Fixed
+
 - **Theme Accent Color Persistence**: Resolved a bug where the application highlight color (`--app-accent`) remained purple across different themes. Defined signature accent colors for all built-in themes (e.g., Frost Cyan for Nord, One Dark Blue for One Dark) and updated the accent resolution logic.

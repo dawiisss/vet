@@ -56,16 +56,26 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
     searchAddonRef.current = searchAddon;
 
     // Fetch full transcript
-    window.historyApi?.getSessionTranscript(sessionId).then((data) => {
-      term.write(data, () => {
-        // Fit after data loads and layout stabilizes
-        setTimeout(() => {
-          try {
-            fitAddon.fit();
-          } catch { /* intentional ignore */ }
-        }, 100);
-      });
-    });
+    let disposed = false;
+    window.historyApi?.getSessionTranscript(sessionId).then(
+      (data) => {
+        if (disposed) return;
+        term.write(data, () => {
+          // Fit after data loads and layout stabilizes
+          setTimeout(() => {
+            if (disposed) return;
+            try {
+              fitAddon.fit();
+            } catch { /* intentional ignore */ }
+          }, 100);
+        });
+      },
+      (err) => {
+        if (!disposed) {
+          console.error("Failed to load session transcript:", err);
+        }
+      },
+    );
 
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const handleResize = () => {
@@ -79,6 +89,7 @@ const HistoryViewerModal: React.FC<HistoryViewerModalProps> = ({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      disposed = true;
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", handleResize);
       term.dispose();

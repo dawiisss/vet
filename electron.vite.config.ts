@@ -13,6 +13,14 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve("src/preload/index.ts"),
+          browser: resolve("src/preload/browser.ts"),
+        },
+      },
+    },
   },
   renderer: {
     plugins: [react()],

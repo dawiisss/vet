@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { registerHandlers } from "./ipcUtils";
+import { registerHandlers, isTrustedSender } from "./ipcUtils";
 import {
   createTerminal,
   destroyTerminal,
@@ -43,7 +43,23 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
   registerHandlers({
     "terminal:create": (event, { cwd, profileId, sshHostId }: { cwd?: string; profileId?: string; sshHostId?: string }) => {
+      if (!isTrustedSender(event)) {
+        console.warn("[security] Blocked terminal:create from untrusted sender");
+        return { error: "Access denied" };
+      }
       const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win) {
+        return { error: "Access denied" };
+      }
+      if (cwd !== undefined && (typeof cwd !== "string" || cwd.length > 4096)) {
+        return { error: "Invalid cwd" };
+      }
+      if (profileId !== undefined && (typeof profileId !== "string" || profileId.length > 256)) {
+        return { error: "Invalid profileId" };
+      }
+      if (sshHostId !== undefined && (typeof sshHostId !== "string" || sshHostId.length > 256)) {
+        return { error: "Invalid sshHostId" };
+      }
       let cols = 80;
       let rows = 24;
       if (win) {

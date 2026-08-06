@@ -79,6 +79,7 @@ const DEFAULT_CONFIG: any = {
     "ctrl+shift+v": "terminal:paste",
     "ctrl+f": "terminal:search",
     "ctrl+,": "settings:toggle",
+    "ctrl+p": "command-palette:file-search",
     "ctrl+shift+p": "command-palette:toggle",
     "ctrl+shift+f": "app:toggle-fullscreen",
     "ctrl+shift+m": "app:maximize",
@@ -89,6 +90,7 @@ const DEFAULT_CONFIG: any = {
   browserSearchEngine: "duckduckgo",
   browserAdblockEnabled: true,
   showIntroOnStartup: true,
+  showStatusBar: true,
   editorMode: "split",
   profiles: [
     {
@@ -215,6 +217,11 @@ export function sanitizeConfig(conf: any): any {
   if (sanitized.browserAdblockEnabled === undefined) {
     sanitized.browserAdblockEnabled = true;
   }
+  if (sanitized.showStatusBar === undefined) {
+    sanitized.showStatusBar = true;
+  } else {
+    sanitized.showStatusBar = Boolean(sanitized.showStatusBar);
+  }
   if (
     !sanitized.browserHomepage ||
     typeof sanitized.browserHomepage !== "string"
@@ -323,6 +330,44 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
   ipcMain.handle("config:get-error", () => lastConfigError);
 
   ipcMain.handle("config:set", async (_event, partialConfig: any) => {
+    if (
+      !partialConfig ||
+      typeof partialConfig !== "object" ||
+      Array.isArray(partialConfig)
+    ) {
+      console.warn("[security] Rejected config:set with invalid payload");
+      throw new Error("Invalid config payload");
+    }
+
+    // Cap unbounded structures before sanitize to bound memory/disk impact.
+    if (Array.isArray(partialConfig.profiles)) {
+      partialConfig.profiles = partialConfig.profiles.slice(0, 16);
+    }
+    if (Array.isArray(partialConfig.sshHosts)) {
+      partialConfig.sshHosts = partialConfig.sshHosts.slice(0, 64);
+    }
+    if (Array.isArray(partialConfig.allowedShells)) {
+      partialConfig.allowedShells = partialConfig.allowedShells.slice(0, 32);
+    }
+    if (
+      partialConfig.keybindings &&
+      typeof partialConfig.keybindings === "object"
+    ) {
+      partialConfig.keybindings = Object.fromEntries(
+        Object.entries(partialConfig.keybindings)
+          .filter(([k, v]) => typeof k === "string" && typeof v === "string")
+          .slice(0, 64),
+      );
+    }
+    if (
+      partialConfig.customThemes &&
+      typeof partialConfig.customThemes === "object"
+    ) {
+      partialConfig.customThemes = Object.fromEntries(
+        Object.entries(partialConfig.customThemes).slice(0, 32),
+      );
+    }
+
     const mergedHosts = partialConfig.sshHosts;
     if (mergedHosts && Array.isArray(mergedHosts)) {
       for (const h of mergedHosts) {

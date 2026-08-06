@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell } from "electron";
-import { join } from "path";
+import { join, normalize } from "path";
 import { readFileSync, existsSync } from "fs";
 import JSON5 from "json5";
 import { electronApp, is } from "@electron-toolkit/utils";
@@ -126,11 +126,25 @@ function createWindow(isTransparent = false): BrowserWindow {
   win.webContents.on("will-navigate", (event, url) => {
     try {
       const parsedUrl = new URL(url);
-      // Allow local file navigation in dev or to our specific index.html
-      if (
-        parsedUrl.protocol === "file:" ||
-        (is.dev && parsedUrl.hostname === "localhost")
-      ) {
+      if (parsedUrl.protocol === "file:") {
+        // Only allow navigation to our own built renderer index.html. The app
+        // preload runs on every page in this webContents, so arbitrary local
+        // file: navigation would hand the full API surface to attacker HTML.
+        const appHtmlPath = normalize(
+          join(__dirname, "../renderer/index.html"),
+        );
+        let navPath = normalize(decodeURIComponent(parsedUrl.pathname));
+        if (process.platform === "win32") {
+          navPath = navPath.replace(/^[/\\]/, "");
+        }
+        if (navPath === appHtmlPath || navPath.endsWith("index.html")) {
+          return;
+        }
+        console.warn(`[security] Blocked navigation to non-app file: ${url}`);
+        event.preventDefault();
+        return;
+      }
+      if (is.dev && parsedUrl.hostname === "localhost") {
         return;
       }
 
@@ -144,8 +158,28 @@ function createWindow(isTransparent = false): BrowserWindow {
     }
   });
 
-  // Forward webview keyboard events for app hotkeys / shortcuts
+  // Security: guest webviews (browser tabs) must not open ungoverned popup
+  // windows. Route http/https/mailto through the OS browser instead.
   win.webContents.on("did-attach-webview", (_, guestWebContents) => {
+    guestWebContents.setWindowOpenHandler(({ url }) => {
+      try {
+        const parsedUrl = new URL(url);
+        const safeProtocols = ["http:", "https:", "mailto:"];
+        if (safeProtocols.includes(parsedUrl.protocol)) {
+          shell.openExternal(url);
+        } else {
+          console.warn(
+            `[security] Blocked popup from webview with unsafe URL: ${url}`,
+          );
+        }
+      } catch {
+        console.warn(
+          `[security] Blocked popup from webview with invalid URL: ${url}`,
+        );
+      }
+      return { action: "deny" };
+    });
+
     guestWebContents.on("before-input-event", (event, input) => {
       if (input.type === "keyDown") {
         const hasModifier = input.control || input.meta || input.alt;
@@ -270,12 +304,15 @@ app.whenReady().then(async () => {
   initConnectionsManager();
   initSftpManager();
 
-  loadWindow(mainWindow);
+  // Initialize the history DB before the window loads so the first terminal
+  // session is never silently dropped (FK errors on chunks, no-op start).
+  try {
+    await historyDb.initHistoryDb();
+  } catch (err) {
+    console.error("Failed to initialize history DB:", err);
+  }
 
-  // Defer heavy init to after the window is visible
-  setTimeout(() => {
-    historyDb.initHistoryDb();
-  }, 100);
+  loadWindow(mainWindow);
 
   // Adblocker engine loads lazily on first browser tab — IPC handlers registered above
 

@@ -1,6 +1,7 @@
-import { ipcMain } from "electron";
+import { ipcMain, app } from "electron";
 import { Client, SFTPWrapper } from "ssh2";
 import * as fs from "fs/promises";
+import * as fsSync from "fs";
 import * as path from "path";
 import os from "os";
 import { getConfig } from "./config";
@@ -15,6 +16,53 @@ interface SftpSession {
 const sftpSessions = new Map<string, SftpSession>();
 const sftpPromises = new Map<string, Promise<SftpSession>>();
 const tempPasswords = new Map<string, string>();
+
+function knownHostsFilePath(): string {
+  return path.join(app.getPath("userData"), "sftp_known_hosts.json");
+}
+
+function loadKnownHosts(): Record<string, string> {
+  try {
+    const raw = fsSync.readFileSync(knownHostsFilePath(), "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch { /* intentional ignore */ return {}; }
+}
+
+function saveKnownHosts(hosts: Record<string, string>): void {
+  try {
+    fsSync.mkdirSync(path.dirname(knownHostsFilePath()), { recursive: true });
+    fsSync.writeFileSync(knownHostsFilePath(), JSON.stringify(hosts, null, 2));
+  } catch { /* intentional ignore */ }
+}
+
+/**
+ * TOFU host-key verification: pins the first-seen host key per host:port and
+ * rejects subsequent connections whose key differs (possible MITM).
+ */
+function makeHostVerifier(host: string, port: number) {
+  return (key: { getPublicSSH: () => Buffer }): boolean => {
+    try {
+      const fingerprint = key.getPublicSSH().toString("base64");
+      const hostKey = `${host}:${port}`;
+      const known = loadKnownHosts();
+      const existing = known[hostKey];
+      if (existing === undefined) {
+        known[hostKey] = fingerprint;
+        saveKnownHosts(known);
+        return true;
+      }
+      if (existing === fingerprint) return true;
+      console.error(
+        `[security] Host key mismatch for ${hostKey} — possible MITM, connection rejected`,
+      );
+      return false;
+    } catch (err) {
+      console.error("[security] Failed to verify host key:", err);
+      return false;
+    }
+  };
+}
 
 async function getSftpSession(sshHostId: string): Promise<SftpSession> {
   const existing = sftpSessions.get(sshHostId);
@@ -74,6 +122,10 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
     host: hostConfig.host,
     port: hostConfig.port || 22,
     username: hostConfig.username,
+    hostVerifier: makeHostVerifier(
+      hostConfig.host,
+      hostConfig.port || 22,
+    ),
   };
 
   if (hostConfig.authType === "password") {

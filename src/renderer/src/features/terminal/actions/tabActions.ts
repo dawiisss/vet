@@ -37,13 +37,14 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
         const candidateId = order[i];
         if (candidateId !== id && !hibernated.includes(candidateId)) {
           const tab = state.tabs.find((t: any) => t.id === candidateId);
-          if (tab) {
-            collectTerminalIds(tab.root).forEach((termId) => {
+          const terminalIds = tab ? collectTerminalIds(tab.root) : [];
+          if (terminalIds.length > 0) {
+            terminalIds.forEach((termId) => {
               destroyTerminalCache(termId);
             });
             hibernated = [...hibernated, candidateId];
+            excess--;
           }
-          excess--;
         }
         i--;
       }
@@ -518,4 +519,28 @@ export function handleInjectSnippetAction(set: any, get: any, snippet: string) {
   if (node && node.terminalId) {
     api.write(node.terminalId, snippet);
   }
+}
+
+export function reorderTabsAction(
+  set: any,
+  get: any,
+  draggedTabId: string,
+  targetTabId: string,
+) {
+  if (draggedTabId === targetTabId) return;
+
+  set((state: any) => {
+    const currentTabs = [...state.tabs];
+    const fromIndex = currentTabs.findIndex((t) => t.id === draggedTabId);
+    const toIndex = currentTabs.findIndex((t) => t.id === targetTabId);
+
+    if (fromIndex === -1 || toIndex === -1) return state;
+
+    const [movedTab] = currentTabs.splice(fromIndex, 1);
+    currentTabs.splice(toIndex, 0, movedTab);
+
+    return {
+      tabs: currentTabs,
+    };
+  });
 }

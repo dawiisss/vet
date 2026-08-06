@@ -74,6 +74,7 @@ interface Config {
   browserSearchEngine?: "duckduckgo" | "google" | "bing";
   browserAdblockEnabled?: boolean;
   showIntroOnStartup?: boolean;
+  showStatusBar?: boolean | undefined;
   editorMode?: "modal" | "split" | "tab";
   allowedShells?: string[];
   vibrancy?: string;
@@ -176,6 +177,10 @@ interface WorkspaceItem {
 interface WorkspaceApi {
   getScripts: (cwd: string) => Promise<any>;
   listDir: (dirPath: string) => Promise<WorkspaceItem[]>;
+  searchFiles: (
+    dirPath: string,
+    query: string,
+  ) => Promise<Array<{ relativePath: string; absolutePath: string }>>;
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<void>;

@@ -79,6 +79,7 @@ const historyApi = {
 const workspaceApi = {
   getScripts: jest.fn(() => Promise.resolve(null)),
   listDir: jest.fn(() => Promise.resolve([] as WorkspaceItem[])),
+  searchFiles: jest.fn(() => Promise.resolve([] as Array<{ relativePath: string; absolutePath: string }>)),
   revealPath: jest.fn(() => Promise.resolve()),
   readFileHead: jest.fn(() => Promise.resolve("")),
   writeFile: jest.fn(() => Promise.resolve()),

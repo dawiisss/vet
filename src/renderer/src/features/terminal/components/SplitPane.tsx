@@ -34,6 +34,8 @@ function SplitPane({
   onContextMenuAction,
   leafCount,
 }: SplitPaneProps) {
+  if (!node) return null;
+
   if (node.terminalId) {
     const focused = isActive && pathsEqual(path, focusedPath);
     return (
@@ -101,9 +103,9 @@ function SplitPane({
   }
 
   // Split node — renders children with resize handles between them
-  const direction = node.direction!;
-  const children = node.children!;
-  const sizes = node.sizes!;
+  const direction = node.direction || "horizontal";
+  const children = node.children || [];
+  const sizes = node.sizes || [];
 
   return (
     <SplitContainer
@@ -117,16 +119,15 @@ function SplitPane({
       onResize={onResize}
       onExtract={onExtract}
       leafCount={leafCount}
-    >
-      {children}
-    </SplitContainer>
+      childrenNodes={children}
+    />
   );
 }
 
 interface SplitContainerProps {
-  direction: "horizontal" | "vertical";
-  children: SplitNode[];
-  sizes: number[];
+  direction?: "horizontal" | "vertical" | undefined;
+  childrenNodes?: SplitNode[] | undefined;
+  sizes?: number[] | undefined;
   parentPath: number[];
   focusedPath: number[];
   isActive: boolean;
@@ -141,9 +142,9 @@ interface SplitContainerProps {
 }
 
 function SplitContainer({
-  direction,
-  children,
-  sizes,
+  direction = "horizontal",
+  childrenNodes = [],
+  sizes = [],
   parentPath,
   focusedPath,
   isActive,
@@ -231,17 +232,17 @@ function SplitContainer({
         position: "relative",
       }}
     >
-      {children.map((child, i) => (
+      {childrenNodes.map((child, i) => (
         <React.Fragment key={firstLeafId(child)}>
           {i > 0 && (
             <div
               className={`split-handle ${draggingIndex === i - 1 ? "dragging" : ""}`}
               onMouseDown={handleMouseDown(i - 1)}
               onDoubleClick={() => {
-                const eqSize = 1 / children.length;
+                const eqSize = 1 / childrenNodes.length;
                 onResize(
                   parentPath,
-                  children.map(() => eqSize),
+                  childrenNodes.map(() => eqSize),
                 );
               }}
               title="Drag to resize split, double-click to equalize"

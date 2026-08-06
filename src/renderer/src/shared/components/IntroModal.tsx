@@ -177,7 +177,7 @@ export const IntroModal: React.FC<IntroModalProps> = ({ onClose }) => {
     {
       title: "Flexible Sidebar Panels",
       subtitle: "Built-in developer toolbox",
-      description: "Toggle the sidebar using Ctrl+Shift+B, position it on the left or right, and resize it to your liking. The sidebar houses system & port monitors, a script runner, command snippets, connections list, and clipboard history.",
+      description: "Toggle the sidebar using Ctrl+B, position it on the left or right, and resize it to your liking. The sidebar houses system & port monitors, a script runner, command snippets, connections list, and clipboard history.",
       renderVisual: () => (
         <div style={styles.visualContainer}>
           <div style={styles.sidebarMockContainer}>
@@ -293,7 +293,7 @@ export const IntroModal: React.FC<IntroModalProps> = ({ onClose }) => {
               <span style={styles.shortcutDesc}>Create New Tab</span>
             </div>
             <div style={styles.shortcutRow}>
-              <span style={styles.shortcutKey}>Ctrl+Shift+B</span>
+              <span style={styles.shortcutKey}>Ctrl+B</span>
               <span style={styles.shortcutDesc}>Toggle Sidebar</span>
             </div>
           </div>

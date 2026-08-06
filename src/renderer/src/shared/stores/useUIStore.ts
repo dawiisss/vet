@@ -17,6 +17,7 @@ interface UIStore {
   isIntroOpen: boolean;
   viewingHistorySessionId: string | null;
   isCommandPaletteOpen: boolean;
+  commandPaletteInitialMode: "files" | "commands";
   previewFilePath: string | null;
   previewClipboardItem: { id: string; text: string; timestamp: number } | null;
 
@@ -36,6 +37,7 @@ interface UIStore {
   setIsCommandPaletteOpen: (
     isOpen: boolean | ((prev: boolean) => boolean),
   ) => void;
+  openCommandPalette: (mode?: "files" | "commands") => void;
   setViewingHistorySessionId: (id: string | null) => void;
   setPreviewFilePath: (path: string | null) => void;
   setPreviewClipboardItem: (
@@ -58,6 +60,7 @@ export const useUIStore = create<UIStore>((set) => ({
   isIntroOpen: false,
   viewingHistorySessionId: null,
   isCommandPaletteOpen: false,
+  commandPaletteInitialMode: "commands",
   previewFilePath: null,
   previewClipboardItem: null,
 
@@ -107,6 +110,11 @@ export const useUIStore = create<UIStore>((set) => ({
           ? isOpen(state.isCommandPaletteOpen)
           : isOpen,
     })),
+  openCommandPalette: (mode = "files") =>
+    set({
+      isCommandPaletteOpen: true,
+      commandPaletteInitialMode: mode,
+    }),
   setViewingHistorySessionId: (id) => set({ viewingHistorySessionId: id }),
   setPreviewFilePath: (path) => set({ previewFilePath: path }),
   setPreviewClipboardItem: (item) => set({ previewClipboardItem: item }),

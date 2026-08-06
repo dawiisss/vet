@@ -172,4 +172,34 @@ describe("TabBar", () => {
     expect(screen.getByText("Position: Left")).toBeInTheDocument();
     expect(screen.getByText("Position: Right")).toBeInTheDocument();
   });
+
+  it("calls onReorderTab when dragging one tab onto another", () => {
+    const onReorderTab = jest.fn();
+    const { container } = render(
+      <TabBar
+        tabs={tabs}
+        activeTabId="tab-1"
+        onSelect={onSelect}
+        onClose={onClose}
+        onNew={onNew}
+        onReorderTab={onReorderTab}
+      />,
+    );
+
+    const tabElements = container.querySelectorAll(".tab-item");
+    const firstTab = tabElements[0];
+    const secondTab = tabElements[1];
+
+    // Mock elementFromPoint to return the target tab element during drag drop
+    document.elementFromPoint = jest.fn().mockReturnValue(secondTab);
+
+    // Mouse down on tab 1
+    fireEvent.mouseDown(firstTab, { clientX: 10, clientY: 10, button: 0 });
+    // Move mouse past threshold to trigger dragging state
+    fireEvent.mouseMove(document, { clientX: 30, clientY: 10 });
+    // Release mouse over tab 2
+    fireEvent.mouseUp(document, { clientX: 30, clientY: 10 });
+
+    expect(onReorderTab).toHaveBeenCalledWith("tab-1", "tab-2");
+  });
 });

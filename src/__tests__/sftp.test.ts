@@ -5,6 +5,9 @@ jest.mock("electron", () => ({
   ipcMain: {
     handle: jest.fn(),
   },
+  app: {
+    getPath: jest.fn(() => "/tmp"),
+  },
 }));
 
 jest.mock("ssh2", () => {
