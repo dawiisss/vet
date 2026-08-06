@@ -40,10 +40,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onExtract,
   onContextMenuAction,
 }) => {
-  const isGitDiffInitial = rawFilePath.includes("#git-diff");
-  const lineMatch = rawFilePath.match(/#L(\d+)/i);
-  const targetLine = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
-  const filePath = rawFilePath.split("#")[0]!;
+  const safeRawPath = rawFilePath || "";
+  const isGitDiffInitial = safeRawPath.includes("#git-diff");
+  const lineMatch = safeRawPath.match(/#L(\d+)/i);
+  const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
+  const filePath = safeRawPath.split("#")[0]!;
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
