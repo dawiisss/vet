@@ -12,6 +12,8 @@ const execFileAsync = promisify(execFile);
 const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
 const MAX_PATH_LENGTH = 4096;
 
+const execFileAsync = promisify(execFile);
+
 interface DirectoryItem {
   name: string;
   isDirectory: boolean;
