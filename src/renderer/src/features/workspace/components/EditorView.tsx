@@ -41,7 +41,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onContextMenuAction,
 }) => {
   const isGitDiffInitial = rawFilePath.includes("#git-diff");
-  const filePath = rawFilePath.replace(/#git-diff$/, "");
+  const lineMatch = rawFilePath.match(/#L(\d+)/i);
+  const targetLine = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
+  const filePath = rawFilePath.split("#")[0]!;
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,29 @@ export const EditorView: React.FC<EditorViewProps> = ({
       active = false;
     };
   }, [filePath, sshHostId]);
+
+  const jumpToLine = (lineNum: number) => {
+    const view = editorRef.current;
+    if (!view) return;
+    setTimeout(() => {
+      try {
+        const lineCount = view.state?.doc?.lines || 1;
+        const validLine = Math.max(1, Math.min(lineNum, lineCount));
+        const lineObj = view.state.doc.line(validLine);
+        view.dispatch({
+          selection: { anchor: lineObj.from, head: lineObj.from },
+          effects: CMEditorView.scrollIntoView(lineObj.from, { y: "center" }),
+        });
+      } catch { /* intentional ignore */ }
+    }, 100);
+  };
+
+  // Scroll to target line when file finishes loading or line changes
+  useEffect(() => {
+    if (!loading && targetLine) {
+      jumpToLine(targetLine);
+    }
+  }, [loading, targetLine, rawFilePath]);
 
   // 2. Fetch Git diff content if in diff mode
   useEffect(() => {
@@ -565,6 +590,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
               editorRef.current = view;
               if (isFocused) {
                 view.focus();
+              }
+              if (targetLine) {
+                jumpToLine(targetLine);
               }
             }}
             style={{

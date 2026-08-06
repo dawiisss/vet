@@ -72,23 +72,31 @@ function App() {
   // Listen for file editor trigger events (from terminal OSC commands or double-clicks)
   useEffect(() => {
     const handleOpenEditor = (e: Event) => {
-      const customEvent = e as CustomEvent<{ filePath: string; sshHostId?: string | null }>;
+      const customEvent = e as CustomEvent<{
+        filePath: string;
+        line?: number;
+        sshHostId?: string | null;
+      }>;
       if (customEvent.detail && customEvent.detail.filePath) {
+        let targetFilePath = customEvent.detail.filePath;
+        if (customEvent.detail.line && !targetFilePath.includes("#L")) {
+          targetFilePath = `${targetFilePath}#L${customEvent.detail.line}`;
+        }
         const mode = config.editorMode || "split";
         if (mode === "tab") {
           openEditorInNewTab(
-            customEvent.detail.filePath,
-            customEvent.detail.sshHostId || null
+            targetFilePath,
+            customEvent.detail.sshHostId || null,
           );
         } else if (mode === "modal") {
           setEditingFile({
-            filePath: customEvent.detail.filePath,
+            filePath: targetFilePath,
             sshHostId: customEvent.detail.sshHostId || null,
           });
         } else {
           openEditorInSplit(
-            customEvent.detail.filePath,
-            customEvent.detail.sshHostId || null
+            targetFilePath,
+            customEvent.detail.sshHostId || null,
           );
         }
       }

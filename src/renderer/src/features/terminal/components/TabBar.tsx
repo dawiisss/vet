@@ -200,6 +200,7 @@ function TabBar({
         }}
       >
         <div
+          className="app-scrollbar"
           style={{
             display: "flex",
             flexDirection: isVertical ? "column" : "row",

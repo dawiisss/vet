@@ -137,6 +137,17 @@ describe("panel components", () => {
         expect(screen.getByText("Snippets")).toBeInTheDocument();
       });
     });
+
+    it("recovers from malformed localStorage data", async () => {
+      const SnippetLibraryPanel =
+        require("../renderer/src/shared/components/SnippetLibraryPanel").default;
+      localStorage.setItem("vet:snippets", '{"not":"an array"}');
+      render(<SnippetLibraryPanel isActive={true} onInjectSnippet={jest.fn()} />);
+      await waitFor(() => {
+        expect(screen.getByText("Snippets")).toBeInTheDocument();
+      });
+      expect(localStorage.getItem("vet:snippets")).toBeNull();
+    });
   });
 
   describe("ConnectionsPanel", () => {

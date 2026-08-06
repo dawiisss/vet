@@ -150,6 +150,7 @@ export default function ClipboardPreviewModal({
           <div
             ref={contentRef}
             tabIndex={0}
+            className="app-scrollbar"
             style={{
               width: "100%",
               height: "100%",

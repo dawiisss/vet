@@ -5,6 +5,7 @@
 jest.mock("electron", () => ({
   ipcMain: { handle: jest.fn() },
   shell: { showItemInFolder: jest.fn() },
+  BrowserWindow: { fromWebContents: jest.fn(() => ({})) },
 }));
 
 jest.mock("fs/promises", () => ({
@@ -23,6 +24,8 @@ describe("workspace", () => {
   let revealPathHandler: (...args: any[]) => any;
   let readFileHeadHandler: (...args: any[]) => any;
 
+  let searchFilesHandler: (...args: any[]) => any;
+
   beforeEach(() => {
     jest.clearAllMocks();
     initWorkspaceManager();
@@ -38,6 +41,9 @@ describe("workspace", () => {
     )?.[1];
     readFileHeadHandler = calls.find(
       (c: string[]) => c[0] === "workspace:read-file-head",
+    )?.[1];
+    searchFilesHandler = calls.find(
+      (c: string[]) => c[0] === "workspace:search-files",
     )?.[1];
   });
 
@@ -229,6 +235,18 @@ describe("workspace", () => {
         "workspace:get-git-diff",
         expect.any(Function),
       );
+    });
+  });
+
+  describe("workspace:search-files handler", () => {
+    it("allows empty string dirPath to search workspace root", async () => {
+      const fs = require("fs/promises");
+      fs.readdir.mockResolvedValue([
+        { name: "index.ts", isDirectory: () => false, isFile: () => true },
+      ]);
+      const result = await searchFilesHandler({}, "", "");
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
     });
   });
 });

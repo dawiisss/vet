@@ -59,6 +59,12 @@ export const KeybindingsManager: React.FC = () => {
         return;
       }
 
+      const hasModifier = e.ctrlKey || e.altKey || e.shiftKey || e.metaKey;
+      const isFunctionKey = /^F([1-9]|1[0-2])$/.test(e.key);
+      if (!hasModifier && !isFunctionKey) {
+        return; // Require a modifier (or function key) so bare keys never hijack typing
+      }
+
       const shortcut = buildShortcutString(e);
       if (!shortcut) {
         return; // Wait for next key

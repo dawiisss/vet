@@ -1,12 +1,16 @@
-import { ipcMain, shell } from "electron";
+import { ipcMain, shell, BrowserWindow } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 const execFileAsync = promisify(execFile);
+
+const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
+const MAX_PATH_LENGTH = 4096;
 
 interface DirectoryItem {
   name: string;
@@ -44,6 +48,32 @@ function logSensitivePathAccess(resolvedPath: string): void {
       break;
     }
   }
+}
+
+function isSensitiveWritePath(resolvedPath: string): boolean {
+  const homeDir = os.homedir();
+  const sensitivePaths = [
+    path.join(homeDir, ".ssh"),
+    path.join(homeDir, ".gnupg"),
+    path.join(homeDir, ".aws"),
+    path.join(homeDir, ".config", "vet"),
+  ];
+
+  return sensitivePaths.some(
+    (sp) => resolvedPath === sp || resolvedPath.startsWith(sp + path.sep),
+  );
+}
+
+function validPathInput(input: unknown): input is string {
+  return typeof input === "string" && input.length <= MAX_PATH_LENGTH;
+}
+
+function nonEmptyPathInput(input: unknown): input is string {
+  return (
+    typeof input === "string" &&
+    input.length > 0 &&
+    input.length <= MAX_PATH_LENGTH
+  );
 }
 
 class WorkspaceService {
@@ -328,35 +358,94 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     }
   }
 
-  ipcMain.handle("workspace:getScripts", async (_, cwd?: string) => {
+  ipcMain.handle("workspace:getScripts", async (event, cwd?: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:getScripts from untrusted sender");
+      return null;
+    }
     return workspaceService.getScripts(cwd);
   });
 
-  ipcMain.handle("workspace:list-dir", async (_, dirPath: string) => {
+  ipcMain.handle("workspace:list-dir", async (event, dirPath: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:list-dir from untrusted sender");
+      return [];
+    }
+    if (!validPathInput(dirPath)) {
+      return [];
+    }
     return workspaceService.listDir(dirPath);
   });
 
-  ipcMain.handle("workspace:search-files", async (_, dirPath: string, query: string) => {
+  ipcMain.handle("workspace:search-files", async (event, dirPath: string, query: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:search-files from untrusted sender");
+      return [];
+    }
+    if (!validPathInput(dirPath) || (typeof query !== "string" || query.length > 512)) {
+      return [];
+    }
     return workspaceService.searchFiles(dirPath, query);
   });
 
-  ipcMain.handle("workspace:reveal-path", async (_, itemPath: string) => {
+  ipcMain.handle("workspace:reveal-path", async (event, itemPath: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:reveal-path from untrusted sender");
+      return;
+    }
+    if (!nonEmptyPathInput(itemPath)) {
+      return;
+    }
     return workspaceService.revealPath(itemPath);
   });
 
-  ipcMain.handle("workspace:read-file-head", async (_, filePath: string) => {
+  ipcMain.handle("workspace:read-file-head", async (event, filePath: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:read-file-head from untrusted sender");
+      return { __ipcError: true, message: "Access denied" };
+    }
+    if (!nonEmptyPathInput(filePath)) {
+      return { __ipcError: true, message: "Invalid path" };
+    }
     return workspaceService.readFileHead(filePath);
   });
 
-  ipcMain.handle("workspace:write-file", async (_, filePath: string, content: string) => {
+  ipcMain.handle("workspace:write-file", async (event, filePath: string, content: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:write-file from untrusted sender");
+      return { __ipcError: true, message: "Access denied" };
+    }
+    if (!nonEmptyPathInput(filePath) || typeof content !== "string" || content.length > MAX_FILE_WRITE_BYTES) {
+      return { __ipcError: true, message: "Invalid path or content too large" };
+    }
+    const cleanPath = filePath.split("#")[0]!;
+    const resolvedWritePath = path.resolve(expandHome(cleanPath));
+    if (isSensitiveWritePath(resolvedWritePath)) {
+      console.warn(`[security] Blocked write to sensitive path: ${resolvedWritePath}`);
+      return { __ipcError: true, message: "Access denied: sensitive path" };
+    }
     return workspaceService.writeFile(filePath, content);
   });
 
-  ipcMain.handle("workspace:get-git-status", async (_, cwd: string) => {
+  ipcMain.handle("workspace:get-git-status", async (event, cwd: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:get-git-status from untrusted sender");
+      return {};
+    }
+    if (!validPathInput(cwd)) {
+      return {};
+    }
     return workspaceService.getGitStatus(cwd);
   });
 
-  ipcMain.handle("workspace:get-git-diff", async (_, cwd: string, filePath: string) => {
+  ipcMain.handle("workspace:get-git-diff", async (event, cwd: string, filePath: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:get-git-diff from untrusted sender");
+      return "";
+    }
+    if (!validPathInput(cwd) || !nonEmptyPathInput(filePath)) {
+      return "";
+    }
     return workspaceService.getGitDiff(cwd, filePath);
   });
 }

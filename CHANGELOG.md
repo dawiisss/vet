@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.3.0] - 2026-08-06
+
+### Added
+
+- **Command Palette Right Arrow Autocomplete**: Pressing the Right Arrow key in the Command Palette prefills the highlighted file path or command into the search query, allowing quick path editing and line-number appending.
+
+### Security
+
+- **Browser Webview Preload Isolation**: Guest browser tabs now load a dedicated minimal preload shim (`preload/browser.js`) exposing only the adblocker rule API, instead of the full application preload. Arbitrary websites can no longer reach `terminal`, `workspace`, `config`, `sftp`, `history`, `clipboard`, or `updater` IPC channels from inside the built-in browser.
+- **Workspace IPC Sender Validation**: All `workspace:*` handlers now reject requests from untrusted senders (webview guests) and validate path/query input types and lengths before any filesystem access.
+- **Sensitive Path Write Protection**: `workspace:write-file` now blocks writes to sensitive directories (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config/vet`) instead of only logging them, and caps content size at 10 MB.
+- **Navigation Hardening**: `will-navigate` now permits `file:` navigation only to the app's own built `renderer/index.html`, preventing attacker-planted local HTML pages from inheriting the full preload API surface.
+- **Webview Popup Governance**: Guest webviews now deny popup window creation and route `http`/`https`/`mailto` links through the OS browser, matching the main window's protocol allowlist.
+- **Terminal Create Authorization**: `terminal:create` rejects non-window senders and validates `cwd`/`profileId`/`sshHostId` input bounds, closing the renderer-driven shell spawn chain.
+- **Config Set Validation**: `config:set` now rejects non-object payloads and caps `profiles`, `sshHosts`, `allowedShells`, `keybindings`, and `customThemes` sizes before persisting.
+- **SFTP Host-Key Verification**: SFTP connections now use Trust-On-First-Use host-key pinning persisted in the application data directory, rejecting connections whose host key changes (MITM protection).
+
+### Fixed
+
+- **Command Palette Line Number Jump**: Fixed line number target parsing (`filename:line`) and viewport scrolling across Split Tab, New Tab, and Floating Modal editor modes so opening files jumps and centers directly on specified line numbers.
+- **Command Palette File Search**: Fixed `workspace:search-files` IPC path validation so requesting empty directory paths searches the active workspace root directory instead of returning empty results.
+- **Tab Hibernation Data Loss**: Terminal-count-based hibernation no longer evicts browser and editor tabs (which contain no PTYs), preventing webview state loss (page scroll, forms) when `maxActiveTerminals` is exceeded.
+- **Shortcut Recording Key Hijack**: The keybinding recorder now requires a modifier (or function key) before committing a binding, so bare keys like `a` can no longer be saved and globally intercept typing.
+- **History FTS Index Growth**: Day-based history pruning now deletes the corresponding `session_search` rows in the same transaction as `sessions`, preventing unbounded full-text search index growth.
+- **Terminal Output Loss on Close**: `destroyTerminal` now flushes buffered output (up to 10 ms) to the live view and history database before killing the PTY process, mirroring the `onExit` flush instead of silently dropping it.
+- **First Session History Loss**: The history database now initializes before the window loads rather than after a 100 ms delay, so the first terminal session's start and output are no longer silently dropped.
+- **History Viewer Write-after-Dispose**: Session transcript loading is now guarded by a disposed flag, preventing `term.write`/`fit` calls on a disposed xterm when the modal closes before the fetch resolves.
+- **History Panel Query Race**: History loading now uses a single debounced loader with a request-sequence guard, eliminating the duplicate initial fetch and stale responses overwriting newer results.
+- **Hibernation Accounting after Unsplit/Close**: Extracted tabs from unsplit and closed splits are now correctly registered in (or removed from) the tab activation order, keeping `maxActiveTerminals` hibernation math accurate.
+- **Snippet Library Corrupt Storage**: `vet:snippets` localStorage data is now shape-validated before use; malformed payloads are discarded instead of crashing the panel.
+- **Update Size Display**: `formatBytes` now handles sizes ≥ 1 TB instead of rendering `undefined`.
+- **Editor Fragment Paths**: Editor file paths are now cleaned with `split("#")[0]` consistently with the main process, so non-`#git-diff` fragments no longer cause read failures.
+
+### Changed
+
+- **Lint Scope**: `eslint.config.mjs` now ignores the renderer build output (`src/renderer/dist/`), so `npm run lint` reports source issues instead of thousands of errors from compiled bundles.
+- **Scrollbar Consistency**: Applied the `.app-scrollbar` CSS class to the vertical tab bar list, the Command Palette results list, and the clipboard preview code view, aligning with the UI scrollbar guideline.
+
 ## [1.2.2] - 2026-07-25
 
 ### Added

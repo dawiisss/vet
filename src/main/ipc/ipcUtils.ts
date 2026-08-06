@@ -1,4 +1,15 @@
-import { ipcMain } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
+
+/**
+ * True only when the IPC sender is a real app window's webContents.
+ * Webview guest pages (browser tabs) and other untrusted senders fail this
+ * check because BrowserWindow.fromWebContents returns null for them.
+ */
+export function isTrustedSender(event: {
+  sender: Electron.WebContents;
+}): boolean {
+  return BrowserWindow.fromWebContents(event.sender) !== null;
+}
 
 /**
  * Registers a map of IPC handlers dynamically, wrapping each execution

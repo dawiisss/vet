@@ -37,13 +37,14 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
         const candidateId = order[i];
         if (candidateId !== id && !hibernated.includes(candidateId)) {
           const tab = state.tabs.find((t: any) => t.id === candidateId);
-          if (tab) {
-            collectTerminalIds(tab.root).forEach((termId) => {
+          const terminalIds = tab ? collectTerminalIds(tab.root) : [];
+          if (terminalIds.length > 0) {
+            terminalIds.forEach((termId) => {
               destroyTerminalCache(termId);
             });
             hibernated = [...hibernated, candidateId];
+            excess--;
           }
-          excess--;
         }
         i--;
       }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DOMPurify from "dompurify";
 import { useTabStore } from "@/features/terminal/useTabStore";
 import Panel from "./Panel";
@@ -38,7 +38,12 @@ export default function HistoryPanel({
 
   const newBrowserTab = useTabStore((s) => s.newBrowserTab);
 
+  // Monotonic sequence guard so a stale slow response can never overwrite
+  // the results of a newer query.
+  const requestSeq = useRef(0);
+
   const loadHistory = useCallback(async () => {
+    const seq = ++requestSeq.current;
     try {
       setIsSearching(true);
       const api = window.historyApi;
@@ -51,7 +56,9 @@ export default function HistoryPanel({
         } else {
           results = await api.search(query.trim());
         }
-        setSessions(results);
+        if (seq === requestSeq.current) {
+          setSessions(results);
+        }
       } else {
         let results = [];
         if (query.trim() === "") {
@@ -59,29 +66,28 @@ export default function HistoryPanel({
         } else {
           results = await api.searchBrowserHistory(query.trim());
         }
-        setBrowserHistory(results);
+        if (seq === requestSeq.current) {
+          setBrowserHistory(results);
+        }
       }
     } catch (err) {
       console.error("Failed to load history", err);
     } finally {
-      setIsSearching(false);
+      if (seq === requestSeq.current) {
+        setIsSearching(false);
+      }
     }
   }, [activeTab, query]);
 
+  // Single debounced loader: covers initial activation, tab switches, and
+  // query typing without firing two overlapping requests per change.
   useEffect(() => {
-    if (isActive) {
-      loadHistory();
-    }
-  }, [isActive, loadHistory]);
-
-  useEffect(() => {
+    if (!isActive) return;
     const timeoutId = setTimeout(() => {
-      if (isActive) {
-        loadHistory();
-      }
+      loadHistory();
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [query, isActive, loadHistory]);
+  }, [isActive, activeTab, query, loadHistory]);
 
   const handleDeleteTerminal = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();

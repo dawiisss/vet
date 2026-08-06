@@ -234,7 +234,15 @@ export async function unsplitTabAction(set: any, get: any) {
     };
 
     next.splice(tabIdx + 1, 0, ...extractedTabs);
-    return { tabs: next };
+    return {
+      tabs: next,
+      // Register extracted tabs in the activation order so hibernation/LRU
+      // accounting sees them, matching every other tab-creation path.
+      tabActivationOrder: [
+        ...extractedTabs.map((t) => t.id),
+        ...state.tabActivationOrder.filter((id: any) => id !== activeTabId),
+      ],
+    };
   });
 }
 
@@ -284,6 +292,10 @@ export function closeSplitAction(
     set({
       tabs: next,
       activeTabId: newActiveTabId,
+      tabActivationOrder: get().tabActivationOrder.filter(
+        (t: any) => t !== tabId,
+      ),
+      hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== tabId),
     });
     return;
   }
@@ -522,6 +534,36 @@ export function openEditorInSplitAction(
     const currentTab = state.tabs.find((t: any) => t.id === activeTabId);
     if (!currentTab) return state;
 
+    const cleanTarget = filePath.split("#")[0]!;
+    const allPaths = leafPaths(currentTab.root);
+    const existingPath = allPaths.find((p) => {
+      const n = getNode(currentTab.root, p);
+      return (
+        n.editorId !== undefined &&
+        n.filePath &&
+        n.filePath.split("#")[0] === cleanTarget
+      );
+    });
+
+    if (existingPath) {
+      const node = getNode(currentTab.root, existingPath);
+      const newRoot = setNode(currentTab.root, existingPath, {
+        ...node,
+        filePath,
+        sshHostId,
+      });
+      return {
+        tabs: state.tabs.map((t: any) => {
+          if (t.id !== activeTabId) return t;
+          return {
+            ...t,
+            root: newRoot,
+            focusedPath: existingPath,
+          };
+        }),
+      };
+    }
+
     // Split horizontally (editor on the right side)
     const result = insertLeaves(currentTab.root, path, "horizontal", [editorId]);
 
@@ -563,7 +605,8 @@ export function openEditorInNewTabAction(
   const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const tabId = get().generateTabId();
   set((state: any) => {
-    const filename = filePath.split("/").pop() || "Untitled";
+    const cleanTarget = filePath.split("#")[0]!;
+    const filename = cleanTarget.split("/").pop() || "Untitled";
     const label = `Edit: ${filename}`;
     const editorTab = get().newEditorTabState(
       tabId,

@@ -23,6 +23,7 @@ describe("CommandPalette", () => {
 
   beforeEach(() => {
     resetMockedApis();
+    localStorage.clear();
     onClose.mockClear();
     (workspaceApi as any).searchFiles = jest.fn().mockResolvedValue([
       { relativePath: "src/App.tsx", absolutePath: "/path/src/App.tsx" },
@@ -123,5 +124,18 @@ describe("CommandPalette", () => {
       fireEvent.keyDown(input, { key: "Enter" });
     });
     expect(actions[2].onExecute).toHaveBeenCalled();
+  });
+
+  it("prefills selected item query on ArrowRight keypress", async () => {
+    await act(async () => {
+      render(
+        <CommandPalette isOpen={true} initialMode="commands" onClose={onClose} actions={actions} />,
+      );
+    });
+    const input = screen.getByPlaceholderText("Type a command or action...") as HTMLInputElement;
+    act(() => {
+      fireEvent.keyDown(input, { key: "ArrowRight" });
+    });
+    expect(input.value).toBe("Settings: Open");
   });
 });

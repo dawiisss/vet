@@ -397,6 +397,20 @@ export function destroyTerminal(id: string): void {
       clearTimeout(timeout);
       outputTimeouts.delete(id);
     }
+    // Flush any buffered output (up to 10ms of data) before destroying,
+    // mirroring the onExit flush, so it is not silently lost.
+    const bufferedData = outputBuffers.get(id);
+    if (bufferedData) {
+      const target = forwardTargets.get(id);
+      if (target) {
+        target("terminal:data", { id, data: bufferedData });
+      }
+      try {
+        historyDb.logOutput(id, bufferedData);
+      } catch (e) {
+        console.error("Failed to log terminal output on destroy:", e);
+      }
+    }
     outputBuffers.delete(id);
 
     try {

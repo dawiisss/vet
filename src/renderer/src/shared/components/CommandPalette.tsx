@@ -16,6 +16,7 @@ export interface PaletteItem {
   type: "command" | "file";
   onExecute: () => void;
   filePath?: string;
+  relativePath?: string;
   line?: number;
 }
 
@@ -201,6 +202,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           sublabel: dir || "./",
           type: "file",
           filePath: file.absolutePath,
+          relativePath: file.relativePath,
           ...(targetLine !== undefined && { line: targetLine }),
           onExecute: () => {
             recordRecent(fileId);
@@ -252,6 +254,23 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex((prev) => (filteredItems.length ? (prev - 1 + filteredItems.length) % filteredItems.length : 0));
+    } else if (e.key === "ArrowRight") {
+      const inputEl = inputRef.current;
+      const isAtEnd = !inputEl || inputEl.selectionStart === query.length;
+      const selected = filteredItems[selectedIndex];
+      if (isAtEnd && selected) {
+        e.preventDefault();
+        let prefill = "";
+        if (selected.type === "file") {
+          prefill = selected.relativePath || selected.label;
+        } else {
+          prefill = query.startsWith(">") ? `>${selected.label}` : selected.label;
+        }
+        setQuery(prefill);
+        setTimeout(() => {
+          inputEl?.setSelectionRange(prefill.length, prefill.length);
+        }, 0);
+      }
     } else if (e.key === "Enter") {
       e.preventDefault();
       const selected = filteredItems[selectedIndex];
@@ -365,7 +384,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Search Results List */}
         <div
           ref={listRef}
-          className="no-scrollbar"
+          className="app-scrollbar"
           style={{ maxHeight: 340, overflowY: "auto" }}
         >
           {filteredItems.map((item, index) => {
