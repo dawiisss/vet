@@ -1,24 +1,17 @@
-## [1.4.0] - 2026-08-12
-
-### Added
-
-- Added Arch Linux pacman packaging and AUR binary packaging support.
-- Added package-aware installer updates for AUR, pacman, Debian, and RPM installations.
-- Improved Linux desktop-entry metadata for application menu integration.
-
-### Changed
-
-- Updated the application version to `1.4.0`.
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-12
+
 ### Added
 
 - **Session Manager**: Added the ability to save and load named workspace profiles. Includes a new Sidebar panel and interactive Command Palette integration for quickly switching between saved layouts.
+- Added Arch Linux pacman packaging and AUR binary packaging support.
+- Added package-aware installer updates for AUR, pacman, Debian, and RPM installations.
+- Improved Linux desktop-entry metadata for application menu integration.
 
 ### Security
 
@@ -36,6 +29,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Updated the application version to `1.4.0`.
 - **TypeScript Config Hardening**: Enabled `strict: true` mode in `tsconfig.test.json` and added it to references in `tsconfig.json`.
 - **Test Mock Updates**: Updated test mocks to support `isTrustedSender` checks (added `BrowserWindow` mock) and Zustand selector functions.
 - **Catch Block Cleanup**: Removed unused `err` parameters in `sftp.ts` and `WorkspacePanel.tsx` catch blocks.
