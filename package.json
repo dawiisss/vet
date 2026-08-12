@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "license": "MIT",
@@ -61,6 +61,12 @@
           "StartupWMClass": "vet"
         }
       }
+    },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define",
+        "_build_id_links none"
+      ]
     },
     "win": {
       "target": [

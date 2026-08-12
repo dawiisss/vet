@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-12
+
+### Fixed
+
+- Disabled RPM build-id links to prevent file conflicts with dzlinux on Fedora and other RPM-based systems.
+- Made RPM installation failures fall back to the AppImage for fresh installations while preserving existing Vet installations during failed updates.
+
 ## [1.4.0] - 2026-08-12
 
 ### Added
