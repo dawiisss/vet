@@ -18,7 +18,7 @@ echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 # Define repository metadata
 REPO_OWNER="dawiisss"
 REPO_NAME="vet"
-FALLBACK_VERSION="1.4.0"
+FALLBACK_VERSION="1.4.1"
 
 # 1. Fetch latest release version from GitHub API
 echo -e "Checking latest release version..."
@@ -228,12 +228,29 @@ if [ "$installed" = false ] && [ "$IS_RPM" = true ]; then
       echo -e "${BLUE}Installing RPM package...${NC}"
     fi
     if command -v dnf &> /dev/null; then
-      sudo dnf install -y "$RPM_FILE"
+      if ! sudo dnf install -y "$RPM_FILE"; then
+        if [ "$PACKAGE_SOURCE" = "rpm" ]; then
+          echo -e "${RED}Error: RPM update failed; the existing installation was not changed.${NC}"
+          exit 1
+        fi
+        echo -e "${YELLOW}RPM installation failed. Falling back to AppImage...${NC}"
+      else
+        installed=true
+      fi
     else
-      sudo rpm -U "$RPM_FILE"
+      if ! sudo rpm -U "$RPM_FILE"; then
+        if [ "$PACKAGE_SOURCE" = "rpm" ]; then
+          echo -e "${RED}Error: RPM update failed; the existing installation was not changed.${NC}"
+          exit 1
+        fi
+        echo -e "${YELLOW}RPM installation failed. Falling back to AppImage...${NC}"
+      else
+        installed=true
+      fi
     fi
-    echo -e "${GREEN}Vet has been installed or updated successfully via RPM.${NC}"
-    installed=true
+    if [ "$installed" = true ]; then
+      echo -e "${GREEN}Vet has been installed or updated successfully via RPM.${NC}"
+    fi
   else
     if [ "$PACKAGE_SOURCE" = "rpm" ]; then
       echo -e "${RED}Error: Could not download the latest RPM package; the existing installation was not changed.${NC}"
