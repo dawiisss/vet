@@ -1,3 +1,15 @@
+## [1.4.0] - 2026-08-12
+
+### Added
+
+- Added Arch Linux pacman packaging and AUR binary packaging support.
+- Added package-aware installer updates for AUR, pacman, Debian, and RPM installations.
+- Improved Linux desktop-entry metadata for application menu integration.
+
+### Changed
+
+- Updated the application version to `1.4.0`.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

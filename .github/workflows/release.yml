@@ -55,6 +55,8 @@ jobs:
           path: |
             dist/*.deb
             dist/*.rpm
+            dist/*.pacman
+            dist/*.pkg.tar.zst
             dist/*.AppImage
             dist/*.tar.gz
             dist/*.exe
@@ -80,6 +82,8 @@ jobs:
           files: |
             dist/*.deb
             dist/*.rpm
+            dist/*.pacman
+            dist/*.pkg.tar.zst
             dist/*.AppImage
             dist/*.tar.gz
             dist/*.exe

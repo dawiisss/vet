@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "license": "MIT",
@@ -45,14 +45,19 @@
       "resources/icon.png"
     ],
     "linux": {
+      "category": "Utility",
       "target": [
         "AppImage",
         "tar.gz",
         "deb",
-        "rpm"
+        "rpm",
+        "pacman"
       ],
       "desktop": {
         "entry": {
+          "Name": "Vet",
+          "Comment": "Very Easy Terminal Emulator",
+          "Categories": "Utility;System;TerminalEmulator;",
           "StartupWMClass": "vet"
         }
       }

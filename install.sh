@@ -18,7 +18,7 @@ echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 # Define repository metadata
 REPO_OWNER="dawiisss"
 REPO_NAME="vet"
-FALLBACK_VERSION="1.3.0"
+FALLBACK_VERSION="1.4.0"
 
 # 1. Fetch latest release version from GitHub API
 echo -e "Checking latest release version..."
@@ -62,6 +62,8 @@ fi
 # 2. Detect package manager and system capabilities
 IS_DEB=false
 IS_RPM=false
+IS_ARCH=false
+PACKAGE_SOURCE=""
 
 if [ -f /etc/os-release ]; then
   ID=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
@@ -70,15 +72,38 @@ if [ -f /etc/os-release ]; then
     IS_DEB=true
   elif [[ "$ID" =~ ^(fedora|rhel|centos|suse|opensuse)$ ]] || [[ "$ID_LIKE" =~ (fedora|rhel|centos|suse|opensuse) ]]; then
     IS_RPM=true
+  elif [[ "$ID" =~ ^(arch|manjaro|endeavouros|garuda)$ ]] || [[ "$ID_LIKE" =~ arch ]]; then
+    IS_ARCH=true
   fi
 fi
 
 # Fallback to command detection if os-release wasn't conclusive
-if [ "$IS_DEB" = false ] && [ "$IS_RPM" = false ]; then
+if [ "$IS_DEB" = false ] && [ "$IS_RPM" = false ] && [ "$IS_ARCH" = false ]; then
   if command -v apt-get &> /dev/null; then
     IS_DEB=true
   elif command -v dnf &> /dev/null || command -v yum &> /dev/null; then
     IS_RPM=true
+  elif command -v pacman &> /dev/null; then
+    IS_ARCH=true
+  fi
+fi
+
+# Detect an existing Vet package before choosing the installation method.
+# This prevents an AUR or system package installation from silently turning
+# into a second, unmanaged AppImage installation when an update fails.
+if [ "$IS_ARCH" = true ] && command -v pacman &> /dev/null; then
+  if pacman -Q vet-bin &> /dev/null; then
+    PACKAGE_SOURCE="aur"
+  elif pacman -Q vet &> /dev/null; then
+    PACKAGE_SOURCE="pacman"
+  fi
+elif [ "$IS_DEB" = true ] && command -v dpkg-query &> /dev/null; then
+  if dpkg-query -W -f='${db:Status-Status}' vet 2>/dev/null | grep -qx installed; then
+    PACKAGE_SOURCE="deb"
+  fi
+elif [ "$IS_RPM" = true ] && command -v rpm &> /dev/null; then
+  if rpm -q vet &> /dev/null; then
+    PACKAGE_SOURCE="rpm"
   fi
 fi
 
@@ -88,13 +113,29 @@ DEB_URL="${BASE_DOWNLOAD_URL}/vet_${VERSION}_${DEB_ARCH}.deb"
 RPM_URL="${BASE_DOWNLOAD_URL}/vet-${VERSION}.${RPM_ARCH}.rpm"
 APPIMAGE_URL="${BASE_DOWNLOAD_URL}/Vet-${VERSION}.AppImage"
 
+# electron-builder has used both .pacman and .pkg.tar.zst names for Arch
+# targets across versions. Resolve the actual release asset instead of
+# depending on a hardcoded filename.
+PACMAN_URL=""
+if [ "$IS_ARCH" = true ] && command -v curl &> /dev/null; then
+  PACMAN_URL=$(curl -fsSL "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" \
+    | grep -E '"browser_download_url":.*(\.pacman|\.pkg\.tar\.zst)' \
+    | sed -E 's/.*"browser_download_url": "([^"]+)".*/\1/' \
+    | head -n 1 || true)
+elif [ "$IS_ARCH" = true ] && command -v wget &> /dev/null; then
+  PACMAN_URL=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" \
+    | grep -E '"browser_download_url":.*(\.pacman|\.pkg\.tar\.zst)' \
+    | sed -E 's/.*"browser_download_url": "([^"]+)".*/\1/' \
+    | head -n 1 || true)
+fi
+
 # Download helper
 download_file() {
   local url="$1"
   local dest="$2"
   echo -e "Downloading $url..."
   if command -v curl &> /dev/null; then
-    curl -L -o "$dest" "$url"
+    curl -fL -o "$dest" "$url"
   elif command -v wget &> /dev/null; then
     wget -O "$dest" "$url"
   else
@@ -105,19 +146,74 @@ download_file() {
 
 installed=false
 
+# Update an existing AUR installation through the AUR build system. Do not
+# replace it with the upstream pacman artifact because that would change the
+# package owner and leave the AUR package unmanaged.
+if [ "$PACKAGE_SOURCE" = "aur" ]; then
+  if ! command -v git &> /dev/null || ! command -v makepkg &> /dev/null; then
+    echo -e "${RED}Error: Updating vet-bin requires git and makepkg.${NC}"
+    exit 1
+  fi
+
+  AUR_DIR="${TMP_DIR}/vet-bin"
+  echo -e "${BLUE}Updating Vet from the AUR...${NC}"
+  if ! git clone --depth=1 "https://aur.archlinux.org/vet-bin.git" "$AUR_DIR"; then
+    echo -e "${RED}Error: Could not download the vet-bin AUR package.${NC}"
+    exit 1
+  fi
+
+  if ! (cd "$AUR_DIR" && makepkg --syncdeps --install --noconfirm); then
+    echo -e "${RED}Error: The vet-bin AUR update failed.${NC}"
+    exit 1
+  fi
+
+  echo -e "${GREEN}Vet has been updated from the AUR.${NC}"
+  installed=true
+fi
+
+# Install or update the upstream Arch package through pacman. The package is
+# tracked by pacman, so upgrades and removal remain system-managed.
+if [ "$installed" = false ] && [ "$IS_ARCH" = true ] && [ -n "$PACMAN_URL" ] && command -v pacman &> /dev/null; then
+  PACMAN_FILE="${TMP_DIR}/vet-arch-package"
+  if download_file "$PACMAN_URL" "$PACMAN_FILE"; then
+    if [ "$PACKAGE_SOURCE" = "pacman" ]; then
+      echo -e "${BLUE}Updating Vet through pacman...${NC}"
+    else
+      echo -e "${BLUE}Installing Arch package...${NC}"
+    fi
+    sudo pacman -U --noconfirm "$PACMAN_FILE"
+    echo -e "${GREEN}Vet has been installed or updated successfully via pacman.${NC}"
+    installed=true
+  else
+    if [ "$PACKAGE_SOURCE" = "pacman" ]; then
+      echo -e "${RED}Error: Could not download the latest Arch package; the existing installation was not changed.${NC}"
+      exit 1
+    fi
+    echo -e "${YELLOW}Arch package download failed. Falling back to AppImage...${NC}"
+  fi
+fi
+
 # Try Debian installation
 if [ "$IS_DEB" = true ]; then
   DEB_FILE="${TMP_DIR}/vet_${VERSION}_${DEB_ARCH}.deb"
   if download_file "$DEB_URL" "$DEB_FILE"; then
-    echo -e "${BLUE}Installing Debian package...${NC}"
+    if [ "$PACKAGE_SOURCE" = "deb" ]; then
+      echo -e "${BLUE}Updating Vet through APT...${NC}"
+    else
+      echo -e "${BLUE}Installing Debian package...${NC}"
+    fi
     if command -v apt &> /dev/null; then
       sudo apt install -y "$DEB_FILE"
     else
       sudo dpkg -i "$DEB_FILE" || sudo apt-get install -f -y
     fi
-    echo -e "${GREEN}Vet has been installed successfully via APT.${NC}"
+    echo -e "${GREEN}Vet has been installed or updated successfully via APT.${NC}"
     installed=true
   else
+    if [ "$PACKAGE_SOURCE" = "deb" ]; then
+      echo -e "${RED}Error: Could not download the latest Debian package; the existing installation was not changed.${NC}"
+      exit 1
+    fi
     echo -e "${YELLOW}Debian package download failed. Falling back to AppImage...${NC}"
   fi
 fi
@@ -126,15 +222,23 @@ fi
 if [ "$installed" = false ] && [ "$IS_RPM" = true ]; then
   RPM_FILE="${TMP_DIR}/vet-${VERSION}.${RPM_ARCH}.rpm"
   if download_file "$RPM_URL" "$RPM_FILE"; then
-    echo -e "${BLUE}Installing RPM package...${NC}"
+    if [ "$PACKAGE_SOURCE" = "rpm" ]; then
+      echo -e "${BLUE}Updating Vet through RPM...${NC}"
+    else
+      echo -e "${BLUE}Installing RPM package...${NC}"
+    fi
     if command -v dnf &> /dev/null; then
       sudo dnf install -y "$RPM_FILE"
     else
-      sudo rpm -i "$RPM_FILE"
+      sudo rpm -U "$RPM_FILE"
     fi
-    echo -e "${GREEN}Vet has been installed successfully via RPM.${NC}"
+    echo -e "${GREEN}Vet has been installed or updated successfully via RPM.${NC}"
     installed=true
   else
+    if [ "$PACKAGE_SOURCE" = "rpm" ]; then
+      echo -e "${RED}Error: Could not download the latest RPM package; the existing installation was not changed.${NC}"
+      exit 1
+    fi
     echo -e "${YELLOW}RPM package download failed. Falling back to AppImage...${NC}"
   fi
 fi
