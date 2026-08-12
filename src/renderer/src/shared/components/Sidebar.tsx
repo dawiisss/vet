@@ -6,6 +6,7 @@ import ScriptRunnerPanel from "./ScriptRunnerPanel";
 import SnippetLibraryPanel from "./SnippetLibraryPanel";
 import ConnectionsPanel from "@/features/connections/components/ConnectionsPanel";
 import WorkspacePanel from "@/features/workspace/components/WorkspacePanel";
+import ProfilesPanel from "@/features/workspace/components/ProfilesPanel";
 import HistoryPanel from "./HistoryPanel";
 import ClipboardHistoryPanel from "./ClipboardHistoryPanel";
 
@@ -113,18 +114,24 @@ export default function Sidebar({
     },
     {
       id: 1,
+      icon: "🔖",
+      name: "Profiles",
+      render: (isActive: boolean) => <ProfilesPanel isActive={isActive} />,
+    },
+    {
+      id: 2,
       icon: "📊",
       name: "System",
       render: (isActive: boolean) => <SystemMonitorPanel isActive={isActive} />,
     },
     {
-      id: 2,
+      id: 3,
       icon: "🔌",
       name: "Ports",
       render: (isActive: boolean) => <PortMonitorPanel isActive={isActive} />,
     },
     {
-      id: 3,
+      id: 4,
       icon: "⚡",
       name: "Scripts",
       render: (isActive: boolean) => (
@@ -132,7 +139,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 4,
+      id: 5,
       icon: "📋",
       name: "Snippets",
       render: (isActive: boolean) => (
@@ -143,7 +150,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 5,
+      id: 6,
       icon: "📑",
       name: "Clipboard",
       render: (isActive: boolean) => (
@@ -154,7 +161,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 6,
+      id: 7,
       icon: "🌐",
       name: "Connections",
       render: (isActive: boolean) => (
@@ -166,7 +173,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 7,
+      id: 8,
       icon: "📜",
       name: "History",
       render: (isActive: boolean) => (

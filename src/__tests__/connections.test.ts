@@ -5,6 +5,7 @@
 jest.mock("electron", () => ({
   app: { getPath: jest.fn(() => "/mock/home") },
   ipcMain: { handle: jest.fn() },
+  BrowserWindow: { fromWebContents: jest.fn(() => ({})) },
 }));
 
 const execFileMock = jest.fn();
@@ -87,7 +88,7 @@ Host myserver
 Host dev-* gitlab.com
   User deploy
 `);
-      const result = await sshHandler();
+      const result = await sshHandler({ sender: {} });
       expect(result.length).toBeGreaterThanOrEqual(1);
       expect(result.some((h: any) => h.name === "myserver")).toBe(true);
     });
@@ -101,7 +102,7 @@ Host *
 Host realserver
   HostName real.com
 `);
-      const result = await sshHandler();
+      const result = await sshHandler({ sender: {} });
       expect(result.find((h: any) => h.name === "*")).toBeUndefined();
       expect(result.find((h: any) => h.name === "realserver")).toBeDefined();
     });
@@ -109,7 +110,7 @@ Host realserver
     it("returns empty array when SSH config is missing", async () => {
       const fs = require("fs/promises");
       fs.readFile.mockRejectedValue({ code: "ENOENT" });
-      const result = await sshHandler();
+      const result = await sshHandler({ sender: {} });
       expect(result).toEqual([]);
     });
 
@@ -123,7 +124,7 @@ Host realserver
       const fs = require("fs/promises");
       fs.readFile.mockResolvedValue("Host myserver\n  HostName 1.2.3.4");
 
-      const result = await sshHandler();
+      const result = await sshHandler({ sender: {} });
       const myserverResults = result.filter((h: any) => h.name === "myserver");
       expect(myserverResults).toHaveLength(1);
     });
@@ -133,7 +134,7 @@ Host realserver
     it("parses docker ps output", async () => {
       mockExecCallback("web-app\nredis-cache\npostgres-db");
 
-      const result = await dockerHandler();
+      const result = await dockerHandler({ sender: {} });
       expect(result.length).toBeGreaterThanOrEqual(3);
       expect(result[0].name).toBe("web-app");
       expect(result[0].source).toBe("docker");
@@ -142,7 +143,7 @@ Host realserver
     it("returns empty array when docker is not available", async () => {
       mockExecCallback("", new Error("docker not found"));
 
-      const result = await dockerHandler();
+      const result = await dockerHandler({ sender: {} });
       expect(result).toEqual([]);
     });
   });

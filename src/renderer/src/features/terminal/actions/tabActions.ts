@@ -245,6 +245,90 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
     });
 }
 
+export async function loadProfileStateAction(set: any, get: any, profileState: any) {
+  const api = window.terminalApi;
+  if (!api) return;
+
+  const prevTabs = get().tabs;
+  for (const tab of prevTabs) {
+    collectTerminalIds(tab.root).forEach((id) => {
+      api.destroy(id);
+      destroyTerminalCache(id);
+    });
+  }
+
+  async function recreateTerminalNodes(node: any): Promise<any> {
+    if (node.terminalId) {
+      try {
+        const { id: newId } = await api.create();
+        return { terminalId: newId };
+      } catch (err) {
+        console.error("Failed to recreate terminal node", err);
+        return node;
+      }
+    } else if (node.browserId) {
+      return { browserId: node.browserId, url: node.url };
+    } else if (node.children) {
+      const newChildren = await Promise.all(
+        node.children.map((child: any) => recreateTerminalNodes(child))
+      );
+      return {
+        direction: node.direction,
+        children: newChildren,
+        sizes: node.sizes,
+      };
+    }
+    return node;
+  }
+
+  if (profileState && profileState.tabs && profileState.tabs.length > 0) {
+    try {
+      const restoredTabs = await Promise.all(
+        profileState.tabs.map(async (tab: any) => {
+          const restoredRoot = await recreateTerminalNodes(tab.root);
+          return {
+            id: tab.id,
+            label: tab.label,
+            root: restoredRoot,
+            focusedPath: tab.focusedPath || [],
+          };
+        })
+      );
+      
+      const restoredActiveId = profileState.activeTabId && restoredTabs.some(t => t.id === profileState.activeTabId)
+        ? profileState.activeTabId
+        : restoredTabs[0].id;
+
+      let maxTabNum = 0;
+      let maxShellNum = 0;
+      for (const tab of restoredTabs) {
+        const tabMatch = tab.id.match(/^tab-(\d+)$/);
+        if (tabMatch) {
+          const num = parseInt(tabMatch[1], 10);
+          if (num > maxTabNum) maxTabNum = num;
+        }
+        const labelMatch = tab.label.match(/^shell (\d+)$/);
+        if (labelMatch) {
+          const num = parseInt(labelMatch[1], 10);
+          if (num > maxShellNum) maxShellNum = num;
+        }
+      }
+
+      set({
+        tabs: restoredTabs,
+        activeTabId: restoredActiveId,
+        tabActivationOrder: restoredTabs.map((t: any) => t.id),
+        nextTabId: maxTabNum + 1,
+        tabCounter: maxShellNum + 1,
+      });
+      return;
+    } catch (err) {
+      console.error("Error restoring profile, falling back", err);
+    }
+  }
+}
+
+
 export function onReattachTabAction(set: any, get: any) {
   const api = window.terminalApi;
   if (!api) return () => {};

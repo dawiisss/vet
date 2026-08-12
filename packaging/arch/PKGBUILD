@@ -1,0 +1,57 @@
+pkgname=vet-bin
+pkgver=1.4.0
+pkgrel=1
+pkgdesc='GPU-accelerated terminal emulator and developer workspace'
+arch=('x86_64')
+url='https://github.com/dawiisss/vet'
+license=('MIT')
+depends=(
+  'alsa-lib'
+  'at-spi2-core'
+  'cairo'
+  'cups'
+  'dbus'
+  'gtk3'
+  'libdrm'
+  'libx11'
+  'libxcb'
+  'libxcomposite'
+  'libxdamage'
+  'libxext'
+  'libxfixes'
+  'libxkbcommon'
+  'libxrandr'
+  'mesa'
+  'nss'
+  'pango'
+  'xdg-utils'
+)
+source=(
+  "${pkgname}-${pkgver}.tar.gz::https://github.com/dawiisss/vet/releases/download/v${pkgver}/Vet-${pkgver}-linux-x64.tar.gz"
+  'vet.desktop'
+  'LICENSE::https://raw.githubusercontent.com/dawiisss/vet/v'"${pkgver}"'/LICENSE'
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  local appdir
+  appdir=$(find "$srcdir" -type f -name 'Vet' -executable -printf '%h\n' | head -n 1)
+
+  if [[ -z "$appdir" || ! -d "$appdir" ]]; then
+    error 'Could not locate the extracted Vet application directory'
+    return 1
+  fi
+
+  install -d "$pkgdir/opt/vet"
+  cp -a "$appdir"/. "$pkgdir/opt/vet/"
+
+  install -Dm755 /dev/stdin "$pkgdir/usr/bin/vet" <<'EOF'
+#!/bin/sh
+exec /opt/vet/Vet "$@"
+EOF
+
+  install -Dm644 "$srcdir/vet.desktop" \
+    "$pkgdir/usr/share/applications/vet.desktop"
+  install -Dm644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

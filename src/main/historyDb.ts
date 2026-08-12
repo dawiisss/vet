@@ -288,8 +288,11 @@ export function clearHistory() {
   if (!db) return;
   writeBuffer = [];
   try {
-    db.exec("DELETE FROM session_search");
-    db.exec("DELETE FROM sessions");
+    const trx = db.transaction(() => {
+      db!.exec("DELETE FROM session_search");
+      db!.exec("DELETE FROM sessions");
+    });
+    trx();
     db.pragma("incremental_vacuum");
   } catch (err) {
     console.error("Clear DB Error:", err);
@@ -299,12 +302,11 @@ export function clearHistory() {
 export function deleteSession(id: string) {
   if (!db) return;
   try {
-    const stmt = db.prepare("DELETE FROM sessions WHERE id = ?");
-    stmt.run(id);
-    const stmtSearch = db.prepare(
-      "DELETE FROM session_search WHERE session_id = ?",
-    );
-    stmtSearch.run(id);
+    const trx = db.transaction(() => {
+      db!.prepare("DELETE FROM session_search WHERE session_id = ?").run(id);
+      db!.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+    });
+    trx();
   } catch (err) {
     console.error("Delete Session Error:", err);
   }
@@ -343,34 +345,21 @@ function pruneHistory() {
   try {
     const cutoffTime = Date.now() - keepDays * 24 * 60 * 60 * 1000;
 
-    // Collect sessions being pruned by age so their FTS rows are deleted too
-    // (session_search has no FK cascade, so it would otherwise grow unbounded).
-    const oldSessionIds = (
-      db.prepare(
-        "SELECT id FROM sessions WHERE created_at < ?",
-      ).all(cutoffTime) as { id: string }[]
-    ).map((row) => row.id);
-
     const pruneDaysStmt = db.prepare(
       "DELETE FROM sessions WHERE created_at < ?",
     );
     const pruneBrowserStmt = db.prepare(
       "DELETE FROM browser_history WHERE timestamp < ?",
     );
-    const deleteSearchStmt = oldSessionIds.length
-      ? db.prepare(
-          `DELETE FROM session_search WHERE session_id IN (${oldSessionIds
-            .map(() => "?")
-            .join(",")})`,
-        )
-      : null;
+    const deleteSearchStmt = db.prepare(
+      "DELETE FROM session_search WHERE session_id IN (SELECT id FROM sessions WHERE created_at < ?)",
+    );
 
     const pruneTrx = db.transaction(() => {
+      // Delete FTS rows first (before sessions are deleted, so the subquery still finds them)
+      deleteSearchStmt.run(cutoffTime);
       pruneDaysStmt.run(cutoffTime);
       pruneBrowserStmt.run(cutoffTime);
-      if (deleteSearchStmt) {
-        deleteSearchStmt.run(...oldSessionIds);
-      }
     });
     pruneTrx();
 

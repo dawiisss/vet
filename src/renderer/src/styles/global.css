@@ -224,15 +224,15 @@ body,
 }
 
 .app-toast-error {
-  border-left-color: #e64553;
+  border-left-color: var(--app-red);
 }
 
 .app-toast-warning {
-  border-left-color: #df8e1d;
+  border-left-color: var(--app-yellow);
 }
 
 .app-toast-info {
-  border-left-color: #1e66f5;
+  border-left-color: var(--app-blue);
 }
 
 .app-toast-content {

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { buildShortcutString } from "@/shared/utils/keybindings";
 import { useConfigStore } from "@/features/settings/useConfigStore";
 import { useTabStore } from "@/features/terminal/useTabStore";
+import { getNode } from "@/features/terminal/splitTree";
 import { useUIStore } from "@/shared/stores/useUIStore";
 import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
 
@@ -67,6 +68,17 @@ export function useKeybindings() {
           case "split:vertical":
             store.splitTab("vertical");
             break;
+          case "split:close": {
+            const tab = storeTabs.find((t) => t.id === storeActiveTabId);
+            if (tab && storeActiveTabId) {
+              const targetNode = getNode(tab.root, tab.focusedPath);
+              const leafId = targetNode?.terminalId || targetNode?.browserId || targetNode?.editorId;
+              if (leafId) {
+                store.closeSplit(storeActiveTabId, leafId);
+              }
+            }
+            break;
+          }
           case "pane:focus-next":
             store.navigateSplit(1);
             break;

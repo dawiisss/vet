@@ -8,6 +8,7 @@ jest.mock("electron", () => ({
   app: {
     getPath: jest.fn(() => "/tmp"),
   },
+  BrowserWindow: { fromWebContents: jest.fn(() => ({})) },
 }));
 
 jest.mock("ssh2", () => {

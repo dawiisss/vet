@@ -116,17 +116,32 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.3.0_amd64.deb
+  sudo apt install ./dist/vet_1.4.0_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.3.0.x86_64.rpm
+  sudo dnf install ./dist/vet-1.4.0.x86_64.rpm
+  ```
+* **Arch Linux (`.pacman`)**:
+  ```bash
+  sudo pacman -U ./dist/vet-1.4.0.pacman
+  ```
+* **Arch Linux via AUR (`vet-bin`)**:
+  ```bash
+  git clone https://aur.archlinux.org/vet-bin.git
+  cd vet-bin
+  makepkg -si
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.3.0.AppImage
-  ./dist/Vet-1.3.0.AppImage
+  chmod +x dist/Vet-1.4.0.AppImage
+  ./dist/Vet-1.4.0.AppImage
   ```
+
+Running `install.sh` again checks the installed package type and updates it in
+place: Debian packages use APT, RPM packages use DNF or RPM, direct Arch
+packages use `pacman`, and `vet-bin` AUR installations are rebuilt with
+`makepkg`. The in-app Linux updater is intended for AppImage installations.
 
 ---
 

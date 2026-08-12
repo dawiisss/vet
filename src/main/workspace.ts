@@ -218,7 +218,8 @@ class WorkspaceService {
 
   async readFileHead(filePath: string) {
     try {
-      const cleanPath = filePath.split("#")[0]!;
+      const hashIdx = filePath.indexOf('#');
+      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
       const targetPath = path.resolve(expandHome(cleanPath));
 
       logSensitivePathAccess(targetPath);
@@ -244,7 +245,8 @@ class WorkspaceService {
 
   async writeFile(filePath: string, content: string) {
     try {
-      const cleanPath = filePath.split("#")[0]!;
+      const hashIdx = filePath.indexOf('#');
+      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
       const targetPath = path.resolve(expandHome(cleanPath));
 
       logSensitivePathAccess(targetPath);
@@ -418,7 +420,8 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     if (!nonEmptyPathInput(filePath) || typeof content !== "string" || content.length > MAX_FILE_WRITE_BYTES) {
       return { __ipcError: true, message: "Invalid path or content too large" };
     }
-    const cleanPath = filePath.split("#")[0]!;
+    const hashIdx = filePath.indexOf('#');
+    const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
     const resolvedWritePath = path.resolve(expandHome(cleanPath));
     if (isSensitiveWritePath(resolvedWritePath)) {
       console.warn(`[security] Blocked write to sensitive path: ${resolvedWritePath}`);
@@ -446,6 +449,8 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     if (!validPathInput(cwd) || !nonEmptyPathInput(filePath)) {
       return "";
     }
-    return workspaceService.getGitDiff(cwd, filePath);
+    const hashIdx = filePath.indexOf('#');
+    const cleanFilePath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
+    return workspaceService.getGitDiff(cwd, cleanFilePath);
   });
 }

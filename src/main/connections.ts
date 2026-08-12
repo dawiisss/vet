@@ -6,6 +6,7 @@ import * as path from "path";
 import os from "os";
 import { getConfig } from "./config";
 import { isValidShell } from "./pty";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,7 +20,8 @@ export interface ConnectionInfo {
 export function initConnectionsManager() {
   ipcMain.handle(
     "connections:get-ssh-hosts",
-    async (): Promise<ConnectionInfo[]> => {
+    async (event): Promise<ConnectionInfo[]> => {
+      if (!isTrustedSender(event)) return [];
       const config = getConfig();
       const hosts: ConnectionInfo[] = []; 
 
@@ -68,7 +70,8 @@ export function initConnectionsManager() {
 
   ipcMain.handle(
     "connections:get-docker",
-    async (): Promise<ConnectionInfo[]> => {
+    async (event): Promise<ConnectionInfo[]> => {
+      if (!isTrustedSender(event)) return [];
       try {
         const { stdout } = await execFileAsync("docker", [
           "ps",

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo } from "react";
+import { Suspense, lazy, useMemo, useState, useEffect } from "react";
 import { useUIStore } from "@/shared/stores/useUIStore";
 import { useTabStore } from "@/features/terminal/useTabStore";
 import { useConfig } from "@/features/settings/useConfigStore";
@@ -59,6 +59,15 @@ export default function ModalManager() {
     ? getNode(activeTab.root, activeTab.focusedPath)
     : null;
   const isBrowserFocused = activeNode ? !!activeNode.browserId : false;
+
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const loadProfileState = useTabStore((s) => s.loadProfileState);
+
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      window.terminalApi.getProfiles().then(setProfiles).catch(() => { /* intentional ignore */ });
+    }
+  }, [isCommandPaletteOpen]);
 
   const paletteActions = useMemo(() => {
     const actions = [
@@ -176,6 +185,42 @@ export default function ModalManager() {
           label: `SSH: Connect to ${host.name} (${host.host})`,
           onExecute: () => newTab(undefined, host.id),
         })),
+      {
+        id: "workspace-load",
+        label: "Workspace: Load Profile...",
+        onExecute: () => {
+          return {
+            type: "list",
+            items: Object.keys(profiles).map((profileName) => ({
+              id: `workspace-load-${profileName}`,
+              label: profileName,
+              type: "command",
+              onExecute: () => {
+                loadProfileState(profiles[profileName]);
+              }
+            }))
+          };
+        }
+      },
+      {
+        id: "workspace-save",
+        label: "Workspace: Save Current Workspace",
+        onExecute: () => {
+          return {
+            type: "input",
+            placeholder: "Enter a name for the current workspace profile...",
+            onComplete: (name: string) => {
+              if (name && name.trim()) {
+                window.terminalApi.saveProfile(name.trim(), { tabs, activeTabId })
+                  .then(() => {
+                    useUIStore.getState().addToast(`Workspace saved as "${name.trim()}"`, "info");
+                  })
+                  .catch(console.error);
+              }
+            }
+          };
+        },
+      },
     ];
 
     if (isBrowserFocused) {
@@ -213,7 +258,10 @@ export default function ModalManager() {
     config.sshHosts,
     isBrowserFocused,
     activeTabId,
+    tabs,
     activeTab,
+    profiles,
+    loadProfileState,
     newTab,
     newBrowserTab,
     splitTab,

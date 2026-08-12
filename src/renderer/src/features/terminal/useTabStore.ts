@@ -4,6 +4,7 @@ import type { SplitNode } from "./splitTree";
 import {
   setActiveTabIdAction,
   initializeTabsAction,
+  loadProfileStateAction,
   onReattachTabAction,
   pollTabLabelsAction,
   newTabAction,
@@ -75,6 +76,7 @@ interface TabStore {
 
   // Logical Actions
   initializeTabs: () => void;
+  loadProfileState: (state: any) => Promise<void>;
   onReattachTab: () => () => void;
   pollTabLabels: () => () => void;
   newTab: (profileId?: string, sshHostId?: string) => Promise<void>;
@@ -171,6 +173,7 @@ export const useTabStore = create<TabStore>((set, get) => {
       })),
 
     initializeTabs: () => initializeTabsAction(set, get, initializedRef),
+    loadProfileState: (state) => loadProfileStateAction(set, get, state),
     onReattachTab: () => onReattachTabAction(set, get),
     pollTabLabels: () => pollTabLabelsAction(set, get),
     newTab: (profileId, sshHostId) => newTabAction(set, get, profileId, sshHostId),
