@@ -11,7 +11,9 @@ export default function ClipboardHistoryPanel({
   isActive: boolean;
   onInjectSnippet: (snippet: string) => void;
 }) {
-  const { history, remove, clear } = useClipboardStore();
+  const history = useClipboardStore((s) => s.history);
+  const remove = useClipboardStore((s) => s.remove);
+  const clear = useClipboardStore((s) => s.clear);
   const setPreviewClipboardItem = useUIStore(
     (state) => state.setPreviewClipboardItem,
   );

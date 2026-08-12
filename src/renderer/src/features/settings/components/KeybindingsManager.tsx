@@ -10,6 +10,7 @@ const AVAILABLE_ACTIONS = [
   { id: "split:extract", label: "Extract Split" },
   { id: "split:horizontal", label: "Split Horizontal" },
   { id: "split:vertical", label: "Split Vertical" },
+  { id: "split:close", label: "Close Focused Pane" },
   { id: "pane:focus-next", label: "Focus Next Pane" },
   { id: "pane:focus-prev", label: "Focus Previous Pane" },
   { id: "terminal:copy", label: "Copy to Clipboard" },

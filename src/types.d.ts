@@ -107,6 +107,9 @@ interface TerminalApi {
   setForeground: (ids: string[]) => Promise<void>;
   saveSession: (state: any) => Promise<void>;
   getSession: () => Promise<any>;
+  saveProfile: (name: string, state: any) => Promise<void>;
+  getProfiles: () => Promise<Record<string, any>>;
+  deleteProfile: (name: string) => Promise<void>;
 }
 
 interface WindowApi {

@@ -137,7 +137,7 @@ function createWindow(isTransparent = false): BrowserWindow {
         if (process.platform === "win32") {
           navPath = navPath.replace(/^[/\\]/, "");
         }
-        if (navPath === appHtmlPath || navPath.endsWith("index.html")) {
+        if (navPath === appHtmlPath) {
           return;
         }
         console.warn(`[security] Blocked navigation to non-app file: ${url}`);

@@ -4,6 +4,7 @@
 
 jest.mock("electron", () => ({
   ipcMain: { handle: jest.fn() },
+  BrowserWindow: { fromWebContents: jest.fn(() => ({})) },
 }));
 
 jest.mock("child_process", () => ({
@@ -63,7 +64,7 @@ describe("ports", () => {
         },
       );
 
-      const result = await listHandler();
+      const result = await listHandler({ sender: {} });
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ port: 3000, pid: 12345, process: "node" });
       expect(result[1]).toEqual({ port: 80, pid: 6742, process: "nginx" });
@@ -81,7 +82,7 @@ describe("ports", () => {
         },
       );
 
-      const result = await listHandler();
+      const result = await listHandler({ sender: {} });
       expect(result).toEqual([]);
       errorSpy.mockRestore();
     });
@@ -107,7 +108,7 @@ describe("ports", () => {
     });
 
     it("kills process by pid using process.kill", async () => {
-      const result = await killHandler({}, 1234);
+      const result = await killHandler({ sender: {} }, 1234);
       expect(result).toBe(true);
       expect(process.kill).toHaveBeenCalledWith(1234, "SIGTERM");
     });
@@ -116,7 +117,7 @@ describe("ports", () => {
       const errorSpy = jest
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      const result = await killHandler({}, "invalid; kill");
+      const result = await killHandler({ sender: {} }, "invalid; kill");
       expect(result).toBe(false);
       expect(process.kill).not.toHaveBeenCalled();
       errorSpy.mockRestore();
@@ -130,7 +131,7 @@ describe("ports", () => {
         throw new Error("permission denied");
       });
 
-      const result = await killHandler({}, 1234);
+      const result = await killHandler({ sender: {} }, 1234);
       expect(result).toBe(false);
       errorSpy.mockRestore();
     });

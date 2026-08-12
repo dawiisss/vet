@@ -72,6 +72,7 @@ const DEFAULT_CONFIG: any = {
     "ctrl+shift+e": "split:extract",
     "ctrl+shift+\\": "split:horizontal",
     "ctrl+shift+d": "split:vertical",
+    "ctrl+shift+x": "split:close",
     "ctrl+alt+u": "split:unsplit",
     "alt+arrowright": "pane:focus-next",
     "alt+arrowleft": "pane:focus-prev",

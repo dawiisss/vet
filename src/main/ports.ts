@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import os from "os";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -12,7 +13,8 @@ export interface PortInfo {
 }
 
 export function initPortsManager() {
-  ipcMain.handle("ports:list", async (): Promise<PortInfo[]> => {
+  ipcMain.handle("ports:list", async (event): Promise<PortInfo[]> => {
+    if (!isTrustedSender(event)) return [];
     try {
       const isWin = os.platform() === "win32";
       if (isWin) {
@@ -111,7 +113,8 @@ export function initPortsManager() {
     return pids;
   }
 
-  ipcMain.handle("ports:kill", async (_, pid: number) => {
+  ipcMain.handle("ports:kill", async (event, pid: number) => {
+    if (!isTrustedSender(event)) return false;
     try {
       const numericPid = Number(pid);
       if (!Number.isInteger(numericPid) || numericPid <= 0) {

@@ -9,7 +9,8 @@ interface TitleBarProps {
 
 function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false);
-  const { status, updateInfo } = useUpdaterStore();
+  const status = useUpdaterStore((s) => s.status);
+  const updateInfo = useUpdaterStore((s) => s.updateInfo);
   const setIsUpdateModalOpen = useUIStore((s) => s.setIsUpdateModalOpen);
 
   useEffect(() => {

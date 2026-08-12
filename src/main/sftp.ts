@@ -6,6 +6,7 @@ import * as path from "path";
 import os from "os";
 import { getConfig } from "./config";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 interface SftpSession {
   client: Client;
@@ -160,7 +161,7 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
         const keyPath = path.join(home, ".ssh", keyName);
         connOpts.privateKey = await fs.readFile(keyPath, "utf8");
         break;
-      } catch (err) {
+      } catch {
         // try next
       }
     }
@@ -250,7 +251,8 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
 export function initSftpManager() {
   ipcMain.handle(
     "sftp:set-temp-password",
-    (_, sshHostId: string, password: string) => {
+    (event, sshHostId: string, password: string) => {
+      if (!isTrustedSender(event)) return;
       tempPasswords.set(sshHostId, password);
       // Clear after 60 seconds to prevent credentials from lingering in memory indefinitely
       setTimeout(() => {
@@ -263,7 +265,8 @@ export function initSftpManager() {
 
   ipcMain.handle(
     "sftp:list-dir",
-    async (_, sshHostId: string, dirPath: string) => {
+    async (event, sshHostId: string, dirPath: string) => {
+      if (!isTrustedSender(event)) return [];
       try {
         const session = await getSftpSession(sshHostId);
         return new Promise((resolve, reject) => {
@@ -295,7 +298,8 @@ export function initSftpManager() {
 
   ipcMain.handle(
     "sftp:read-file-head",
-    async (_, sshHostId: string, filePath: string) => {
+    async (event, sshHostId: string, filePath: string) => {
+      if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
       try {
         const session = await getSftpSession(sshHostId);
         return new Promise((resolve, reject) => {
@@ -330,7 +334,8 @@ export function initSftpManager() {
 
   ipcMain.handle(
     "sftp:write-file",
-    async (_, sshHostId: string, filePath: string, content: string) => {
+    async (event, sshHostId: string, filePath: string, content: string) => {
+      if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
       try {
         const session = await getSftpSession(sshHostId);
         return new Promise((resolve, reject) => {
@@ -350,7 +355,8 @@ export function initSftpManager() {
     },
   );
 
-  ipcMain.handle("sftp:get-home", async (_, sshHostId: string) => {
+  ipcMain.handle("sftp:get-home", async (event, sshHostId: string) => {
+    if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
     try {
       const session = await getSftpSession(sshHostId);
       return session.homeDir;

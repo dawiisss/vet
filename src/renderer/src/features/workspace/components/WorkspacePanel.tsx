@@ -64,8 +64,8 @@ export default function WorkspacePanel({
             setCwd(info.cwd);
           }
         }
-      } catch (err) {
-        console.error("Error fetching terminal info", err);
+      } catch {
+        console.error("Error fetching terminal info");
       }
     };
 

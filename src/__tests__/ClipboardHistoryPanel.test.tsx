@@ -8,7 +8,11 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // We need to mock the stores BEFORE importing the component
-const mockUseClipboardStore = jest.fn();
+let clipboardState: Record<string, unknown> = {};
+const mockUseClipboardStore = jest.fn((selector?: (s: Record<string, unknown>) => unknown) => {
+  if (typeof selector === "function") return selector(clipboardState);
+  return clipboardState;
+});
 jest.mock("../renderer/src/features/clipboard/useClipboardStore", () => ({
   useClipboardStore: mockUseClipboardStore,
 }));
@@ -32,11 +36,11 @@ describe("ClipboardHistoryPanel", () => {
   });
 
   it("renders correctly when history is empty", () => {
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -49,14 +53,14 @@ describe("ClipboardHistoryPanel", () => {
 
   it("renders history items and allows clearing them", async () => {
     const mockClear = jest.fn();
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         { id: "1", text: "npm run test", timestamp: 1680000000000 },
         { id: "2", text: "git status", timestamp: 1680000001000 },
       ],
       remove: jest.fn(),
       clear: mockClear,
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -74,11 +78,11 @@ describe("ClipboardHistoryPanel", () => {
 
   it("calls onInjectSnippet when paste is clicked", async () => {
     const mockOnInjectSnippet = jest.fn();
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [{ id: "1", text: "sudo rm -rf /", timestamp: 1680000000000 }],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel
@@ -95,13 +99,13 @@ describe("ClipboardHistoryPanel", () => {
 
   it("calls remove when the delete button is clicked", async () => {
     const mockRemove = jest.fn();
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         { id: "item-123", text: 'echo "hello"', timestamp: 1680000000000 },
       ],
       remove: mockRemove,
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -115,7 +119,7 @@ describe("ClipboardHistoryPanel", () => {
   });
 
   it("calls setPreviewClipboardItem when Preview is clicked", async () => {
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         {
           id: "1",
@@ -125,7 +129,7 @@ describe("ClipboardHistoryPanel", () => {
       ],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -143,7 +147,7 @@ describe("ClipboardHistoryPanel", () => {
   });
 
   it("navigates with keyboard arrow keys", () => {
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         { id: "1", text: "first", timestamp: 1680000000000 },
         { id: "2", text: "second", timestamp: 1680000001000 },
@@ -151,7 +155,7 @@ describe("ClipboardHistoryPanel", () => {
       ],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -180,14 +184,14 @@ describe("ClipboardHistoryPanel", () => {
       },
     });
 
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         { id: "1", text: "first item text", timestamp: 1680000000000 },
         { id: "2", text: "second item text", timestamp: 1680000001000 },
       ],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,
@@ -213,14 +217,14 @@ describe("ClipboardHistoryPanel", () => {
       },
     });
 
-    mockUseClipboardStore.mockReturnValue({
+    clipboardState = {
       history: [
         { id: "1", text: "first item text", timestamp: 1680000000000 },
         { id: "2", text: "second item text", timestamp: 1680000001000 },
       ],
       remove: jest.fn(),
       clear: jest.fn(),
-    });
+    };
 
     render(
       <ClipboardHistoryPanel isActive={true} onInjectSnippet={jest.fn()} />,

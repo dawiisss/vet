@@ -392,41 +392,44 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
 export function destroyTerminal(id: string): void {
   const terminal = terminals.get(id);
   if (terminal) {
-    const timeout = outputTimeouts.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      outputTimeouts.delete(id);
-    }
-    // Flush any buffered output (up to 10ms of data) before destroying,
-    // mirroring the onExit flush, so it is not silently lost.
-    const bufferedData = outputBuffers.get(id);
-    if (bufferedData) {
-      const target = forwardTargets.get(id);
-      if (target) {
-        target("terminal:data", { id, data: bufferedData });
+    try {
+      const timeout = outputTimeouts.get(id);
+      if (timeout) {
+        clearTimeout(timeout);
+        outputTimeouts.delete(id);
+      }
+      // Flush any buffered output (up to 10ms of data) before destroying,
+      // mirroring the onExit flush, so it is not silently lost.
+      const bufferedData = outputBuffers.get(id);
+      if (bufferedData) {
+        const target = forwardTargets.get(id);
+        if (target) {
+          target("terminal:data", { id, data: bufferedData });
+        }
+        try {
+          historyDb.logOutput(id, bufferedData);
+        } catch (e) {
+          console.error("Failed to log terminal output on destroy:", e);
+        }
+      }
+      outputBuffers.delete(id);
+
+      try {
+        terminal.pty.kill();
+      } catch (e) {
+        console.error(`Failed to kill terminal PTY process ${id}:`, e);
       }
       try {
-        historyDb.logOutput(id, bufferedData);
+        historyDb.closeSession(id);
       } catch (e) {
-        console.error("Failed to log terminal output on destroy:", e);
+        console.error(`Failed to close database session for terminal ${id}:`, e);
       }
+    } finally {
+      terminals.delete(id);
+      forwardTargets.delete(id);
+      terminalHistories.delete(id);
+      terminalSshHosts.delete(id);
     }
-    outputBuffers.delete(id);
-
-    try {
-      terminal.pty.kill();
-    } catch (e) {
-      console.error(`Failed to kill terminal PTY process ${id}:`, e);
-    }
-    try {
-      historyDb.closeSession(id);
-    } catch (e) {
-      console.error(`Failed to close database session for terminal ${id}:`, e);
-    }
-    terminals.delete(id);
-    forwardTargets.delete(id);
-    terminalHistories.delete(id);
-    terminalSshHosts.delete(id);
   }
 }
 

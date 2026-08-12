@@ -2,10 +2,14 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
 import { useUIStore } from "@/shared/stores/useUIStore";
 
+export type PaletteStep =
+  | { type: "input"; placeholder: string; onComplete: (val: string) => void }
+  | { type: "list"; items: PaletteItem[] };
+
 export interface CommandAction {
   id: string;
   label: string;
-  onExecute: () => void;
+  onExecute: () => PaletteStep | void | Promise<PaletteStep | void>;
   category?: string;
 }
 
@@ -14,7 +18,7 @@ export interface PaletteItem {
   label: string;
   sublabel?: string;
   type: "command" | "file";
-  onExecute: () => void;
+  onExecute: () => PaletteStep | void | Promise<PaletteStep | void>;
   filePath?: string;
   relativePath?: string;
   line?: number;
@@ -64,6 +68,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [query, setQuery] = useState("");
   const [files, setFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [subStep, setSubStep] = useState<PaletteStep | null>(null);
   const [recentIds, setRecentIds] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem(RECENT_KEY);
@@ -84,6 +89,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       setMode(initialMode || storeMode || "files");
       setQuery("");
       setSelectedIndex(0);
+      setSubStep(null);
       previousFocusRef.current = document.activeElement as HTMLElement;
       setTimeout(() => inputRef.current?.focus(), 10);
     } else {
@@ -145,6 +151,22 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       } catch { /* intentional ignore */ }
     };
 
+    if (subStep && subStep.type === "input") {
+      return [];
+    }
+
+    if (subStep && subStep.type === "list") {
+      const scored = subStep.items
+        .map((item) => {
+          const score = fuzzyMatchScore(item.label, cleanQuery);
+          return { item, score };
+        })
+        .filter((x) => x.score > 0 || !cleanQuery);
+        
+      scored.sort((a, b) => b.score - a.score);
+      return scored.map((x) => x.item).slice(0, 50);
+    }
+
     if (activeMode === "commands") {
       const scored = actions
         .map((action) => {
@@ -169,7 +191,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           type: "command",
           onExecute: () => {
             recordRecent(action.id);
-            action.onExecute();
+            return action.onExecute();
           },
         });
       }
@@ -220,7 +242,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     return items.slice(0, 50);
-  }, [activeMode, actions, files, cleanQuery, targetLine, recentIds]);
+  }, [activeMode, actions, files, cleanQuery, targetLine, recentIds, subStep]);
 
   // Keep selection within bounds when query or mode changes
   useEffect(() => {
@@ -239,13 +261,25 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSelectItem = (item: PaletteItem) => {
-    item.onExecute();
-    onClose();
+  const handleSelectItem = async (item: PaletteItem) => {
+    const res = await item.onExecute();
+    if (res) {
+      setSubStep(res);
+      setQuery("");
+      setSelectedIndex(0);
+    } else {
+      onClose();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
+      if (subStep) {
+        setSubStep(null);
+        setQuery("");
+        e.stopPropagation();
+        return;
+      }
       onClose();
       e.stopPropagation();
     } else if (e.key === "ArrowDown") {
@@ -273,9 +307,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const selected = filteredItems[selectedIndex];
-      if (selected) {
-        handleSelectItem(selected);
+      if (subStep?.type === "input") {
+        if (query.trim()) {
+          subStep.onComplete(query.trim());
+          onClose();
+        }
+      } else {
+        const selected = filteredItems[selectedIndex];
+        if (selected) {
+          handleSelectItem(selected);
+        }
       }
     }
   };
@@ -362,9 +403,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           ref={inputRef}
           type="text"
           placeholder={
-            activeMode === "commands"
-              ? "Type a command or action..."
-              : "Search files by name (e.g. App.tsx:42)..."
+            subStep?.type === "input"
+              ? subStep.placeholder
+              : activeMode === "commands"
+                ? "Type a command or action..."
+                : "Search files by name (e.g. App.tsx:42)..."
           }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -454,7 +497,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
             );
           })}
 
-          {filteredItems.length === 0 && (
+          {filteredItems.length === 0 && subStep?.type !== "input" && (
             <div
               style={{
                 padding: "24px",
@@ -466,6 +509,18 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
               {activeMode === "commands"
                 ? "No matching commands found."
                 : "No matching workspace files found."}
+            </div>
+          )}
+          {subStep?.type === "input" && (
+            <div
+              style={{
+                padding: "24px",
+                color: "var(--app-fg-muted)",
+                textAlign: "center",
+                fontSize: 13,
+              }}
+            >
+              Press Enter to confirm, or Escape to cancel.
             </div>
           )}
         </div>

@@ -62,6 +62,9 @@ const terminalApi: TerminalApi = {
   onReattachTab: registerHandler(reattachHandlers),
   saveSession: (state) => invoke<void>("session:save")(state),
   getSession: () => invoke<unknown>("session:get")(),
+  saveProfile: (name: string, state: unknown) => invoke<void>("session:save-profile")(name, state),
+  getProfiles: () => invoke<Record<string, unknown>>("session:get-profiles")(),
+  deleteProfile: (name: string) => invoke<void>("session:delete-profile")(name),
 };
 
 const windowApi: WindowApi = {
