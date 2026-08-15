@@ -14,8 +14,6 @@ Vet (Very Easy Terminal) is a free, open-source, high-performance, cross-platfor
 Windows build is provided, but no support will be provided for it at the moment.
 <img width="998" height="699" alt="vet110" src="https://github.com/user-attachments/assets/f0cf18a9-2339-4de6-8ef8-05b55a26f32a" />
 
----
-
 ## Table of Contents
 
 1. [Key Value Propositions](#key-value-propositions)
@@ -24,12 +22,15 @@ Windows build is provided, but no support will be provided for it at the moment.
    * [2. Multi-Tab and Split-Pane Layouts](#2-multi-tab-and-split-pane-layouts)
    * [3. Integrated SSH and SFTP Client](#3-integrated-ssh-and-sftp-client)
    * [4. Sandboxed Web Browser](#4-sandboxed-web-browser-with-ghostery-adblocker)
-   * [5. Developer Sidebar and Port Monitor](#5-developer-sidebar-and-port-monitor)
+   * [5. Developer Sidebar and Customization](#5-developer-sidebar-and-customization)
    * [6. SQLite-Based Terminal and Browser History](#6-sqlite-based-terminal-and-browser-history)
    * [7. Interactive Onboarding](#7-interactive-onboarding-and-real-time-customizer)
    * [8. Automated Application Updates](#8-automated-application-updates)
    * [9. Integrated CodeMirror 6 Code Editor](#9-integrated-codemirror-6-code-editor)
-   * [10. Git Status Integration and Diff Viewer](#10-git-status-integration-and-diff-viewer)
+   * [10. Visual Source Control and Git Management](#10-visual-source-control-and-git-management)
+   * [11. Global Text Search Panel](#11-global-text-search-panel)
+   * [12. Docker Container and Image Monitor](#12-docker-container-and-image-monitor)
+   * [13. Multi-Ecosystem Script and Task Runner](#13-multi-ecosystem-script-and-task-runner)
 3. [Technology Stack](#technology-stack)
 4. [Installation](#installation)
 5. [Default Keyboard Shortcuts](#default-keyboard-shortcuts)
@@ -46,8 +47,12 @@ Windows build is provided, but no support will be provided for it at the moment.
 * **Workspace Session Persistence**: Automatically saves and restores your complex tiling layouts, active tabs, split panes, and web browser sessions across application restarts.
 * **Flexible Window Tiling**: Arrange tabs and split-panes dynamically. Drag-and-drop split handles feature glowing visual feedback and live percentage overlays (`40% / 60%`), with double-click split size equalization.
 * **Command Palette Autocomplete and Line Navigation**: Fast fuzzy file/command search with `Ctrl+Shift+P`, featuring `Right Arrow` prefilling and instant line-number jumping (`filename:line`) across all editor modes.
-* **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes, and a line-numbered Git diff viewer.
-* **Git Status Integration**: Workspace explorer automatically polls Git status and displays color-coded badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) for files and folders with human-readable tooltips.
+* **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes (split pane tiling, new tab, modal), and a line-numbered Git diff viewer.
+* **Visual Source Control and Git Management**: Dedicated sidebar panel for checking out branches, staging/unstaging changes, inspecting diffs, reviewing commit graphs, and composing commits with `Ctrl+Enter`.
+* **Workspace-Wide Global Text Search**: Find in Files panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regex (`.*`) modes, expandable match groups, and direct `#L<line>:<col>` navigation.
+* **Docker Container and Image Management**: Live container monitor with start/stop/restart/remove actions, real-time log tailing, container terminal exec, and clickable exposed ports.
+* **Multi-Ecosystem Script and Task Discovery**: Automatically parses and indexes tasks across NPM, Cargo, Make, Python, Docker Compose, Deno, and Taskfile with instant filtering and search.
+* **Customizable and Reorderable Sidebar**: Drag-and-drop panel reordering, right-click move and show/hide controls, and persistent configuration saving.
 * **Interactive Onboarding Welcome Guide**: A multi-slide introductory carousel (`IntroModal`) displaying key app features on startup, complete with an interactive theme selector to customize Vet's styling in real time.
 * **Built-in SSH and SFTP Manager**: Securely save SSH hosts with TOFU (Trust-On-First-Use) host-key verification, connect to remote servers, and transfer files via an integrated SFTP client.
 * **Isolated Ad-Blocking Web Browser**: Browse documentation and web applications side-by-side with your terminal in a sandboxed browser using a dedicated minimal preload shim (`preload/browser.js`) and Ghostery adblocker.
@@ -72,8 +77,8 @@ Ditch standalone SSH managers. Vet includes a secure connection manager allowing
 ### 4. Sandboxed Web Browser with Ghostery Adblocker
 Search developer documentation, Stack Overflow, or local web servers directly inside Vet. The webview browser runs with a dedicated minimal preload shim (`preload/browser.js`), isolating guest web content from main-process system APIs. Equipped with a Ghostery-powered adblocker that blocks tracking scripts, cookie popups, and ads automatically. Supports in-page text searching (`Ctrl+F` search overlay with match counters) and developer tools inspection (`F12` or the toolbar button `</>`).
 
-### 5. Developer Sidebar and Port Monitor
-Stay updated on your environment. The developer sidebar provides a clipboards cache, a snippets manager, a live system diagnostics panel, an active network ports inspector, a script launcher for running `npm`/`pnpm`/`yarn` scripts, and a unified terminal/browser **History Panel** with search and tab toggles.
+### 5. Developer Sidebar and Customization
+Stay updated on your environment. The developer sidebar provides a clipboards cache, a snippets manager, a live system diagnostics panel, an active network ports inspector, a script launcher, and a unified terminal/browser **History Panel**. Customize the sidebar by dragging tabs to reorder them or right-clicking to enable and disable specific panels.
 
 ### 6. SQLite-Based Terminal and Browser History
 Every terminal session transcript and browser page navigation is indexed and saved to a local SQLite database. Visited pages are tracked with consecutive URL deduplication and auto-pruning. Search your commands or browser navigation records, run audit checks, or replay transcripts at any time.
@@ -85,10 +90,19 @@ New users are introduced to Vet's features upon launch with a beautiful welcome 
 Vet includes a secure, user-controlled auto-updater for Windows (NSIS/ZIP) and Linux (AppImage). When a new release is published, a pulsing green update badge appears in the TitleBar. Click it to open the dedicated Update Modal, view release notes, and track the download progress (percentage, transfer speed, and downloaded bytes) before hot-relaunching.
 
 ### 9. Integrated CodeMirror 6 Code Editor
-Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes Tab-key autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup. The editor fully integrates with both the local filesystem and remote SSH/SFTP workspace paths, and features split extraction tools to organize your workspaces dynamically.
+Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes Tab-key autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup.
 
-### 10. Git Status Integration and Diff Viewer
-Stay on top of code changes directly from the Workspace explorer panel. Vet automatically detects Git repositories and displays color-coded status badges (`M` Modified, `U` Untracked, `A` Added, `D` Deleted) for both files and directories. Right-clicking a modified file or clicking the **"Edit / Diff"** header button opens a line-numbered Git diff viewer with syntax-highlighted additions and deletions.
+### 10. Visual Source Control and Git Management
+Manage version control directly from the sidebar. Inspect staged and unstaged changes, review unified diffs, switch branches, sync with remotes (pull/push), and author commits with `Ctrl+Enter`.
+
+### 11. Global Text Search Panel
+Quickly search across your entire workspace. Find in Files offers case matching, whole-word filtering, regular expression searches, file group counters, and instant editor jump links.
+
+### 12. Docker Container and Image Monitor
+Monitor and manage local Docker containers and images in real time. Start, stop, restart, or remove containers with one click, view container logs, launch interactive container shells into terminal splits, and jump to exposed service ports in the built-in browser.
+
+### 13. Multi-Ecosystem Script and Task Runner
+Automatically discovers and indexes runnable tasks from `package.json`, `Cargo.toml`, `Makefile`, `pyproject.toml`, `docker-compose.yml`, `deno.json`, and `Taskfile.yml`. Filter by ecosystem or search by task name to execute commands instantly.
 
 ---
 
@@ -116,15 +130,15 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.4.0_amd64.deb
+  sudo apt install ./dist/vet_1.5.0_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.4.0.x86_64.rpm
+  sudo dnf install ./dist/vet-1.5.0.x86_64.rpm
   ```
 * **Arch Linux (`.pacman`)**:
   ```bash
-  sudo pacman -U ./dist/vet-1.4.0.pacman
+  sudo pacman -U ./dist/vet-1.5.0.pacman
   ```
 * **Arch Linux via AUR (`vet-bin`)**:
   ```bash
@@ -134,8 +148,8 @@ Download distribution-specific binaries from the GitHub releases page:
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.4.0.AppImage
-  ./dist/Vet-1.4.0.AppImage
+  chmod +x dist/Vet-1.5.0.AppImage
+  ./dist/Vet-1.5.0.AppImage
   ```
 
 Running `install.sh` again checks the installed package type and updates it in
