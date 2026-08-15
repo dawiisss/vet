@@ -21,7 +21,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 1. [Key Value Propositions](#key-value-propositions)
 2. [Features Breakdown](#features-breakdown)
    * [1. GPU-Accelerated Terminal](#1-gpu-accelerated-cross-platform-terminal-emulator)
-   * [2. Multi-Tab and Split-Pane Layouts](#2-multi-tab-and-split-pane-layouts-tiling-manager)
+   * [2. Multi-Tab and Split-Pane Layouts](#2-multi-tab-and-split-pane-layouts)
    * [3. Integrated SSH and SFTP Client](#3-integrated-ssh-and-sftp-client)
    * [4. Sandboxed Web Browser](#4-sandboxed-web-browser-with-ghostery-adblocker)
    * [5. Developer Sidebar and Port Monitor](#5-developer-sidebar-and-port-monitor)
@@ -34,7 +34,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 4. [Installation](#installation)
 5. [Default Keyboard Shortcuts](#default-keyboard-shortcuts)
 6. [Configuration](#configuration)
-7. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
+7. [Frequently Asked Questions](#frequently-asked-questions)
 8. [Contributing and Community](#contributing-and-community)
 9. [License](#license)
 
@@ -63,7 +63,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 ### 1. GPU-Accelerated Cross-Platform Terminal Emulator
 Vet provides a fast, responsive command-line interface on Linux, macOS, and Windows. Utilizing WebGL rendering, it handles high-throughput logs and text processing without lag. Features include URL/path detection, customizable scrollback limits, and native node-pty integrations.
 
-### 2. Multi-Tab and Split-Pane Layouts (Tiling Manager)
+### 2. Multi-Tab and Split-Pane Layouts
 Customize your terminal layout dynamically. Split panes vertically or horizontally, resize panels with interactive drag handles displaying live percentage overlays (`40% / 60%`), and extract individual panes to standalone tabs instantly to stay organized.
 
 ### 3. Integrated SSH and SFTP Client
@@ -183,7 +183,7 @@ Vet configurations are stored in `~/.config/vet/config.json5` and hot-reload ins
 
 ---
 
-## Frequently Asked Questions (FAQ)
+## Frequently Asked Questions
 
 ### Is Vet a GPU-accelerated terminal emulator?
 Yes, Vet uses the WebGL renderer addon of Xterm.js to offload text rendering to the GPU, offering lag-free performance even when tailing large server logs.

@@ -344,14 +344,7 @@ export default function WorkspacePanel({
                     cwd === "/"
                       ? `/${contextMenu.itemName}`
                       : `${cwd}/${contextMenu.itemName}`;
-                  window.dispatchEvent(
-                    new CustomEvent("vet:open-editor", {
-                      detail: {
-                        filePath: `${fullPath}#git-diff`,
-                        sshHostId: null,
-                      },
-                    }),
-                  );
+                  onViewFile(`${fullPath}#git-diff`, sshHostId || undefined);
                 },
               },
             ]

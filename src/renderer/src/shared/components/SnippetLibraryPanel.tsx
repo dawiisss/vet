@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Panel from "./Panel";
 
 export default function SnippetLibraryPanel({
-  isActive,
+  isActive: _isActive,
   onInjectSnippet,
 }: {
   isActive: boolean;

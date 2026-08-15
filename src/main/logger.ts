@@ -18,7 +18,7 @@ export async function logError(error: Error | string, context: string = "Global"
         await writeFile(logPath, "=== Vet Error Log ===\n\n", "utf-8");
       }
     } catch {
-      // File doesn't exist yet, it's fine
+      /* intentional ignore */
     }
 
     const timestamp = new Date().toISOString();

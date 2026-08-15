@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { EditorModal } from "@/features/workspace/components/EditorModal";
 import TitleBar from "@/shared/components/TitleBar";
 import TabBar from "@/features/terminal/components/TabBar";
@@ -37,7 +37,6 @@ function App() {
   const setIsAboutOpen = useUIStore((s) => s.setIsAboutOpen);
   const setIsIntroOpen = useUIStore((s) => s.setIsIntroOpen);
   const setViewingHistorySessionId = useUIStore((s) => s.setViewingHistorySessionId);
-  const setPreviewFilePath = useUIStore((s) => s.setPreviewFilePath);
 
   const tabs = useTabStore((s) => s.tabs);
   const activeTabId = useTabStore((s) => s.activeTabId);
@@ -69,6 +68,28 @@ function App() {
   const hasTriggeredIntro = useRef(false);
   const [editingFile, setEditingFile] = useState<{ filePath: string; sshHostId?: string | null } | null>(null);
 
+  // Open editor obeying the user's config.editorMode ('split' | 'tab' | 'modal')
+  const handleOpenFile = useCallback(
+    (filePath: string, sshHostId?: string | null, line?: number) => {
+      let targetFilePath = filePath;
+      if (line && !targetFilePath.includes("#L")) {
+        targetFilePath = `${targetFilePath}#L${line}`;
+      }
+      const mode = config.editorMode || "split";
+      if (mode === "tab") {
+        openEditorInNewTab(targetFilePath, sshHostId || null);
+      } else if (mode === "modal") {
+        setEditingFile({
+          filePath: targetFilePath,
+          sshHostId: sshHostId || null,
+        });
+      } else {
+        openEditorInSplit(targetFilePath, sshHostId || null);
+      }
+    },
+    [config.editorMode, openEditorInSplit, openEditorInNewTab],
+  );
+
   // Listen for file editor trigger events (from terminal OSC commands or double-clicks)
   useEffect(() => {
     const handleOpenEditor = (e: Event) => {
@@ -78,27 +99,11 @@ function App() {
         sshHostId?: string | null;
       }>;
       if (customEvent.detail && customEvent.detail.filePath) {
-        let targetFilePath = customEvent.detail.filePath;
-        if (customEvent.detail.line && !targetFilePath.includes("#L")) {
-          targetFilePath = `${targetFilePath}#L${customEvent.detail.line}`;
-        }
-        const mode = config.editorMode || "split";
-        if (mode === "tab") {
-          openEditorInNewTab(
-            targetFilePath,
-            customEvent.detail.sshHostId || null,
-          );
-        } else if (mode === "modal") {
-          setEditingFile({
-            filePath: targetFilePath,
-            sshHostId: customEvent.detail.sshHostId || null,
-          });
-        } else {
-          openEditorInSplit(
-            targetFilePath,
-            customEvent.detail.sshHostId || null,
-          );
-        }
+        handleOpenFile(
+          customEvent.detail.filePath,
+          customEvent.detail.sshHostId,
+          customEvent.detail.line,
+        );
       }
     };
 
@@ -106,7 +111,7 @@ function App() {
     return () => {
       window.removeEventListener("vet:open-editor", handleOpenEditor);
     };
-  }, [config.editorMode, openEditorInSplit, openEditorInNewTab]);
+  }, [handleOpenFile]);
 
   // Trigger onboarding welcome guide if configured
   useEffect(() => {
@@ -373,7 +378,7 @@ function App() {
                 setViewingHistorySessionId(sessionId)
               }
               activeTerminalId={activeTerminalId}
-              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onViewFile={(filePath, sshHostId) => handleOpenFile(filePath, sshHostId)}
               onLaunchConnection={(id) => newTab(undefined, id)}
               width={config.sidebarWidth || 250}
             />
@@ -492,7 +497,7 @@ function App() {
                 setViewingHistorySessionId(sessionId)
               }
               activeTerminalId={activeTerminalId}
-              onViewFile={(filePath) => setPreviewFilePath(filePath)}
+              onViewFile={(filePath, sshHostId) => handleOpenFile(filePath, sshHostId)}
               onLaunchConnection={(id) => newTab(undefined, id)}
               width={config.sidebarWidth || 250}
             />

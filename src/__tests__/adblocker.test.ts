@@ -1,11 +1,8 @@
 import { registerAdblockerIpcHandlers, cleanupAdblocker, initAdblocker } from "../main/adblocker";
-import { ipcMain, session, app } from "electron";
+import { ipcMain } from "electron";
 import { promises as fs } from "fs";
 
 jest.mock("electron", () => {
-  const mWebContents = {
-    send: jest.fn(),
-  };
   const mSession = {
     fromPartition: jest.fn(() => ({
       webRequest: {},

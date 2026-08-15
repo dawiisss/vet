@@ -3,7 +3,7 @@
  */
 
 import React, { useRef } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useFocusTrap } from "../renderer/src/shared/hooks/useFocusTrap";
 
@@ -107,7 +107,6 @@ describe("useFocusTrap", () => {
       </div>,
     );
 
-    const container = screen.getByTestId("container");
     const outsideButton = screen.getByTestId("outside-button");
 
     // Should not throw when tabbing

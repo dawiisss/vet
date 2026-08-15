@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "license": "MIT",

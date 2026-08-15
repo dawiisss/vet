@@ -7,7 +7,6 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   setupMockedApis,
-  configApi,
   resetMockedApis,
 } from "../__tests__/rendererHelpers";
 import TabBar, {

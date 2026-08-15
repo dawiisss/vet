@@ -49,6 +49,21 @@ const DEFAULT_CONFIG: any = {
   sidebarPlacement: "right",
   sidebarOpen: true,
   sidebarWidth: 250,
+  disabledSidebarPanels: [],
+  sidebarPanelsOrder: [
+    "workspace",
+    "search",
+    "git",
+    "profiles",
+    "scripts",
+    "docker",
+    "ports",
+    "system",
+    "snippets",
+    "clipboard",
+    "connections",
+    "history",
+  ],
   clipboardHistoryKeepDays: 7,
   tabBarPosition: "top",
   sshParseGlobal: true,
@@ -215,6 +230,44 @@ export function sanitizeConfig(conf: any): any {
     );
   }
 
+  if (!Array.isArray(sanitized.disabledSidebarPanels)) {
+    sanitized.disabledSidebarPanels = [];
+  } else {
+    sanitized.disabledSidebarPanels = sanitized.disabledSidebarPanels
+      .filter((p: any) => typeof p === "string")
+      .map(String);
+  }
+
+  const DEFAULT_PANEL_ORDER = [
+    "workspace",
+    "search",
+    "git",
+    "profiles",
+    "scripts",
+    "docker",
+    "ports",
+    "system",
+    "snippets",
+    "clipboard",
+    "connections",
+    "history",
+  ];
+
+  if (!Array.isArray(sanitized.sidebarPanelsOrder)) {
+    sanitized.sidebarPanelsOrder = [...DEFAULT_PANEL_ORDER];
+  } else {
+    const validKeys = sanitized.sidebarPanelsOrder.filter(
+      (k: any) => typeof k === "string" && DEFAULT_PANEL_ORDER.includes(k),
+    );
+    const uniqueKeys = Array.from(new Set(validKeys));
+    for (const key of DEFAULT_PANEL_ORDER) {
+      if (!uniqueKeys.includes(key)) {
+        uniqueKeys.push(key);
+      }
+    }
+    sanitized.sidebarPanelsOrder = uniqueKeys;
+  }
+
   if (sanitized.browserAdblockEnabled === undefined) {
     sanitized.browserAdblockEnabled = true;
   }
@@ -349,6 +402,16 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
     }
     if (Array.isArray(partialConfig.allowedShells)) {
       partialConfig.allowedShells = partialConfig.allowedShells.slice(0, 32);
+    }
+    if (Array.isArray(partialConfig.disabledSidebarPanels)) {
+      partialConfig.disabledSidebarPanels = partialConfig.disabledSidebarPanels
+        .filter((p: any) => typeof p === "string")
+        .slice(0, 32);
+    }
+    if (Array.isArray(partialConfig.sidebarPanelsOrder)) {
+      partialConfig.sidebarPanelsOrder = partialConfig.sidebarPanelsOrder
+        .filter((p: any) => typeof p === "string")
+        .slice(0, 32);
     }
     if (
       partialConfig.keybindings &&

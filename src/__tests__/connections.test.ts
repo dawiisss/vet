@@ -147,4 +147,37 @@ Host realserver
       expect(result).toEqual([]);
     });
   });
+
+  describe("Docker detailed handlers", () => {
+    it("registers get-docker-detailed, docker-action, docker-logs, and docker-images handlers", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "connections:get-docker-detailed",
+        expect.any(Function),
+      );
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "connections:docker-action",
+        expect.any(Function),
+      );
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "connections:docker-logs",
+        expect.any(Function),
+      );
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "connections:get-docker-images",
+        expect.any(Function),
+      );
+    });
+
+    it("parses detailed docker ps output", async () => {
+      const calls = (ipcMain.handle as jest.Mock).mock.calls;
+      const detailedHandler = calls.find((c: string[]) => c[0] === "connections:get-docker-detailed")?.[1];
+
+      mockExecCallback("c1\tweb-app\tnginx:latest\trunning\tUp 2 hours\t0.0.0.0:80->80/tcp\t2 hours ago");
+      const result = await detailedHandler({ sender: {} });
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("web-app");
+      expect(result[0].state).toBe("running");
+      expect(result[0].ports).toBe("0.0.0.0:80->80/tcp");
+    });
+  });
 });

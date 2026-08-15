@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
+import ContextMenu, { ContextMenuAction } from "./ContextMenu";
 import SystemMonitorPanel from "./SystemMonitorPanel";
 import PortMonitorPanel from "./PortMonitorPanel";
 import ScriptRunnerPanel from "./ScriptRunnerPanel";
@@ -9,6 +10,35 @@ import WorkspacePanel from "@/features/workspace/components/WorkspacePanel";
 import ProfilesPanel from "@/features/workspace/components/ProfilesPanel";
 import HistoryPanel from "./HistoryPanel";
 import ClipboardHistoryPanel from "./ClipboardHistoryPanel";
+import SearchPanel from "./SearchPanel";
+import GitPanel from "./GitPanel";
+import DockerPanel from "@/features/connections/components/DockerPanel";
+
+export interface SidebarPanelMetadata {
+  key: string;
+  name: string;
+  icon: string;
+}
+
+export const SIDEBAR_PANELS: SidebarPanelMetadata[] = [
+  { key: "workspace", name: "Workspace", icon: "📁" },
+  { key: "search", name: "Search", icon: "🔍" },
+  { key: "git", name: "Source Control", icon: "🔀" },
+  { key: "profiles", name: "Profiles", icon: "🔖" },
+  { key: "scripts", name: "Scripts", icon: "⚡" },
+  { key: "docker", name: "Docker", icon: "🐳" },
+  { key: "ports", name: "Ports", icon: "🔌" },
+  { key: "system", name: "System", icon: "📊" },
+  { key: "snippets", name: "Snippets", icon: "📋" },
+  { key: "clipboard", name: "Clipboard", icon: "📑" },
+  { key: "connections", name: "Connections", icon: "🌐" },
+  { key: "history", name: "History", icon: "📜" },
+];
+
+export interface SidebarPanelDef extends SidebarPanelMetadata {
+  id: number;
+  render: (isActive: boolean) => React.ReactNode;
+}
 
 export default function Sidebar({
   onRunScript,
@@ -23,16 +53,173 @@ export default function Sidebar({
   onInjectSnippet: (snippet: string) => void;
   onViewSession: (sessionId: string) => void;
   activeTerminalId: string | null;
-  onViewFile: (filePath: string) => void;
+  onViewFile: (filePath: string, sshHostId?: string) => void;
   onLaunchConnection?: (id: string) => void;
   width?: number;
 }) {
   const { config, updateConfig } = useConfig();
   const [activeTab, setActiveTab] = useState(0);
+  const [draggedKey, setDraggedKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    targetKey?: string | undefined;
+  } | null>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(width);
+
+  const panelConfigs: SidebarPanelDef[] = [
+    {
+      id: 0,
+      key: "workspace",
+      icon: "📁",
+      name: "Workspace",
+      render: (isActive: boolean) => (
+        <WorkspacePanel
+          isActive={isActive}
+          activeTerminalId={activeTerminalId}
+          onViewFile={onViewFile}
+        />
+      ),
+    },
+    {
+      id: 1,
+      key: "search",
+      icon: "🔍",
+      name: "Search",
+      render: (isActive: boolean) => (
+        <SearchPanel
+          isActive={isActive}
+          activeTerminalId={activeTerminalId}
+          onViewFile={onViewFile}
+        />
+      ),
+    },
+    {
+      id: 2,
+      key: "git",
+      icon: "🔀",
+      name: "Source Control",
+      render: (isActive: boolean) => (
+        <GitPanel
+          isActive={isActive}
+          activeTerminalId={activeTerminalId}
+          onViewFile={onViewFile}
+        />
+      ),
+    },
+    {
+      id: 3,
+      key: "profiles",
+      icon: "🔖",
+      name: "Profiles",
+      render: (isActive: boolean) => <ProfilesPanel isActive={isActive} />,
+    },
+    {
+      id: 4,
+      key: "scripts",
+      icon: "⚡",
+      name: "Scripts",
+      render: (isActive: boolean) => (
+        <ScriptRunnerPanel isActive={isActive} onRunScript={onRunScript} />
+      ),
+    },
+    {
+      id: 5,
+      key: "docker",
+      icon: "🐳",
+      name: "Docker",
+      render: (isActive: boolean) => (
+        <DockerPanel isActive={isActive} onRunScript={onRunScript} />
+      ),
+    },
+    {
+      id: 6,
+      key: "ports",
+      icon: "🔌",
+      name: "Ports",
+      render: (isActive: boolean) => <PortMonitorPanel isActive={isActive} />,
+    },
+    {
+      id: 7,
+      key: "system",
+      icon: "📊",
+      name: "System",
+      render: (isActive: boolean) => <SystemMonitorPanel isActive={isActive} />,
+    },
+    {
+      id: 8,
+      key: "snippets",
+      icon: "📋",
+      name: "Snippets",
+      render: (isActive: boolean) => (
+        <SnippetLibraryPanel
+          isActive={isActive}
+          onInjectSnippet={onInjectSnippet}
+        />
+      ),
+    },
+    {
+      id: 9,
+      key: "clipboard",
+      icon: "📑",
+      name: "Clipboard",
+      render: (isActive: boolean) => (
+        <ClipboardHistoryPanel
+          isActive={isActive}
+          onInjectSnippet={onInjectSnippet}
+        />
+      ),
+    },
+    {
+      id: 10,
+      key: "connections",
+      icon: "🌐",
+      name: "Connections",
+      render: (isActive: boolean) => (
+        <ConnectionsPanel
+          isActive={isActive}
+          onRunScript={onRunScript}
+          onLaunchConnection={onLaunchConnection}
+        />
+      ),
+    },
+    {
+      id: 11,
+      key: "history",
+      icon: "📜",
+      name: "History",
+      render: (isActive: boolean) => (
+        <HistoryPanel isActive={isActive} onViewSession={onViewSession} />
+      ),
+    },
+  ];
+
+  const disabledPanels = config.disabledSidebarPanels || [];
+  const panelOrder = config.sidebarPanelsOrder || SIDEBAR_PANELS.map((p) => p.key);
+
+  // Sort panels according to configured order
+  const sortedPanels = [...panelConfigs].sort((a, b) => {
+    const indexA = panelOrder.indexOf(a.key);
+    const indexB = panelOrder.indexOf(b.key);
+    const posA = indexA === -1 ? 999 : indexA;
+    const posB = indexB === -1 ? 999 : indexB;
+    return posA - posB;
+  });
+
+  const visiblePanels = sortedPanels.filter((p) => !disabledPanels.includes(p.key));
+  const activePanels = visiblePanels.length > 0 ? visiblePanels : [panelConfigs[0]!];
+
+  // If activeTab is no longer among enabled panels, switch to the first enabled panel
+  useEffect(() => {
+    if (!activePanels.some((p) => p.id === activeTab)) {
+      setActiveTab(activePanels[0]!.id);
+    }
+  }, [activePanels, activeTab]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -99,88 +286,142 @@ export default function Sidebar({
     [config.sidebarPlacement, width, updateConfig],
   );
 
-  const panelConfigs = [
-    {
-      id: 0,
-      icon: "📁",
-      name: "Workspace",
-      render: (isActive: boolean) => (
-        <WorkspacePanel
-          isActive={isActive}
-          activeTerminalId={activeTerminalId}
-          onViewFile={onViewFile}
-        />
-      ),
-    },
-    {
-      id: 1,
-      icon: "🔖",
-      name: "Profiles",
-      render: (isActive: boolean) => <ProfilesPanel isActive={isActive} />,
-    },
-    {
-      id: 2,
-      icon: "📊",
-      name: "System",
-      render: (isActive: boolean) => <SystemMonitorPanel isActive={isActive} />,
-    },
-    {
-      id: 3,
-      icon: "🔌",
-      name: "Ports",
-      render: (isActive: boolean) => <PortMonitorPanel isActive={isActive} />,
-    },
-    {
-      id: 4,
-      icon: "⚡",
-      name: "Scripts",
-      render: (isActive: boolean) => (
-        <ScriptRunnerPanel isActive={isActive} onRunScript={onRunScript} />
-      ),
-    },
-    {
-      id: 5,
-      icon: "📋",
-      name: "Snippets",
-      render: (isActive: boolean) => (
-        <SnippetLibraryPanel
-          isActive={isActive}
-          onInjectSnippet={onInjectSnippet}
-        />
-      ),
-    },
-    {
-      id: 6,
-      icon: "📑",
-      name: "Clipboard",
-      render: (isActive: boolean) => (
-        <ClipboardHistoryPanel
-          isActive={isActive}
-          onInjectSnippet={onInjectSnippet}
-        />
-      ),
-    },
-    {
-      id: 7,
-      icon: "🌐",
-      name: "Connections",
-      render: (isActive: boolean) => (
-        <ConnectionsPanel
-          isActive={isActive}
-          onRunScript={onRunScript}
-          onLaunchConnection={onLaunchConnection}
-        />
-      ),
-    },
-    {
-      id: 8,
-      icon: "📜",
-      name: "History",
-      render: (isActive: boolean) => (
-        <HistoryPanel isActive={isActive} onViewSession={onViewSession} />
-      ),
-    },
-  ];
+  const handleTabContextMenu = (e: React.MouseEvent, panelKey?: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      targetKey: panelKey,
+    });
+  };
+
+  const movePanel = (panelKey: string, direction: number | "top" | "bottom") => {
+    const currentOrder = [...panelOrder];
+    const fromIdx = currentOrder.indexOf(panelKey);
+    if (fromIdx === -1) return;
+
+    if (direction === "top") {
+      currentOrder.splice(fromIdx, 1);
+      currentOrder.unshift(panelKey);
+    } else if (direction === "bottom") {
+      currentOrder.splice(fromIdx, 1);
+      currentOrder.push(panelKey);
+    } else {
+      const toIdx = fromIdx + direction;
+      if (toIdx >= 0 && toIdx < currentOrder.length) {
+        const [removed] = currentOrder.splice(fromIdx, 1);
+        if (removed) {
+          currentOrder.splice(toIdx, 0, removed);
+        }
+      }
+    }
+    updateConfig({ sidebarPanelsOrder: currentOrder });
+  };
+
+  const handleDrop = (targetKey: string) => {
+    if (!draggedKey || draggedKey === targetKey) return;
+    const currentOrder = [...panelOrder];
+    const fromIdx = currentOrder.indexOf(draggedKey);
+    const toIdx = currentOrder.indexOf(targetKey);
+    if (fromIdx !== -1 && toIdx !== -1) {
+      currentOrder.splice(fromIdx, 1);
+      currentOrder.splice(toIdx, 0, draggedKey);
+      updateConfig({ sidebarPanelsOrder: currentOrder });
+    }
+    setDraggedKey(null);
+    setDragOverKey(null);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = (() => {
+    if (!contextMenu) return [];
+    const actions: ContextMenuAction[] = [];
+
+    if (contextMenu.targetKey) {
+      const targetPanel = panelConfigs.find((p) => p.key === contextMenu.targetKey);
+      if (targetPanel) {
+        const isCurrentlyEnabled = !disabledPanels.includes(targetPanel.key);
+        const currentActiveIdx = activePanels.findIndex((p) => p.key === targetPanel.key);
+
+        actions.push({
+          id: "toggle-target",
+          label: isCurrentlyEnabled ? `Hide "${targetPanel.name}"` : `Show "${targetPanel.name}"`,
+          onExecute: () => {
+            if (isCurrentlyEnabled) {
+              if (activePanels.length <= 1) return;
+              updateConfig({ disabledSidebarPanels: [...disabledPanels, targetPanel.key] });
+            } else {
+              updateConfig({
+                disabledSidebarPanels: disabledPanels.filter((k) => k !== targetPanel.key),
+              });
+            }
+          },
+        });
+
+        if (isCurrentlyEnabled) {
+          if (currentActiveIdx > 0) {
+            actions.push({
+              id: "move-up",
+              label: "↑ Move Up",
+              onExecute: () => movePanel(targetPanel.key, -1),
+            });
+            actions.push({
+              id: "move-top",
+              label: "⤒ Move to Top",
+              onExecute: () => movePanel(targetPanel.key, "top"),
+            });
+          }
+          if (currentActiveIdx < activePanels.length - 1) {
+            actions.push({
+              id: "move-down",
+              label: "↓ Move Down",
+              onExecute: () => movePanel(targetPanel.key, 1),
+            });
+            actions.push({
+              id: "move-bottom",
+              label: "⤓ Move to Bottom",
+              onExecute: () => movePanel(targetPanel.key, "bottom"),
+            });
+          }
+        }
+      }
+    }
+
+    // List of all panel toggles (in current ordered sequence)
+    sortedPanels.forEach((p, idx) => {
+      const isEnabled = !disabledPanels.includes(p.key);
+      actions.push({
+        id: `panel-${p.key}`,
+        label: `${isEnabled ? "✓ " : "    "}${p.icon}  ${p.name}`,
+        separator: idx === 0 && Boolean(contextMenu.targetKey),
+        onExecute: () => {
+          if (isEnabled) {
+            if (activePanels.length <= 1) return;
+            updateConfig({ disabledSidebarPanels: [...disabledPanels, p.key] });
+          } else {
+            updateConfig({
+              disabledSidebarPanels: disabledPanels.filter((k) => k !== p.key),
+            });
+          }
+        },
+      });
+    });
+
+    actions.push({
+      id: "enable-all",
+      label: "Show All Panels",
+      separator: true,
+      onExecute: () => updateConfig({ disabledSidebarPanels: [] }),
+    });
+
+    actions.push({
+      id: "reset-order",
+      label: "Reset Default Order",
+      onExecute: () => updateConfig({ sidebarPanelsOrder: SIDEBAR_PANELS.map((p) => p.key) }),
+    });
+
+    return actions;
+  })();
 
   const isLeftPlacement = config.sidebarPlacement === "left";
 
@@ -224,12 +465,20 @@ export default function Sidebar({
         )
           return;
 
-        if (e.key === "ArrowLeft") {
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
-          setActiveTab((prev) => (prev - 1 + panelConfigs.length) % panelConfigs.length);
-        } else if (e.key === "ArrowRight") {
+          const currentIndex = activePanels.findIndex((p) => p.id === activeTab);
+          const nextIndex =
+            currentIndex <= 0 ? activePanels.length - 1 : currentIndex - 1;
+          setActiveTab(activePanels[nextIndex]!.id);
+        } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
-          setActiveTab((prev) => (prev + 1) % panelConfigs.length);
+          const currentIndex = activePanels.findIndex((p) => p.id === activeTab);
+          const nextIndex =
+            currentIndex === -1 || currentIndex >= activePanels.length - 1
+              ? 0
+              : currentIndex + 1;
+          setActiveTab(activePanels[nextIndex]!.id);
         }
       }}
       style={{
@@ -248,6 +497,7 @@ export default function Sidebar({
       <div
         role="tablist"
         aria-label="Sidebar panels"
+        onContextMenu={(e) => handleTabContextMenu(e)}
         style={{
           width: 48,
           background: "color-mix(in srgb, var(--app-bg) 80%, transparent)",
@@ -259,37 +509,75 @@ export default function Sidebar({
           paddingTop: 12,
         }}
       >
-        {panelConfigs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={activeTab === t.id}
-            aria-controls={`sidebar-panel-${t.id}`}
-            id={`sidebar-tab-${t.id}`}
-            onClick={() => setActiveTab(t.id)}
-            title={t.name}
-            style={{
-              width: 36,
-              height: 36,
-              marginBottom: 8,
-              borderRadius: 8,
-              background: activeTab === t.id ? "var(--app-border)" : "transparent",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              transition: "background 0.2s",
-            }}
-          >
-            {t.icon}
-          </button>
-        ))}
+        {activePanels.map((t) => {
+          const isOver = dragOverKey === t.key;
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={activeTab === t.id}
+              aria-controls={`sidebar-panel-${t.id}`}
+              id={`sidebar-tab-${t.id}`}
+              draggable={true}
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", t.key);
+                e.dataTransfer.effectAllowed = "move";
+                setDraggedKey(t.key);
+              }}
+              onDragEnd={() => {
+                setDraggedKey(null);
+                setDragOverKey(null);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverKey !== t.key) {
+                  setDragOverKey(t.key);
+                }
+              }}
+              onDragLeave={() => {
+                if (dragOverKey === t.key) {
+                  setDragOverKey(null);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(t.key);
+              }}
+              onClick={() => setActiveTab(t.id)}
+              onContextMenu={(e) => handleTabContextMenu(e, t.key)}
+              title={`${t.name} (Drag to reorder, right-click to configure)`}
+              style={{
+                width: 36,
+                height: 36,
+                marginBottom: 8,
+                borderRadius: 8,
+                background:
+                  activeTab === t.id
+                    ? "var(--app-border)"
+                    : isOver
+                    ? "color-mix(in srgb, var(--app-accent, #89b4fa) 30%, transparent)"
+                    : "transparent",
+                border: isOver
+                  ? "2px dashed var(--app-accent, #89b4fa)"
+                  : "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                opacity: draggedKey === t.key ? 0.4 : 1,
+                transition: "background 0.2s, border 0.15s, opacity 0.2s",
+              }}
+            >
+              {t.icon}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ flex: 1, overflow: "hidden" }}>
-        {panelConfigs.map((panel) => (
+        {activePanels.map((panel) => (
           <div
             key={panel.id}
             role="tabpanel"
@@ -336,6 +624,16 @@ export default function Sidebar({
           (e.target as HTMLElement).style.background = "transparent";
         }}
       />
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isOpen={Boolean(contextMenu)}
+          onClose={() => setContextMenu(null)}
+          actions={contextMenuActions}
+        />
+      )}
     </div>
   );
 }

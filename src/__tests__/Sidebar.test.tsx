@@ -17,10 +17,11 @@ jest.mock(
 );
 
 const mockUpdateConfig = jest.fn();
-const mockUseConfig = jest.fn(() => ({
+const mockUseConfig = jest.fn((): any => ({
   config: {
     sidebarPlacement: "right",
     sidebarWidth: 250,
+    disabledSidebarPanels: [] as string[],
   },
   updateConfig: mockUpdateConfig,
 }));
@@ -144,5 +145,122 @@ describe("Sidebar", () => {
     expect(mockUpdateConfig).toHaveBeenCalled();
     const callArg = mockUpdateConfig.mock.calls[0][0];
     expect(callArg).toHaveProperty("sidebarWidth");
+  });
+
+  it("opens context menu on right click and allows toggling panels", () => {
+    render(
+      <Sidebar
+        onRunScript={onRunScript}
+        onInjectSnippet={onInjectSnippet}
+        onViewSession={onViewSession}
+        activeTerminalId="term-1"
+        onViewFile={onViewFile}
+      />,
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    fireEvent.contextMenu(tabs[0]!);
+
+    expect(screen.getByText('Hide "Workspace"')).toBeInTheDocument();
+    expect(screen.getByText("Show All Panels")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Hide "Workspace"'));
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disabledSidebarPanels: ["workspace"],
+      }),
+    );
+  });
+
+  it("filters out disabled sidebar panels based on config", () => {
+    mockUseConfig.mockReturnValue({
+      config: {
+        sidebarPlacement: "right",
+        sidebarWidth: 250,
+        disabledSidebarPanels: ["workspace", "search"],
+      },
+      updateConfig: mockUpdateConfig,
+    });
+
+    render(
+      <Sidebar
+        onRunScript={onRunScript}
+        onInjectSnippet={onInjectSnippet}
+        onViewSession={onViewSession}
+        activeTerminalId="term-1"
+        onViewFile={onViewFile}
+      />,
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    // Original 12 panels - 2 disabled = 10 panels
+    expect(tabs.length).toBe(10);
+    expect(screen.queryByTitle(/Workspace/)).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/Search/)).not.toBeInTheDocument();
+    expect(screen.getByTitle(/Source Control/)).toBeInTheDocument();
+  });
+
+  it("reorders sidebar panels according to sidebarPanelsOrder config", () => {
+    mockUseConfig.mockReturnValue({
+      config: {
+        sidebarPlacement: "right",
+        sidebarWidth: 250,
+        sidebarPanelsOrder: ["docker", "workspace", "search"],
+        disabledSidebarPanels: [],
+      },
+      updateConfig: mockUpdateConfig,
+    });
+
+    render(
+      <Sidebar
+        onRunScript={onRunScript}
+        onInjectSnippet={onInjectSnippet}
+        onViewSession={onViewSession}
+        activeTerminalId="term-1"
+        onViewFile={onViewFile}
+      />,
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    // First tab should be Docker (🐳)
+    expect(tabs[0]).toHaveTextContent("🐳");
+    // Second tab should be Workspace (📁)
+    expect(tabs[1]).toHaveTextContent("📁");
+  });
+
+  it("allows reordering panels via context menu Move Down / Move Up", () => {
+    mockUseConfig.mockReturnValue({
+      config: {
+        sidebarPlacement: "right",
+        sidebarWidth: 250,
+        sidebarPanelsOrder: ["workspace", "search", "git"],
+        disabledSidebarPanels: [],
+      },
+      updateConfig: mockUpdateConfig,
+    });
+
+    render(
+      <Sidebar
+        onRunScript={onRunScript}
+        onInjectSnippet={onInjectSnippet}
+        onViewSession={onViewSession}
+        activeTerminalId="term-1"
+        onViewFile={onViewFile}
+      />,
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    // Right click on first tab (Workspace)
+    fireEvent.contextMenu(tabs[0]!);
+
+    expect(screen.getByText("↓ Move Down")).toBeInTheDocument();
+    expect(screen.getByText("⤓ Move to Bottom")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("↓ Move Down"));
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sidebarPanelsOrder: expect.arrayContaining(["search", "workspace"]),
+      }),
+    );
   });
 });

@@ -62,6 +62,8 @@ interface Config {
   sidebarPlacement?: "left" | "right";
   sidebarOpen?: boolean;
   sidebarWidth?: number;
+  disabledSidebarPanels?: string[] | undefined;
+  sidebarPanelsOrder?: string[] | undefined;
   clipboardHistoryKeepDays?: number;
   tabBarPosition?: "top" | "left" | "right";
   webglEnabled?: boolean;
@@ -177,17 +179,96 @@ interface WorkspaceItem {
   ext: string;
 }
 
+interface WorkspaceTask {
+  name: string;
+  command: string;
+  source: "npm" | "make" | "cargo" | "python" | "docker" | "deno" | "task" | "custom";
+  description?: string | undefined;
+}
+
+interface WorkspaceScriptsResult {
+  cwd: string;
+  scripts: Record<string, string>;
+  tasks: WorkspaceTask[];
+}
+
+interface FileContentMatch {
+  filePath: string;
+  relativePath: string;
+  line: number;
+  column: number;
+  lineContent: string;
+  matchLength: number;
+}
+
+interface GitDetailedStatus {
+  isGit: boolean;
+  repoRoot: string;
+  branch: string;
+  ahead: number;
+  behind: number;
+  staged: Array<{ path: string; status: string }>;
+  unstaged: Array<{ path: string; status: string }>;
+  untracked: Array<{ path: string }>;
+}
+
+interface GitCommitInfo {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+interface DockerContainerDetailed {
+  id: string;
+  name: string;
+  image: string;
+  state: "running" | "exited" | "paused" | "created" | "restarting" | "dead" | "unknown";
+  status: string;
+  ports: string;
+  created: string;
+}
+
+interface DockerImageInfo {
+  id: string;
+  repository: string;
+  tag: string;
+  size: string;
+  created: string;
+}
+
 interface WorkspaceApi {
-  getScripts: (cwd: string) => Promise<any>;
+  getScripts: (cwd: string) => Promise<WorkspaceScriptsResult | null>;
   listDir: (dirPath: string) => Promise<WorkspaceItem[]>;
   searchFiles: (
     dirPath: string,
     query: string,
   ) => Promise<Array<{ relativePath: string; absolutePath: string }>>;
+  searchFileContents: (
+    dirPath: string,
+    query: string,
+    options?: {
+      caseSensitive?: boolean | undefined;
+      isRegex?: boolean | undefined;
+      wholeWord?: boolean | undefined;
+      maxResults?: number | undefined;
+      filePattern?: string | undefined;
+    },
+  ) => Promise<FileContentMatch[]>;
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<void>;
   getGitStatus: (cwd: string) => Promise<Record<string, "M" | "U" | "A" | "D">>;
+  getGitDetailedStatus: (cwd: string) => Promise<GitDetailedStatus>;
+  gitStage: (cwd: string, files?: string[]) => Promise<{ success: boolean; error?: string }>;
+  gitUnstage: (cwd: string, files?: string[]) => Promise<{ success: boolean; error?: string }>;
+  gitDiscard: (cwd: string, files: string[]) => Promise<{ success: boolean; error?: string }>;
+  gitCommit: (cwd: string, message: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+  gitPush: (cwd: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+  gitPull: (cwd: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+  getGitBranches: (cwd: string) => Promise<{ current: string; all: string[] }>;
+  gitCheckout: (cwd: string, branch: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+  getGitLog: (cwd: string, limit?: number) => Promise<GitCommitInfo[]>;
   getGitDiff: (cwd: string, filePath: string) => Promise<string>;
 }
 
@@ -249,6 +330,13 @@ interface PortsApi {
 interface ConnectionsApi {
   getSshHosts: () => Promise<any[]>;
   getDockerContainers: () => Promise<any[]>;
+  getDockerDetailed: () => Promise<DockerContainerDetailed[]>;
+  dockerAction: (
+    target: string,
+    action: "start" | "stop" | "restart" | "rm",
+  ) => Promise<{ success: boolean; error?: string }>;
+  dockerLogs: (target: string, tail?: number) => Promise<string>;
+  getDockerImages: () => Promise<DockerImageInfo[]>;
 }
 
 interface Window {

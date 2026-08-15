@@ -97,4 +97,117 @@ export function initConnectionsManager() {
       }
     },
   );
+
+  ipcMain.handle(
+    "connections:get-docker-detailed",
+    async (event): Promise<Array<{
+      id: string;
+      name: string;
+      image: string;
+      state: "running" | "exited" | "paused" | "created" | "restarting" | "dead" | "unknown";
+      status: string;
+      ports: string;
+      created: string;
+    }>> => {
+      if (!isTrustedSender(event)) return [];
+      try {
+        const { stdout } = await execFileAsync("docker", [
+          "ps",
+          "-a",
+          "--format",
+          "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.State}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}",
+        ]);
+        const lines = stdout.split("\n").filter((l) => l.trim().length > 0);
+        return lines.map((line) => {
+          const [id, name, image, state, status, ports, created] = line.split("\t");
+          const normalizedState = (state?.toLowerCase() || "unknown") as DockerContainerDetailed["state"];
+          return {
+            id: id || "",
+            name: name || "",
+            image: image || "",
+            state: normalizedState,
+            status: status || "",
+            ports: ports || "",
+            created: created || "",
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "connections:docker-action",
+    async (
+      event,
+      target: string,
+      action: "start" | "stop" | "restart" | "rm",
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!isTrustedSender(event)) return { success: false, error: "Access denied" };
+      if (typeof target !== "string" || !["start", "stop", "restart", "rm"].includes(action)) {
+        return { success: false, error: "Invalid parameters" };
+      }
+      try {
+        await execFileAsync("docker", [action, target]);
+        return { success: true };
+      } catch (err: unknown) {
+        const e = err as { stderr?: string; message?: string };
+        return { success: false, error: e.stderr || e.message || String(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "connections:docker-logs",
+    async (event, target: string, tail: number = 100): Promise<string> => {
+      if (!isTrustedSender(event)) return "";
+      if (typeof target !== "string") return "";
+      try {
+        const { stdout, stderr } = await execFileAsync("docker", [
+          "logs",
+          "--tail",
+          String(Math.min(1000, Math.max(10, tail))),
+          target,
+        ]);
+        return stdout || stderr || "";
+      } catch (err: unknown) {
+        const e = err as { stderr?: string; message?: string };
+        return e.stderr || e.message || "Failed to fetch logs";
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "connections:get-docker-images",
+    async (event): Promise<Array<{
+      id: string;
+      repository: string;
+      tag: string;
+      size: string;
+      created: string;
+    }>> => {
+      if (!isTrustedSender(event)) return [];
+      try {
+        const { stdout } = await execFileAsync("docker", [
+          "images",
+          "--format",
+          "{{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}",
+        ]);
+        const lines = stdout.split("\n").filter((l) => l.trim().length > 0);
+        return lines.map((line) => {
+          const [id, repository, tag, size, created] = line.split("\t");
+          return {
+            id: id || "",
+            repository: repository || "",
+            tag: tag || "",
+            size: size || "",
+            created: created || "",
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+  );
 }

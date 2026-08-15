@@ -429,6 +429,11 @@ export function destroyTerminal(id: string): void {
       forwardTargets.delete(id);
       terminalHistories.delete(id);
       terminalSshHosts.delete(id);
+      foregroundTerminalIds.delete(id);
+      const orderIdx = terminalHistoryOrder.indexOf(id);
+      if (orderIdx !== -1) {
+        terminalHistoryOrder.splice(orderIdx, 1);
+      }
     }
   }
 }
