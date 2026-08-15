@@ -77,13 +77,35 @@ const historyApi = {
 };
 
 const workspaceApi = {
-  getScripts: jest.fn(() => Promise.resolve(null)),
+  getScripts: jest.fn(() => Promise.resolve(null as any)),
   listDir: jest.fn(() => Promise.resolve([] as WorkspaceItem[])),
   searchFiles: jest.fn(() => Promise.resolve([] as Array<{ relativePath: string; absolutePath: string }>)),
+  searchFileContents: jest.fn(() => Promise.resolve([] as FileContentMatch[])),
   revealPath: jest.fn(() => Promise.resolve()),
   readFileHead: jest.fn(() => Promise.resolve("")),
   writeFile: jest.fn(() => Promise.resolve()),
   getGitStatus: jest.fn(() => Promise.resolve({} as Record<string, "M" | "U" | "A" | "D">)),
+  getGitDetailedStatus: jest.fn(() =>
+    Promise.resolve({
+      isGit: true,
+      repoRoot: "/home/user/projects",
+      branch: "main",
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      untracked: [],
+    } as GitDetailedStatus),
+  ),
+  gitStage: jest.fn(() => Promise.resolve({ success: true })),
+  gitUnstage: jest.fn(() => Promise.resolve({ success: true })),
+  gitDiscard: jest.fn(() => Promise.resolve({ success: true })),
+  gitCommit: jest.fn(() => Promise.resolve({ success: true, output: "commit ok" })),
+  gitPush: jest.fn(() => Promise.resolve({ success: true, output: "push ok" })),
+  gitPull: jest.fn(() => Promise.resolve({ success: true, output: "pull ok" })),
+  getGitBranches: jest.fn(() => Promise.resolve({ current: "main", all: ["main", "dev"] })),
+  gitCheckout: jest.fn(() => Promise.resolve({ success: true, output: "checkout ok" })),
+  getGitLog: jest.fn(() => Promise.resolve([] as GitCommitInfo[])),
   getGitDiff: jest.fn(() => Promise.resolve("")),
 };
 
@@ -101,6 +123,10 @@ const portsApi = {
 const connectionsApi = {
   getSshHosts: jest.fn(() => Promise.resolve([])),
   getDockerContainers: jest.fn(() => Promise.resolve([])),
+  getDockerDetailed: jest.fn(() => Promise.resolve([] as DockerContainerDetailed[])),
+  dockerAction: jest.fn(() => Promise.resolve({ success: true })),
+  dockerLogs: jest.fn(() => Promise.resolve("")),
+  getDockerImages: jest.fn(() => Promise.resolve([] as DockerImageInfo[])),
 };
 
 const clipboardApi = {

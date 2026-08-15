@@ -162,7 +162,7 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
         connOpts.privateKey = await fs.readFile(keyPath, "utf8");
         break;
       } catch {
-        // try next
+        /* intentional ignore */
       }
     }
   }

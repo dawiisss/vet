@@ -86,6 +86,7 @@ describe("workspace", () => {
     });
 
     it("returns scripts from package.json", async () => {
+      const path = require("path");
       const fs = require("fs/promises");
       fs.readFile.mockResolvedValue(
         JSON.stringify({
@@ -93,10 +94,12 @@ describe("workspace", () => {
         }),
       );
       const result = await getScriptsHandler({}, "/project");
-      expect(result).toEqual({
-        cwd: "/project",
+      expect(result).toMatchObject({
+        cwd: path.resolve("/project"),
         scripts: { dev: "vite", build: "vite build", test: "jest" },
       });
+      expect(result.tasks).toBeDefined();
+      expect(result.tasks.length).toBeGreaterThanOrEqual(3);
     });
 
     it("walks up to parent directories to find package.json", async () => {
@@ -220,10 +223,40 @@ describe("workspace", () => {
     });
   });
 
-  describe("workspace:get-git-status handler", () => {
+  describe("workspace:search-file-contents handler", () => {
+    it("registers workspace:search-file-contents handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:search-file-contents",
+        expect.any(Function),
+      );
+    });
+  });
+
+  describe("workspace:get-git-status and git handlers", () => {
     it("registers workspace:get-git-status handler", () => {
       expect(ipcMain.handle).toHaveBeenCalledWith(
         "workspace:get-git-status",
+        expect.any(Function),
+      );
+    });
+
+    it("registers workspace:git-detailed-status handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:git-detailed-status",
+        expect.any(Function),
+      );
+    });
+
+    it("registers workspace:git-stage handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:git-stage",
+        expect.any(Function),
+      );
+    });
+
+    it("registers workspace:git-commit handler", () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith(
+        "workspace:git-commit",
         expect.any(Function),
       );
     });

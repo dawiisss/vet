@@ -62,7 +62,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   onFocus,
   onExit,
   onExtract,
-  onContextMenuAction,
+  onContextMenuAction: _onContextMenuAction,
 }) => {
   const webviewRef = useRef<any>(null);
   const { config } = useConfig();
@@ -86,6 +86,12 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   hasSplitsRef.current = hasSplits;
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
+  const browserIdRef = useRef(browserId);
+  browserIdRef.current = browserId;
+  const renameTabRef = useRef(renameTab);
+  renameTabRef.current = renameTab;
+  const updateBrowserUrlRef = useRef(updateBrowserUrl);
+  updateBrowserUrlRef.current = updateBrowserUrl;
 
   const homepage = config.browserHomepage || DEFAULT_BROWSER_HOMEPAGE;
   const searchEngine = config.browserSearchEngine || "duckduckgo";
@@ -108,7 +114,6 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   );
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [activeMatch, setActiveMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
 
@@ -205,9 +210,9 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       setLoadedUrl(e.url);
       setUrlInput(e.url);
       updateNavigationButtons();
-      updateBrowserUrl(browserId, e.url);
+      updateBrowserUrlRef.current(browserIdRef.current, e.url);
 
-      useStatusBarStore.getState().updateBrowserStatus(browserId, {
+      useStatusBarStore.getState().updateBrowserStatus(browserIdRef.current, {
         url: e.url,
         isHttps: e.url.startsWith("https://"),
       });
@@ -223,7 +228,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     const onTitleUpdate = (e: any) => {
       const title = e.title || "Web Browser";
       setPageTitle(title);
-      useStatusBarStore.getState().updateBrowserStatus(browserId, {
+      useStatusBarStore.getState().updateBrowserStatus(browserIdRef.current, {
         title,
       });
       if (
@@ -232,7 +237,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
         isFocusedRef.current &&
         activeTabIdRef.current
       ) {
-        renameTab(activeTabIdRef.current, title);
+        renameTabRef.current(activeTabIdRef.current, title);
       }
       if (window.historyApi?.addBrowserVisit) {
         try {
@@ -300,7 +305,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
         webview.removeEventListener("mousedown", handleFocus);
       } catch { /* intentional ignore */ }
     };
-  }, [appPreloadPath]);
+  }, [appPreloadPath, initialUrlResolved]);
 
   // Subscribe to block events
   useEffect(() => {
@@ -323,7 +328,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [browserId]);
 
   // Focus webview when isFocused changes to true
   useEffect(() => {
@@ -363,7 +368,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
         }
       } catch { /* intentional ignore */ }
     }
-  }, [appPreloadPath]);
+  }, [appPreloadPath, initialUrl]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -469,7 +474,6 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
       backwards?: boolean;
     },
   ) => {
-    setSearchQuery(text);
     if (webviewRef.current) {
       if (text) {
         webviewRef.current.findInPage(text, {
@@ -487,7 +491,6 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
 
   const closeSearch = () => {
     setIsSearchOpen(false);
-    setSearchQuery("");
     setTotalMatches(0);
     setActiveMatch(0);
     if (webviewRef.current) {

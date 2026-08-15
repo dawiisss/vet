@@ -1,4 +1,4 @@
-import { ipcMain, shell, BrowserWindow } from "electron";
+import { ipcMain, shell } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
@@ -79,24 +79,152 @@ function nonEmptyPathInput(input: unknown): input is string {
 class WorkspaceService {
   async getScripts(cwd?: string) {
     try {
-      // Find package.json in cwd or its parents up to 3 levels
-      let currentDir = cwd || process.cwd();
+      let currentDir = cwd ? path.resolve(expandHome(cwd)) : process.cwd();
+      let pkgScripts: Record<string, string> | null = null;
+      let foundDir = currentDir;
+      const tasks: Array<{
+        name: string;
+        command: string;
+        source: "npm" | "make" | "cargo" | "python" | "docker" | "deno" | "task" | "custom";
+        description?: string | undefined;
+      }> = [];
+
+      // 1. Search for package.json up to 3 levels up
       for (let i = 0; i < 3; i++) {
         const pkgPath = path.join(currentDir, "package.json");
         try {
           const content = await fs.readFile(pkgPath, "utf-8");
           const pkg = JSON.parse(content);
           if (pkg && pkg.scripts) {
-            return { cwd: currentDir, scripts: pkg.scripts };
+            pkgScripts = pkg.scripts;
+            foundDir = currentDir;
+            for (const [name, cmd] of Object.entries(pkg.scripts)) {
+              tasks.push({
+                name,
+                command: `npm run ${name}`,
+                source: "npm",
+                description: typeof cmd === "string" ? cmd : undefined,
+              });
+            }
+            break;
           }
         } catch {
-          // not found or not parsable, go up
           const parentDir = path.dirname(currentDir);
           if (parentDir === currentDir) break;
           currentDir = parentDir;
         }
       }
-      return null;
+
+      const checkDir = foundDir || (cwd ? path.resolve(expandHome(cwd)) : process.cwd());
+
+      // 2. Makefile detection
+      try {
+        const makePath = path.join(checkDir, "Makefile");
+        const makeContent = await fs.readFile(makePath, "utf-8");
+        const makeTargetRegex = /^([a-zA-Z0-9_-]+):/gm;
+        let match;
+        const seenTargets = new Set<string>();
+        while ((match = makeTargetRegex.exec(makeContent)) !== null) {
+          const target = match[1];
+          if (target && !target.startsWith(".") && !seenTargets.has(target)) {
+            seenTargets.add(target);
+            tasks.push({
+              name: `make ${target}`,
+              command: `make ${target}`,
+              source: "make",
+            });
+          }
+        }
+      } catch { /* intentional ignore */ }
+
+      // 3. Cargo.toml detection
+      try {
+        const cargoPath = path.join(checkDir, "Cargo.toml");
+        await fs.access(cargoPath);
+        tasks.push(
+          { name: "cargo build", command: "cargo build", source: "cargo" },
+          { name: "cargo test", command: "cargo test", source: "cargo" },
+          { name: "cargo run", command: "cargo run", source: "cargo" },
+          { name: "cargo check", command: "cargo check", source: "cargo" },
+        );
+      } catch { /* intentional ignore */ }
+
+      // 4. Python project detection
+      try {
+        const pyproject = path.join(checkDir, "pyproject.toml");
+        const reqs = path.join(checkDir, "requirements.txt");
+        let isPy = false;
+        try {
+          await fs.access(pyproject);
+          isPy = true;
+        } catch {
+          try {
+            await fs.access(reqs);
+            isPy = true;
+          } catch { /* intentional ignore */ }
+        }
+        if (isPy) {
+          tasks.push(
+            { name: "pytest", command: "pytest", source: "python" },
+            { name: "python main", command: "python3 main.py", source: "python" },
+          );
+        }
+      } catch { /* intentional ignore */ }
+
+      // 5. Docker Compose detection
+      try {
+        const composeFiles = [
+          "docker-compose.yml",
+          "docker-compose.yaml",
+          "compose.yml",
+          "compose.yaml",
+        ];
+        for (const cf of composeFiles) {
+          try {
+            await fs.access(path.join(checkDir, cf));
+            tasks.push(
+              { name: "compose up", command: "docker compose up -d", source: "docker" },
+              { name: "compose down", command: "docker compose down", source: "docker" },
+              { name: "compose logs", command: "docker compose logs -f", source: "docker" },
+            );
+            break;
+          } catch { /* intentional ignore */ }
+        }
+      } catch { /* intentional ignore */ }
+
+      // 6. Deno detection
+      try {
+        const denoPath = path.join(checkDir, "deno.json");
+        const denoContent = await fs.readFile(denoPath, "utf-8");
+        const denoPkg = JSON.parse(denoContent);
+        if (denoPkg && denoPkg.tasks) {
+          for (const [name, cmd] of Object.entries(denoPkg.tasks)) {
+            tasks.push({
+              name: `deno task ${name}`,
+              command: `deno task ${name}`,
+              source: "deno",
+              description: typeof cmd === "string" ? cmd : undefined,
+            });
+          }
+        }
+      } catch { /* intentional ignore */ }
+
+      // 7. Taskfile detection
+      try {
+        const taskPath = path.join(checkDir, "Taskfile.yml");
+        await fs.access(taskPath);
+        tasks.push({ name: "task", command: "task", source: "task" });
+      } catch { /* intentional ignore */ }
+
+      if (tasks.length === 0 && !pkgScripts) {
+        return null;
+      }
+
+      return {
+        cwd: checkDir,
+        scripts: pkgScripts || {},
+        tasks,
+      };
     } catch (err) {
       console.error("Failed to get workspace scripts", err);
       return null;
@@ -113,7 +241,6 @@ class WorkspaceService {
       const items: DirectoryItem[] = [];
 
       for (const file of files) {
-        // Skip reading stats for heavy files to avoid PTY/Main blocks
         if (file === ".git" || file === "node_modules") {
           items.push({
             name: file,
@@ -204,6 +331,141 @@ class WorkspaceService {
     }
   }
 
+  async searchFileContents(
+    dirPath: string,
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      isRegex?: boolean;
+      wholeWord?: boolean;
+      maxResults?: number;
+      filePattern?: string;
+    } = {},
+  ) {
+    try {
+      if (!query || query.trim() === "") return [];
+
+      const targetDir = dirPath ? expandHome(dirPath) : process.cwd();
+      const rootPath = path.resolve(targetDir);
+      logSensitivePathAccess(rootPath);
+
+      const maxResults = options.maxResults || 200;
+      const matches: Array<{
+        filePath: string;
+        relativePath: string;
+        line: number;
+        column: number;
+        lineContent: string;
+        matchLength: number;
+      }> = [];
+
+      let searchRegex: RegExp;
+      try {
+        let patternStr = options.isRegex
+          ? query
+          : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (options.wholeWord) {
+          patternStr = `\\b${patternStr}\\b`;
+        }
+        searchRegex = new RegExp(patternStr, options.caseSensitive ? "g" : "gi");
+      } catch {
+        return [];
+      }
+
+      const IGNORE_DIRS = new Set([
+        ".git",
+        "node_modules",
+        "dist",
+        "out",
+        "build",
+        ".next",
+        ".cache",
+        "coverage",
+        ".gemini",
+        ".agents",
+      ]);
+
+      const walk = async (currentDir: string, depth: number) => {
+        if (depth > 8 || matches.length >= maxResults) return;
+
+        let entries;
+        try {
+          entries = await fs.readdir(currentDir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+
+        for (const entry of entries) {
+          if (matches.length >= maxResults) break;
+
+          const fullPath = path.join(currentDir, entry.name);
+          const relPath = path.relative(rootPath, fullPath);
+
+          if (entry.isDirectory()) {
+            if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
+              await walk(fullPath, depth + 1);
+            }
+          } else if (entry.isFile()) {
+            if (options.filePattern && options.filePattern.trim()) {
+              const pat = options.filePattern.trim().toLowerCase();
+              if (!entry.name.toLowerCase().includes(pat) && !relPath.toLowerCase().includes(pat)) {
+                continue;
+              }
+            }
+
+            try {
+              const stat = await fs.stat(fullPath);
+              if (stat.size > 2 * 1024 * 1024) continue; // Skip files > 2MB
+
+              // Quick binary check: read first 512 bytes
+              const handle = await fs.open(fullPath, "r");
+              const sampleBuf = Buffer.alloc(Math.min(512, stat.size));
+              const { bytesRead } = await handle.read(sampleBuf, 0, sampleBuf.length, 0);
+              await handle.close();
+
+              let isBinary = false;
+              for (let b = 0; b < bytesRead; b++) {
+                if (sampleBuf[b] === 0) {
+                  isBinary = true;
+                  break;
+                }
+              }
+              if (isBinary) continue;
+
+              const content = await fs.readFile(fullPath, "utf-8");
+              const lines = content.split(/\r?\n/);
+
+              for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                if (matches.length >= maxResults) break;
+                const lineStr = lines[lineIdx]!;
+                searchRegex.lastIndex = 0;
+
+                let m;
+                while ((m = searchRegex.exec(lineStr)) !== null) {
+                  matches.push({
+                    filePath: fullPath,
+                    relativePath: relPath,
+                    line: lineIdx + 1,
+                    column: m.index + 1,
+                    lineContent: lineStr.slice(0, 300),
+                    matchLength: m[0].length,
+                  });
+                  if (matches.length >= maxResults || m[0].length === 0) break;
+                }
+              }
+            } catch { /* intentional ignore */ }
+          }
+        }
+      };
+
+      await walk(rootPath, 0);
+      return matches;
+    } catch (err) {
+      console.error(`Failed to search file contents in directory: ${dirPath}`, err);
+      return [];
+    }
+  }
+
   revealPath(itemPath: string) {
     try {
       const targetPath = path.resolve(expandHome(itemPath));
@@ -237,9 +499,9 @@ class WorkspaceService {
       } finally {
         await fileHandle.close();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Failed to read file head: ${filePath}`, err);
-      return { __ipcError: true, message: err.message };
+      return { __ipcError: true, message: (err as Error).message };
     }
   }
 
@@ -253,9 +515,9 @@ class WorkspaceService {
 
       await fs.writeFile(targetPath, content, "utf8");
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Failed to write file: ${filePath}`, err);
-      return { __ipcError: true, message: err.message };
+      return { __ipcError: true, message: (err as Error).message };
     }
   }
 
@@ -267,8 +529,6 @@ class WorkspaceService {
         const { stdout: rootOut } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: targetDir });
         if (rootOut.trim()) repoRoot = rootOut.trim();
       } catch { /* intentional ignore */ }
-
-      const relCwd = path.relative(repoRoot, targetDir);
 
       const { stdout } = await execFileAsync("git", ["status", "--porcelain", "-u"], { cwd: repoRoot });
       const statusMap: Record<string, "M" | "U" | "A" | "D"> = {};
@@ -307,6 +567,226 @@ class WorkspaceService {
       return statusMap;
     } catch {
       return {};
+    }
+  }
+
+  async getGitDetailedStatus(cwd: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      let repoRoot = targetDir;
+      try {
+        const { stdout: rootOut } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: targetDir });
+        if (rootOut.trim()) repoRoot = rootOut.trim();
+      } catch {
+        return { isGit: false, repoRoot: "", branch: "", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [] };
+      }
+
+      let branch = "HEAD";
+      try {
+        const { stdout: bOut } = await execFileAsync("git", ["branch", "--show-current"], { cwd: repoRoot });
+        branch = bOut.trim() || "HEAD";
+      } catch { /* intentional ignore */ }
+
+      let ahead = 0;
+      let behind = 0;
+      try {
+        const { stdout: revOut } = await execFileAsync("git", ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd: repoRoot });
+        const [a, b] = revOut.trim().split(/\s+/);
+        ahead = parseInt(a || "0", 10) || 0;
+        behind = parseInt(b || "0", 10) || 0;
+      } catch { /* intentional ignore */ }
+
+      const { stdout: statusOut } = await execFileAsync("git", ["status", "--porcelain", "-u"], { cwd: repoRoot });
+      const staged: Array<{ path: string; status: string }> = [];
+      const unstaged: Array<{ path: string; status: string }> = [];
+      const untracked: Array<{ path: string }> = [];
+
+      const lines = statusOut.split("\n");
+      for (const line of lines) {
+        if (!line || line.length < 3) continue;
+        const x = line[0];
+        const y = line[1];
+        const filePath = line.substring(3).trim();
+
+        if (x === "?" && y === "?") {
+          untracked.push({ path: filePath });
+        } else {
+          if (x && x !== " " && x !== "?") {
+            staged.push({ path: filePath, status: x });
+          }
+          if (y && y !== " " && y !== "?") {
+            unstaged.push({ path: filePath, status: y });
+          }
+        }
+      }
+
+      return {
+        isGit: true,
+        repoRoot,
+        branch,
+        ahead,
+        behind,
+        staged,
+        unstaged,
+        untracked,
+      };
+    } catch {
+      return { isGit: false, repoRoot: "", branch: "", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [] };
+    }
+  }
+
+  async gitStage(cwd: string, files: string[] = []) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      if (!files || files.length === 0 || files.includes(".")) {
+        await execFileAsync("git", ["add", "-A"], { cwd: targetDir });
+      } else {
+        await execFileAsync("git", ["add", "--", ...files], { cwd: targetDir });
+      }
+      return { success: true };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async gitUnstage(cwd: string, files: string[] = []) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      if (!files || files.length === 0 || files.includes(".")) {
+        try {
+          await execFileAsync("git", ["restore", "--staged", "."], { cwd: targetDir });
+        } catch {
+          await execFileAsync("git", ["reset", "HEAD"], { cwd: targetDir });
+        }
+      } else {
+        try {
+          await execFileAsync("git", ["restore", "--staged", "--", ...files], { cwd: targetDir });
+        } catch {
+          await execFileAsync("git", ["reset", "HEAD", "--", ...files], { cwd: targetDir });
+        }
+      }
+      return { success: true };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async gitDiscard(cwd: string, files: string[]) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      if (!files || files.length === 0) return { success: true };
+      try {
+        await execFileAsync("git", ["restore", "--", ...files], { cwd: targetDir });
+      } catch {
+        await execFileAsync("git", ["checkout", "--", ...files], { cwd: targetDir });
+      }
+      // Also clean untracked if any
+      try {
+        await execFileAsync("git", ["clean", "-f", "--", ...files], { cwd: targetDir });
+      } catch { /* intentional ignore */ }
+      return { success: true };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async gitCommit(cwd: string, message: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      if (!message || message.trim() === "") {
+        return { success: false, error: "Commit message cannot be empty" };
+      }
+      const { stdout } = await execFileAsync("git", ["commit", "-m", message.trim()], { cwd: targetDir });
+      return { success: true, output: stdout.trim() };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async gitPush(cwd: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const { stdout } = await execFileAsync("git", ["push"], { cwd: targetDir });
+      return { success: true, output: stdout.trim() };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async gitPull(cwd: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const { stdout } = await execFileAsync("git", ["pull"], { cwd: targetDir });
+      return { success: true, output: stdout.trim() };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async getGitBranches(cwd: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const { stdout } = await execFileAsync("git", ["branch", "--list", "--no-color"], { cwd: targetDir });
+      let current = "";
+      const branches: string[] = [];
+      for (const line of stdout.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith("* ")) {
+          current = trimmed.substring(2);
+          branches.push(current);
+        } else {
+          branches.push(trimmed);
+        }
+      }
+      return { current, all: branches };
+    } catch {
+      return { current: "", all: [] };
+    }
+  }
+
+  async gitCheckout(cwd: string, branch: string) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const { stdout } = await execFileAsync("git", ["checkout", branch], { cwd: targetDir });
+      return { success: true, output: stdout.trim() };
+    } catch (err: unknown) {
+      const e = err as { stderr?: string; message?: string };
+      return { success: false, error: e.stderr || e.message || String(err) };
+    }
+  }
+
+  async getGitLog(cwd: string, limit: number = 20) {
+    try {
+      const targetDir = path.resolve(expandHome(cwd));
+      const { stdout } = await execFileAsync(
+        "git",
+        ["log", `-n${limit}`, "--format=%H%x00%an%x00%ar%x00%s"],
+        { cwd: targetDir }
+      );
+      const commits: Array<{ hash: string; author: string; date: string; message: string }> = [];
+      const lines = stdout.split("\n");
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const [hash, author, date, message] = line.split("\x00");
+        if (hash) {
+          commits.push({
+            hash,
+            author: author || "",
+            date: date || "",
+            message: message || "",
+          });
+        }
+      }
+      return commits;
+    } catch {
+      return [];
     }
   }
 
@@ -390,6 +870,25 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     return workspaceService.searchFiles(dirPath, query);
   });
 
+  ipcMain.handle(
+    "workspace:search-file-contents",
+    async (
+      event,
+      dirPath: string,
+      query: string,
+      options?: { caseSensitive?: boolean; wholeWord?: boolean; isRegex?: boolean; maxResults?: number },
+    ) => {
+      if (!isTrustedSender(event)) {
+        console.warn("[security] Blocked workspace:search-file-contents from untrusted sender");
+        return [];
+      }
+      if (!validPathInput(dirPath) || typeof query !== "string" || query.length > 512) {
+        return [];
+      }
+      return workspaceService.searchFileContents(dirPath, query, options);
+    },
+  );
+
   ipcMain.handle("workspace:reveal-path", async (event, itemPath: string) => {
     if (!isTrustedSender(event)) {
       console.warn("[security] Blocked workspace:reveal-path from untrusted sender");
@@ -439,6 +938,102 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
       return {};
     }
     return workspaceService.getGitStatus(cwd);
+  });
+
+  ipcMain.handle("workspace:git-detailed-status", async (event, cwd: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-detailed-status from untrusted sender");
+      return { isGit: false, repoRoot: "", branch: "", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [] };
+    }
+    if (!validPathInput(cwd)) {
+      return { isGit: false, repoRoot: "", branch: "", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [] };
+    }
+    return workspaceService.getGitDetailedStatus(cwd);
+  });
+
+  ipcMain.handle("workspace:git-stage", async (event, cwd: string, files?: string[]) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-stage from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd)) return { success: false, error: "Invalid cwd" };
+    return workspaceService.gitStage(cwd, files);
+  });
+
+  ipcMain.handle("workspace:git-unstage", async (event, cwd: string, files?: string[]) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-unstage from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd)) return { success: false, error: "Invalid cwd" };
+    return workspaceService.gitUnstage(cwd, files);
+  });
+
+  ipcMain.handle("workspace:git-discard", async (event, cwd: string, files: string[]) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-discard from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd)) return { success: false, error: "Invalid cwd" };
+    return workspaceService.gitDiscard(cwd, files);
+  });
+
+  ipcMain.handle("workspace:git-commit", async (event, cwd: string, message: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-commit from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd) || typeof message !== "string") {
+      return { success: false, error: "Invalid parameters" };
+    }
+    return workspaceService.gitCommit(cwd, message);
+  });
+
+  ipcMain.handle("workspace:git-push", async (event, cwd: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-push from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd)) return { success: false, error: "Invalid cwd" };
+    return workspaceService.gitPush(cwd);
+  });
+
+  ipcMain.handle("workspace:git-pull", async (event, cwd: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-pull from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd)) return { success: false, error: "Invalid cwd" };
+    return workspaceService.gitPull(cwd);
+  });
+
+  ipcMain.handle("workspace:git-branches", async (event, cwd: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-branches from untrusted sender");
+      return { current: "", all: [] };
+    }
+    if (!validPathInput(cwd)) return { current: "", all: [] };
+    return workspaceService.getGitBranches(cwd);
+  });
+
+  ipcMain.handle("workspace:git-checkout", async (event, cwd: string, branch: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-checkout from untrusted sender");
+      return { success: false, error: "Access denied" };
+    }
+    if (!validPathInput(cwd) || typeof branch !== "string") {
+      return { success: false, error: "Invalid parameters" };
+    }
+    return workspaceService.gitCheckout(cwd, branch);
+  });
+
+  ipcMain.handle("workspace:git-log", async (event, cwd: string, limit?: number) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:git-log from untrusted sender");
+      return [];
+    }
+    if (!validPathInput(cwd)) return [];
+    return workspaceService.getGitLog(cwd, limit);
   });
 
   ipcMain.handle("workspace:get-git-diff", async (event, cwd: string, filePath: string) => {

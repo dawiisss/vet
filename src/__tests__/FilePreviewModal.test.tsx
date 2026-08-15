@@ -15,7 +15,6 @@ import {
   setupMockedApis,
   workspaceApi,
   resetMockedApis,
-  configApi,
 } from "../__tests__/rendererHelpers";
 import FilePreviewModal from "../renderer/src/features/workspace/components/FilePreviewModal";
 

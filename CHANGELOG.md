@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-15
+
+### Added
+
+- **Workspace-Wide "Find in Files" (Global Text Search Panel)**:
+  - Added global text search panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regular Expression (`.*`) options.
+  - Interactive line match previews grouped by file with expandable/collapsible file groups and match counters.
+  - Direct line and column navigation into the built-in editor (`#L<line>:<col>`).
+  - Added global "Expand All" and "Collapse All" toggle controls.
+- **Visual Source Control and Git Management Panel**:
+  - Added dedicated Source Control sidebar panel for branch switching and checkout, ahead/behind commit tracking, and remote pull/push sync.
+  - Staged changes, unstaged changes, and untracked file management with individual stage, unstage, discard, and diff inspection.
+  - Commit message composer with `Ctrl+Enter` shortcut.
+  - Recent commit history graph log viewer.
+- **Docker Container and Image Monitor Panel**:
+  - Added interactive Docker management panel with live container state tracking (running, stopped, paused, restarting).
+  - Container lifecycle management with one-click start, stop, restart, and remove actions.
+  - Live container log viewer modal with configurable line tailing.
+  - One-click interactive container shell execution directly into the active terminal split.
+  - Clickable exposed port links to immediately open web services in the built-in browser.
+  - Docker image inventory viewer displaying image repository, tag, size, and creation timestamp.
+- **Multi-Ecosystem Automatic Task and Script Discovery**:
+  - Expanded project task detection to automatically parse and index runnable tasks across NPM (`package.json`), GNU Make (`Makefile`), Rust Cargo (`Cargo.toml`), Python (`pyproject.toml` / `requirements.txt`), Docker Compose (`compose.yml` / `docker-compose.yml`), Deno (`deno.json` / `deno.jsonc`), and Taskfile (`Taskfile.yml` / `Taskfile.yaml`).
+  - Added ecosystem filter chips, instant task search, color-coded source tags, and one-click execution or keyboard navigation.
+- **Customizable Sidebar Panels (Show, Hide, and Reorder)**:
+  - Added the ability to hide, show, and reorder any of the 12 sidebar panels (Workspace, Search, Source Control, Profiles, Scripts, Docker, Ports, System, Snippets, Clipboard, Connections, History).
+  - Added drag-and-drop reordering directly on the sidebar tab strip with instant preview and position swapping.
+  - Added right-click context menu options to move panels up, down, to top, or to bottom, alongside direct checkmark toggles and quick "Show All Panels" / "Reset Default Order" actions.
+  - Added panel reordering controls (Move Up / Move Down) and visibility checkboxes under **Settings -> Sidebar**.
+  - Persists custom panel sequence and visibility preferences across application relaunches via `sidebarPanelsOrder` and `disabledSidebarPanels` in `config.json5`.
+  - Automatically preserves active tab state by switching to the next available visible panel when an active panel is hidden, with built-in protection to ensure at least one panel remains visible.
+
+### Fixed
+
+- **Layout-Aware File and Diff Opening**:
+  - Updated file opening in Workspace Explorer, Find in Files, and Source Control to strictly respect `config.editorMode` (Split Pane Tiling, New Tab, or Floating Modal) rather than unconditionally forcing open the read-only preview modal.
+- **Flexbox Panel Layout Scrolling**:
+  - Fixed an issue where search results and large lists in sidebar panels could be compressed into thin horizontal lines by adding `flex-shrink: 0` on list cards and `min-height: 0` on panel scroll containers.
+- **Docker Image IPC Channel Alignment**:
+  - Resolved a runtime handler mismatch error by aligning the IPC channel name to `connections:get-docker-images` across the main process handler, preload bridge, and unit test mocks.
+- **Context Menu Viewport Boundary Clamping and Single-Active Mutual Exclusion**:
+  - Added smart viewport edge detection and auto-flipping to context menus so right-clicking near bottom or right window edges keeps the entire menu within the application window view.
+  - Enforced single active context menu behavior across the entire application with global mutual exclusion event broadcasting and capture listeners, ensuring right-clicking a new area instantly dismisses any existing context menu.
+
 ## [1.4.1] - 2026-08-12
 
 ### Fixed

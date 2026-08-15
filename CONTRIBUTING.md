@@ -17,7 +17,7 @@ To maintain code quality and ensure a smooth review process, please review and f
    * [Prerequisites](#prerequisites)
    * [Installation](#installation)
    * [Local Development](#local-development)
-   * [Testing & Linting](#testing--linting)
+   * [Testing and Linting](#testing-and-linting)
 4. [Style Guides](#style-guides)
 
 ---
@@ -84,7 +84,7 @@ To launch the application in development mode with live reloading and hot module
 npm run dev
 ```
 
-### Testing & Linting
+### Testing and Linting
 Before submitting a pull request, ensure all validation scripts pass:
 
 * **Static Type Checking**:

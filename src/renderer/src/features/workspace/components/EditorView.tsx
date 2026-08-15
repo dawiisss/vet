@@ -134,7 +134,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     return () => {
       active = false;
     };
-  }, [filePath, sshHostId]);
+  }, [filePath, sshHostId, _editorId]);
 
   const jumpToLine = (lineNum: number) => {
     const view = editorRef.current;

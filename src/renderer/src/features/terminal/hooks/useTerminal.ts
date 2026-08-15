@@ -437,6 +437,7 @@ export function useTerminal({
       resizeObserver.disconnect();
       container.removeEventListener("focusin", handleFocusIn);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalId, containerRef]);
 
   // 2. Fit when becoming active
@@ -463,6 +464,7 @@ export function useTerminal({
     if (!isActive || !isFocused) return;
 
     let active = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const updateInfo = () => {
       if (!active) return;
       window.terminalApi
@@ -487,13 +489,16 @@ export function useTerminal({
         });
       }
 
-      setTimeout(updateInfo, 2000);
+      if (active) {
+        timer = setTimeout(updateInfo, 2000);
+      }
     };
 
     updateInfo();
 
     return () => {
       active = false;
+      if (timer) clearTimeout(timer);
     };
   }, [isActive, isFocused, terminalId, terminal]);
 

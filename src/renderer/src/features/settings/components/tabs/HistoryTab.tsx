@@ -11,7 +11,7 @@ export const HistoryTab: React.FC = () => {
       try {
         await window.historyApi?.clear()
         alert('History successfully cleared!')
-      } catch (err) {
+      } catch {
         alert('Failed to clear history')
       }
     }

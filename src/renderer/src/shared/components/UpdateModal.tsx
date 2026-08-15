@@ -8,14 +8,12 @@ interface UpdateModalProps {
 
 export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const {
-    status,
-    updateInfo,
-    progress,
-    error,
-    downloadUpdate,
-    quitAndInstall,
-  } = useUpdaterStore();
+  const status = useUpdaterStore((s) => s.status);
+  const updateInfo = useUpdaterStore((s) => s.updateInfo);
+  const progress = useUpdaterStore((s) => s.progress);
+  const error = useUpdaterStore((s) => s.error);
+  const downloadUpdate = useUpdaterStore((s) => s.downloadUpdate);
+  const quitAndInstall = useUpdaterStore((s) => s.quitAndInstall);
 
   const [currentVersion, setCurrentVersion] = useState<string>("");
 

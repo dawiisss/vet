@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import TerminalView from "./TerminalView";
 import BrowserView from "../../browser/components/BrowserView";
 import EditorView from "../../workspace/components/EditorView";
-import { getNode, firstLeafId } from "../splitTree";
+import { firstLeafId } from "../splitTree";
 import type { SplitNode } from "../splitTree";
 
 interface SplitPaneProps {

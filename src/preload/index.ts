@@ -134,10 +134,12 @@ const portsApi = {
 };
 
 const workspaceApi = {
-  getScripts: (cwd: string) => invoke<unknown>("workspace:getScripts")(cwd),
+  getScripts: (cwd: string) => invoke<WorkspaceScriptsResult | null>("workspace:getScripts")(cwd),
   listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
   searchFiles: (dirPath: string, query: string) =>
     invoke<Array<{ relativePath: string; absolutePath: string }>>("workspace:search-files")(dirPath, query),
+  searchFileContents: (dirPath: string, query: string, options?: any) =>
+    invoke<FileContentMatch[]>("workspace:search-file-contents")(dirPath, query, options),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
     unwrap(invoke<string>("workspace:read-file-head")(filePath)),
@@ -145,6 +147,26 @@ const workspaceApi = {
     unwrap(invoke<void>("workspace:write-file")(filePath, content)),
   getGitStatus: (cwd: string) =>
     invoke<Record<string, "M" | "U" | "A" | "D">>("workspace:get-git-status")(cwd),
+  getGitDetailedStatus: (cwd: string) =>
+    invoke<GitDetailedStatus>("workspace:git-detailed-status")(cwd),
+  gitStage: (cwd: string, files?: string[]) =>
+    invoke<{ success: boolean; error?: string }>("workspace:git-stage")(cwd, files),
+  gitUnstage: (cwd: string, files?: string[]) =>
+    invoke<{ success: boolean; error?: string }>("workspace:git-unstage")(cwd, files),
+  gitDiscard: (cwd: string, files: string[]) =>
+    invoke<{ success: boolean; error?: string }>("workspace:git-discard")(cwd, files),
+  gitCommit: (cwd: string, message: string) =>
+    invoke<{ success: boolean; output?: string; error?: string }>("workspace:git-commit")(cwd, message),
+  gitPush: (cwd: string) =>
+    invoke<{ success: boolean; output?: string; error?: string }>("workspace:git-push")(cwd),
+  gitPull: (cwd: string) =>
+    invoke<{ success: boolean; output?: string; error?: string }>("workspace:git-pull")(cwd),
+  getGitBranches: (cwd: string) =>
+    invoke<{ current: string; all: string[] }>("workspace:git-branches")(cwd),
+  gitCheckout: (cwd: string, branch: string) =>
+    invoke<{ success: boolean; output?: string; error?: string }>("workspace:git-checkout")(cwd, branch),
+  getGitLog: (cwd: string, limit?: number) =>
+    invoke<GitCommitInfo[]>("workspace:git-log")(cwd, limit),
   getGitDiff: (cwd: string, filePath: string) =>
     invoke<string>("workspace:get-git-diff")(cwd, filePath),
 };
@@ -152,6 +174,12 @@ const workspaceApi = {
 const connectionsApi = {
   getSshHosts: () => invoke<unknown[]>("connections:get-ssh-hosts")(),
   getDockerContainers: () => invoke<unknown[]>("connections:get-docker")(),
+  getDockerDetailed: () => invoke<DockerContainerDetailed[]>("connections:get-docker-detailed")(),
+  dockerAction: (target: string, action: "start" | "stop" | "restart" | "rm") =>
+    invoke<{ success: boolean; error?: string }>("connections:docker-action")(target, action),
+  dockerLogs: (target: string, tail?: number) =>
+    invoke<string>("connections:docker-logs")(target, tail),
+  getDockerImages: () => invoke<DockerImageInfo[]>("connections:get-docker-images")(),
 };
 
 interface IpcError {

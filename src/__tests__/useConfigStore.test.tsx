@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import React, { useEffect } from "react";
+import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { setupMockedApis, configApi } from "../__tests__/rendererHelpers";
 import {

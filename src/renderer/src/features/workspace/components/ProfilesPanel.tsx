@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Panel from "@/shared/components/Panel";
 import { useTabStore } from "@/features/terminal/useTabStore";
 import { useUIStore } from "@/shared/stores/useUIStore";
@@ -11,20 +11,20 @@ export default function ProfilesPanel({ isActive }: { isActive: boolean }) {
   const loadProfileState = useTabStore((s) => s.loadProfileState);
   const addToast = useUIStore((s) => s.addToast);
 
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       const data = await window.terminalApi.getProfiles();
       setProfiles(data || {});
-    } catch (err: any) {
+    } catch {
       addToast("Failed to load profiles", "error");
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
     if (isActive) {
       loadProfiles();
     }
-  }, [isActive]);
+  }, [isActive, loadProfiles]);
 
   const handleSaveCurrentWorkspace = async () => {
     if (!newProfileName.trim()) return;
