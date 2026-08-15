@@ -82,19 +82,23 @@ describe("GitPanel", () => {
     const stageButtons = screen.getAllByTitle("Stage file");
     fireEvent.click(stageButtons[0]!);
 
-    expect(workspaceApi.gitStage).toHaveBeenCalledWith(
-      expect.any(String),
-      ["src/unstaged.ts"],
-    );
+    await waitFor(() => {
+      expect(workspaceApi.gitStage).toHaveBeenCalledWith(
+        expect.any(String),
+        ["src/unstaged.ts"],
+      );
+    });
 
     // Click Unstage file '-'
     const unstageButtons = screen.getAllByTitle("Unstage file");
     fireEvent.click(unstageButtons[0]!);
 
-    expect(workspaceApi.gitUnstage).toHaveBeenCalledWith(
-      expect.any(String),
-      ["src/staged.ts"],
-    );
+    await waitFor(() => {
+      expect(workspaceApi.gitUnstage).toHaveBeenCalledWith(
+        expect.any(String),
+        ["src/staged.ts"],
+      );
+    });
   });
 
   it("commits staged changes with message", async () => {
@@ -121,9 +125,11 @@ describe("GitPanel", () => {
     const commitBtn = screen.getByRole("button", { name: /Commit \(1 staged\)/i });
     fireEvent.click(commitBtn);
 
-    expect(workspaceApi.gitCommit).toHaveBeenCalledWith(
-      expect.any(String),
-      "feat: add awesome feature",
-    );
+    await waitFor(() => {
+      expect(workspaceApi.gitCommit).toHaveBeenCalledWith(
+        expect.any(String),
+        "feat: add awesome feature",
+      );
+    });
   });
 });

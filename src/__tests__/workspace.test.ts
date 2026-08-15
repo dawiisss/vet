@@ -86,6 +86,7 @@ describe("workspace", () => {
     });
 
     it("returns scripts from package.json", async () => {
+      const path = require("path");
       const fs = require("fs/promises");
       fs.readFile.mockResolvedValue(
         JSON.stringify({
@@ -94,7 +95,7 @@ describe("workspace", () => {
       );
       const result = await getScriptsHandler({}, "/project");
       expect(result).toMatchObject({
-        cwd: "/project",
+        cwd: path.resolve("/project"),
         scripts: { dev: "vite", build: "vite build", test: "jest" },
       });
       expect(result.tasks).toBeDefined();

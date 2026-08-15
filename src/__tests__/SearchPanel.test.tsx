@@ -15,13 +15,17 @@ describe("SearchPanel", () => {
     setupMockedApis();
   });
 
-  it("renders search input and toggle buttons", () => {
+  it("renders search input and toggle buttons", async () => {
     render(<SearchPanel isActive={true} activeTerminalId="term-1" />);
 
     expect(screen.getByPlaceholderText("Search files...")).toBeInTheDocument();
     expect(screen.getByTitle("Match Case (Aa)")).toBeInTheDocument();
     expect(screen.getByTitle("Match Whole Word (ab)")).toBeInTheDocument();
     expect(screen.getByTitle("Use Regular Expression (.*)")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Search files...")).toBeInTheDocument();
+    });
   });
 
   it("triggers searchFileContents and renders matching files and line previews", async () => {

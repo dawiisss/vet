@@ -54,13 +54,17 @@ describe("DockerPanel", () => {
     const execBtn = screen.getByTitle("Exec Shell");
     fireEvent.click(execBtn);
 
-    expect(onRunScript).toHaveBeenCalledWith("docker exec -it my-web-app /bin/bash", "");
+    await waitFor(() => {
+      expect(onRunScript).toHaveBeenCalledWith("docker exec -it my-web-app /bin/bash", "");
+    });
 
     // Click Stop Container '⏹'
     const stopBtn = screen.getByTitle("Stop Container");
     fireEvent.click(stopBtn);
 
-    expect(connectionsApi.dockerAction).toHaveBeenCalledWith("my-web-app", "stop");
+    await waitFor(() => {
+      expect(connectionsApi.dockerAction).toHaveBeenCalledWith("my-web-app", "stop");
+    });
   });
 
   it("switches to images subtab and renders images", async () => {
