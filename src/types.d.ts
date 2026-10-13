@@ -237,6 +237,14 @@ interface DockerImageInfo {
   created: string;
 }
 
+interface FileContentSearchOptions {
+  caseSensitive?: boolean | undefined;
+  isRegex?: boolean | undefined;
+  wholeWord?: boolean | undefined;
+  maxResults?: number | undefined;
+  filePattern?: string | undefined;
+}
+
 interface WorkspaceApi {
   getScripts: (cwd: string) => Promise<WorkspaceScriptsResult | null>;
   listDir: (dirPath: string) => Promise<WorkspaceItem[]>;
@@ -247,13 +255,7 @@ interface WorkspaceApi {
   searchFileContents: (
     dirPath: string,
     query: string,
-    options?: {
-      caseSensitive?: boolean | undefined;
-      isRegex?: boolean | undefined;
-      wholeWord?: boolean | undefined;
-      maxResults?: number | undefined;
-      filePattern?: string | undefined;
-    },
+    options?: FileContentSearchOptions | undefined,
   ) => Promise<FileContentMatch[]>;
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;

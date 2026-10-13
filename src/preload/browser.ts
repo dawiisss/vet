@@ -44,30 +44,30 @@ webFrame.executeJavaScript(`
       Object.defineProperty(window, name, {
         get: function(){return _v},
         set: function(val){
-          try { if (val && typeof val === 'object') pruneKeysDeep(val, pruneKeys) } catch(_){}
+          try { if (val && typeof val === 'object') pruneKeysDeep(val, pruneKeys) } catch { /* intentional ignore */ }
           _v = val
         },
         configurable:true, enumerable:true
       })
-    } catch(_){}
+    } catch { /* intentional ignore */ }
   })
 
   // Immediate scan in case already set
-  try { if (window.ytInitialPlayerResponse) pruneKeysDeep(window.ytInitialPlayerResponse, pruneKeys) } catch(_){}
-  try { if (window.ytInitialData) pruneKeysDeep(window.ytInitialData, pruneKeys) } catch(_){}
-  try { if (window.ytcfg) pruneKeysDeep(window.ytcfg, pruneKeys) } catch(_){}
+  try { if (window.ytInitialPlayerResponse) pruneKeysDeep(window.ytInitialPlayerResponse, pruneKeys) } catch { /* intentional ignore */ }
+  try { if (window.ytInitialData) pruneKeysDeep(window.ytInitialData, pruneKeys) } catch { /* intentional ignore */ }
+  try { if (window.ytcfg) pruneKeysDeep(window.ytcfg, pruneKeys) } catch { /* intentional ignore */ }
 
   // Re-scan at DOMContentLoaded (server-rendered data is set by then)
   window.addEventListener('DOMContentLoaded', function() {
-    try { if (window.ytInitialPlayerResponse) pruneKeysDeep(window.ytInitialPlayerResponse, pruneKeys) } catch(_){}
-    try { if (window.ytInitialData) pruneKeysDeep(window.ytInitialData, pruneKeys) } catch(_){}
-    try { if (window.ytcfg) pruneKeysDeep(window.ytcfg, pruneKeys) } catch(_){}
+    try { if (window.ytInitialPlayerResponse) pruneKeysDeep(window.ytInitialPlayerResponse, pruneKeys) } catch { /* intentional ignore */ }
+    try { if (window.ytInitialData) pruneKeysDeep(window.ytInitialData, pruneKeys) } catch { /* intentional ignore */ }
+    try { if (window.ytcfg) pruneKeysDeep(window.ytcfg, pruneKeys) } catch { /* intentional ignore */ }
     try {
       if (window.ytInitialData && window.ytInitialData.contents &&
           window.ytInitialData.contents.twoColumnWatchNextResults) {
         pruneKeysDeep(window.ytInitialData.contents.twoColumnWatchNextResults, pruneKeys)
       }
-    } catch(_){}
+    } catch { /* intentional ignore */ }
   }, { once: true })
 
   function cacheGet(key) {
@@ -100,7 +100,7 @@ webFrame.executeJavaScript(`
 
   function pruneJsonKeys(text, keys) {
     if (!keys || !keys.length) return text
-    try { var o = JSON.parse(text); pruneKeysDeep(o, keys); return JSON.stringify(o) } catch(_){ return text }
+    try { var o = JSON.parse(text); pruneKeysDeep(o, keys); return JSON.stringify(o) } catch { return text }
   }
 
   function pruneKeysDeep(obj, keys) {
@@ -118,7 +118,7 @@ webFrame.executeJavaScript(`
   function applyRules(text, rules) {
     if (!rules || !rules.length) return text
     for (var i = 0; i < rules.length; i++) {
-      try { text = text.replace(new RegExp(rules[i].regex, rules[i].flags), rules[i].replacement) } catch(_){}
+      try { text = text.replace(new RegExp(rules[i].regex, rules[i].flags), rules[i].replacement) } catch { /* intentional ignore */ }
     }
     return text
   }
@@ -138,7 +138,7 @@ webFrame.executeJavaScript(`
     var origFetch = window.fetch
     window.fetch = function(input, init) {
       var url = ''
-      try { if (typeof input === 'string') url = input; else if (input && input.url) url = input.url } catch(_){}
+      try { if (typeof input === 'string') url = input; else if (input && input.url) url = input.url } catch { /* intentional ignore */ }
       if (!url || !shouldIntercept(url)) return origFetch.apply(this, arguments)
       var rp = getRules(url)
       return origFetch.apply(this, arguments).then(function(resp) {
@@ -152,11 +152,11 @@ webFrame.executeJavaScript(`
               if (rr.length) text = applyRules(text, rr)
               return new Response(text, { status: resp.status, statusText: resp.statusText, headers: resp.headers })
             }).catch(function(){ return resp })
-          } catch(_){ return resp }
+          } catch { return resp }
         })
       }).catch(function(){ return origFetch.apply(window, [input, init]) })
     }
-  } catch(_){}
+  } catch { /* intentional ignore */ }
 
   // Intercept XMLHttpRequest
   try {
@@ -164,14 +164,14 @@ webFrame.executeJavaScript(`
     var origOpen = OrigXHR.prototype.open
     var origSend = OrigXHR.prototype.send
     OrigXHR.prototype.open = function(method, url) {
-      try { this._abUrl = (typeof url === 'string') ? url : String(url) } catch(_){ this._abUrl = '' }
+      try { this._abUrl = (typeof url === 'string') ? url : String(url) } catch { this._abUrl = '' }
       this._abRules = null
-      try { return origOpen.apply(this, arguments) } catch(_){}
+      try { return origOpen.apply(this, arguments) } catch { /* intentional ignore */ }
     }
     OrigXHR.prototype.send = function() {
       var x = this, u = x._abUrl
       if (u && shouldIntercept(u)) getRules(u).then(function(r){ x._abRules = r })
-      try { return origSend.apply(this, arguments) } catch(_){}
+      try { return origSend.apply(this, arguments) } catch { /* intentional ignore */ }
     }
     try {
       var desc = Object.getOwnPropertyDescriptor(OrigXHR.prototype, 'responseText')
@@ -191,23 +191,23 @@ webFrame.executeJavaScript(`
                 return this._abMod
               }
               return t
-            } catch(_){ return '' }
+            } catch { return '' }
           },
           configurable: true
         })
       }
-    } catch(_){}
-  } catch(_){}
+    } catch { /* intentional ignore */ }
+  } catch { /* intentional ignore */ }
 
   // Forward mouse events to host so tab drag-and-drop works over this webview.
   // The webview's native window captures OS-level mouse events — they never reach
   // the renderer's document. Events dispatched on window fire on the isolated
   // world's proxy, which forwards them via sendToHost.
   document.addEventListener('mousemove', function(e) {
-    try { window.dispatchEvent(new CustomEvent('__vet_mouse', { detail: { type: 'move', x: e.clientX, y: e.clientY } })) } catch(_){}
+    try { window.dispatchEvent(new CustomEvent('__vet_mouse', { detail: { type: 'move', x: e.clientX, y: e.clientY } })) } catch { /* intentional ignore */ }
   }, { capture: true, passive: true })
   document.addEventListener('mouseup', function(e) {
-    try { window.dispatchEvent(new CustomEvent('__vet_mouse', { detail: { type: 'up', x: e.clientX, y: e.clientY, button: e.button } })) } catch(_){}
+    try { window.dispatchEvent(new CustomEvent('__vet_mouse', { detail: { type: 'up', x: e.clientX, y: e.clientY, button: e.button } })) } catch { /* intentional ignore */ }
   }, { capture: true })
 })()
 `);

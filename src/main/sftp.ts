@@ -303,7 +303,9 @@ export function initSftpManager() {
       try {
         const session = await getSftpSession(sshHostId);
         return new Promise((resolve, reject) => {
-          let targetPath = filePath;
+          const hashIdx = filePath.indexOf("#");
+          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
+          let targetPath = cleanPath;
           if (targetPath === "~" || targetPath.startsWith("~/")) {
             targetPath = targetPath.replace(/^~/, session.homeDir);
           }
@@ -339,7 +341,9 @@ export function initSftpManager() {
       try {
         const session = await getSftpSession(sshHostId);
         return new Promise((resolve, reject) => {
-          let targetPath = filePath;
+          const hashIdx = filePath.indexOf("#");
+          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
+          let targetPath = cleanPath;
           if (targetPath === "~" || targetPath.startsWith("~/")) {
             targetPath = targetPath.replace(/^~/, session.homeDir);
           }

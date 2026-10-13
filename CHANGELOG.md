@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-13
+
+### Security
+
+- **ReDoS Vulnerability in Browser Omnibox URL Resolution**:
+  - Replaced the nested-quantifier regular expression in `resolveUrl` (`BrowserView.tsx`) with a linear, non-backtracking domain pattern, preventing renderer process denial of service and freeze on spaced or malformed inputs.
+- **Docker CLI Flag Injection Hardened**:
+  - Added leading hyphen rejection and passed `--` end-of-options delimiters in `connections:docker-action` and `connections:docker-logs` to protect Docker CLI commands from flag injection attacks.
+- **SFTP Hash Fragment Sanitization**:
+  - Sanitized file paths in `sftp:read-file-head` and `sftp:write-file` by stripping `#` hash fragments (`#git-diff`, `#L<line>`), preventing remote `ENOENT` / `No such file` errors when virtual sub-views or editor tabs interact with remote files.
+- **Dependency Vulnerability Remediation**:
+  - Upgraded direct dependencies `dompurify` to `^3.4.17` and `electron` to `^43.7.10` to resolve DOM XSS and sandbox restriction bypass advisories.
+  - Pinned secure transitive dependency versions in package overrides for `brace-expansion` (`^5.0.12` and `^1.1.21`), `fast-uri` (`^3.1.8`), `undici` (`^7.30.0`), `nanoid` (`^3.3.20`), `source-map-js` (`^1.2.2`), `@xmldom/xmldom` (`^0.9.12`), `handlebars` (`^4.7.10`), `http-cache-semantics` (`^4.3.0`), `js-yaml` (`^4.3.2`), and `global-agent` (`^4.1.3`), bringing `npm audit` to 0 vulnerabilities.
+
+### Changed
+
+- **Package Management Cleanup**:
+  - Removed obsolete orphaned `pnpm-workspace.yaml` from workspace root in strict compliance with the workspace `npm` invariant.
+  - Added `electron@43.7.10` to `allowScripts` in `package.json` to ensure automated binary download and lifecycle script execution during clean installs.
+- **Type Safety and Preload API**:
+  - Replaced loose `options?: any` in `workspaceApi.searchFileContents` with an explicit `FileContentSearchOptions` interface in `types.d.ts` and `preload/index.ts`.
+- **Preload Script Formatting**:
+  - Standardized empty catch blocks in `preload/browser.ts` to follow workspace catch formatting conventions.
+
 ## [1.5.0] - 2026-08-15
 
 ### Added

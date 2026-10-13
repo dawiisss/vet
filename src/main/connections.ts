@@ -145,11 +145,16 @@ export function initConnectionsManager() {
       action: "start" | "stop" | "restart" | "rm",
     ): Promise<{ success: boolean; error?: string }> => {
       if (!isTrustedSender(event)) return { success: false, error: "Access denied" };
-      if (typeof target !== "string" || !["start", "stop", "restart", "rm"].includes(action)) {
+      if (
+        typeof target !== "string" ||
+        !target.trim() ||
+        target.startsWith("-") ||
+        !["start", "stop", "restart", "rm"].includes(action)
+      ) {
         return { success: false, error: "Invalid parameters" };
       }
       try {
-        await execFileAsync("docker", [action, target]);
+        await execFileAsync("docker", [action, "--", target]);
         return { success: true };
       } catch (err: unknown) {
         const e = err as { stderr?: string; message?: string };
@@ -162,12 +167,13 @@ export function initConnectionsManager() {
     "connections:docker-logs",
     async (event, target: string, tail: number = 100): Promise<string> => {
       if (!isTrustedSender(event)) return "";
-      if (typeof target !== "string") return "";
+      if (typeof target !== "string" || !target.trim() || target.startsWith("-")) return "";
       try {
         const { stdout, stderr } = await execFileAsync("docker", [
           "logs",
           "--tail",
           String(Math.min(1000, Math.max(10, tail))),
+          "--",
           target,
         ]);
         return stdout || stderr || "";

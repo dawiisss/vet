@@ -138,7 +138,11 @@ const workspaceApi = {
   listDir: (dirPath: string) => invoke<WorkspaceItem[]>("workspace:list-dir")(dirPath),
   searchFiles: (dirPath: string, query: string) =>
     invoke<Array<{ relativePath: string; absolutePath: string }>>("workspace:search-files")(dirPath, query),
-  searchFileContents: (dirPath: string, query: string, options?: any) =>
+  searchFileContents: (
+    dirPath: string,
+    query: string,
+    options?: FileContentSearchOptions | undefined,
+  ) =>
     invoke<FileContentMatch[]>("workspace:search-file-contents")(dirPath, query, options),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>

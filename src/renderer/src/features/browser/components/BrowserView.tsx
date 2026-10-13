@@ -18,27 +18,24 @@ interface BrowserViewProps {
   onContextMenuAction?: ((action: "split-h" | "split-v" | "close") => void) | undefined;
 }
 
-function resolveUrl(
+export function resolveUrl(
   input: string,
   defaultSearchEngine: "duckduckgo" | "google" | "bing",
 ): string {
   const trimmed = input.trim();
 
-  // Basic URL regex (detects absolute URLs, domains like google.com, or localhost)
-  const isUrlPattern =
-    new RegExp(
-      "^(https?:\\/\\/)?([\\da-z.-]+)\\.([a-z.]{2,6})([\\/\\w .-]*)*\\/?$",
-      "i",
-    ).test(trimmed) ||
-    trimmed.startsWith("localhost:") ||
-    trimmed.startsWith("http://localhost") ||
-    /^file:\/\/\//.test(trimmed);
-
-  if (isUrlPattern) {
-    if (!/^https?:\/\//i.test(trimmed) && !/^file:\/\/\//i.test(trimmed)) {
-      return `https://${trimmed}`;
-    }
+  // Explicit protocols, localhost, and file URLs
+  if (/^https?:\/\//i.test(trimmed) || /^file:\/\/\//i.test(trimmed)) {
     return trimmed;
+  }
+  if (trimmed.startsWith("localhost:") || trimmed === "localhost") {
+    return `http://${trimmed}`;
+  }
+
+  // Linear domain check: domain.tld with optional port and optional path (without nested quantifiers)
+  const isDomainPattern = /^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(:\d+)?(\/[^\s]*)?$/;
+  if (isDomainPattern.test(trimmed)) {
+    return `https://${trimmed}`;
   }
 
   // Treat as search query
