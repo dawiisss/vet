@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dawiisss/vet?color=blue&logo=github)](https://github.com/dawiisss/vet/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg?logo=node.js&logoColor=white)](https://nodejs.org)
-[![Electron Version](https://img.shields.io/badge/electron-%5E43.3.0-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
+[![Electron Version](https://img.shields.io/badge/electron-%5E43.7.10-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
 [![React Version](https://img.shields.io/badge/react-%5E19.0.0-61dafb?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript Version](https://img.shields.io/badge/typescript-%5E5.7.0-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Adblock Engine](https://img.shields.io/badge/adblocker-ghostery-brightgreen.svg?logo=ghostery)](https://github.com/ghostery/adblocker)
@@ -75,7 +75,7 @@ Customize your terminal layout dynamically. Split panes vertically or horizontal
 Ditch standalone SSH managers. Vet includes a secure connection manager allowing you to configure SSH profiles, launch remote terminal sessions, and use the integrated SFTP panel to upload and download files.
 
 ### 4. Sandboxed Web Browser with Ghostery Adblocker
-Search developer documentation, Stack Overflow, or local web servers directly inside Vet. The webview browser runs with a dedicated minimal preload shim (`preload/browser.js`), isolating guest web content from main-process system APIs. Equipped with a Ghostery-powered adblocker that blocks tracking scripts, cookie popups, and ads automatically. Supports in-page text searching (`Ctrl+F` search overlay with match counters) and developer tools inspection (`F12` or the toolbar button `</>`).
+Search developer documentation, Stack Overflow, or local web servers directly inside Vet. The webview browser runs with a dedicated minimal preload shim (`preload/browser.js`), isolating guest web content from main-process system APIs. Features safe, ReDoS-resistant omnibox URL resolution, in-page text searching (`Ctrl+F` search overlay with match counters), developer tools inspection (`F12` or the toolbar button `</>`), and an adblocker that blocks tracking scripts, cookie popups, and ads automatically.
 
 ### 5. Developer Sidebar and Customization
 Stay updated on your environment. The developer sidebar provides a clipboards cache, a snippets manager, a live system diagnostics panel, an active network ports inspector, a script launcher, and a unified terminal/browser **History Panel**. Customize the sidebar by dragging tabs to reorder them or right-clicking to enable and disable specific panels.
@@ -130,15 +130,15 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.5.0_amd64.deb
+  sudo apt install ./dist/vet_1.5.1_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.5.0.x86_64.rpm
+  sudo dnf install ./dist/vet-1.5.1.x86_64.rpm
   ```
 * **Arch Linux (`.pacman`)**:
   ```bash
-  sudo pacman -U ./dist/vet-1.5.0.pacman
+  sudo pacman -U ./dist/vet-1.5.1.pacman
   ```
 * **Arch Linux via AUR (`vet-bin`)**:
   ```bash
@@ -148,8 +148,8 @@ Download distribution-specific binaries from the GitHub releases page:
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.5.0.AppImage
-  ./dist/Vet-1.5.0.AppImage
+  chmod +x dist/Vet-1.5.1.AppImage
+  ./dist/Vet-1.5.1.AppImage
   ```
 
 Running `install.sh` again checks the installed package type and updates it in

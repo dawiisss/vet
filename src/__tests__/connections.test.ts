@@ -179,5 +179,43 @@ Host realserver
       expect(result[0].state).toBe("running");
       expect(result[0].ports).toBe("0.0.0.0:80->80/tcp");
     });
+
+    it("executes docker-action with '--' delimiter and rejects flag targets", async () => {
+      const calls = (ipcMain.handle as jest.Mock).mock.calls;
+      const actionHandler = calls.find((c: string[]) => c[0] === "connections:docker-action")?.[1];
+
+      // Rejects flag target starting with dash
+      const invalidResult = await actionHandler({ sender: {} }, "-f", "rm");
+      expect(invalidResult).toEqual({ success: false, error: "Invalid parameters" });
+
+      // Valid target executes with '--'
+      mockExecCallback("");
+      const validResult = await actionHandler({ sender: {} }, "my-container", "start");
+      expect(validResult).toEqual({ success: true });
+      expect(execFileMock).toHaveBeenCalledWith(
+        "docker",
+        ["start", "--", "my-container"],
+        expect.any(Function),
+      );
+    });
+
+    it("executes docker-logs with '--' delimiter and rejects flag targets", async () => {
+      const calls = (ipcMain.handle as jest.Mock).mock.calls;
+      const logsHandler = calls.find((c: string[]) => c[0] === "connections:docker-logs")?.[1];
+
+      // Rejects flag target
+      const invalidResult = await logsHandler({ sender: {} }, "--all");
+      expect(invalidResult).toBe("");
+
+      // Valid target passes '--'
+      mockExecCallback("container logs output");
+      const validResult = await logsHandler({ sender: {} }, "my-container", 50);
+      expect(validResult).toBe("container logs output");
+      expect(execFileMock).toHaveBeenCalledWith(
+        "docker",
+        ["logs", "--tail", "50", "--", "my-container"],
+        expect.any(Function),
+      );
+    });
   });
 });
