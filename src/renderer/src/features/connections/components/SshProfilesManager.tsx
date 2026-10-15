@@ -20,6 +20,8 @@ export const SshProfilesManager: React.FC = () => {
   const [editPassword, setEditPassword] = useState("");
   const [editKeyPath, setEditKeyPath] = useState("");
   const [editPassphrase, setEditPassphrase] = useState("");
+  const [hasSavedPassword, setHasSavedPassword] = useState(false);
+  const [hasSavedPassphrase, setHasSavedPassphrase] = useState(false);
 
   const [isEditingNew, setIsEditingNew] = useState(false);
 
@@ -30,9 +32,13 @@ export const SshProfilesManager: React.FC = () => {
     setEditPort(String(h.port || 22));
     setEditUser(h.username || "");
     setEditAuthType(h.authType || "password");
-    setEditPassword(h.password || "");
+    const isPassRedacted = h.password === "__redacted__";
+    const isPassphraseRedacted = h.passphrase === "__redacted__";
+    setHasSavedPassword(isPassRedacted);
+    setHasSavedPassphrase(isPassphraseRedacted);
+    setEditPassword(isPassRedacted ? "" : (h.password || ""));
     setEditKeyPath(h.privateKeyPath || "");
-    setEditPassphrase(h.passphrase || "");
+    setEditPassphrase(isPassphraseRedacted ? "" : (h.passphrase || ""));
     setIsEditingNew(false);
   };
 
@@ -43,6 +49,8 @@ export const SshProfilesManager: React.FC = () => {
     setEditPort("22");
     setEditUser("");
     setEditAuthType("password");
+    setHasSavedPassword(false);
+    setHasSavedPassphrase(false);
     setEditPassword("");
     setEditKeyPath("~/.ssh/id_rsa");
     setEditPassphrase("");
@@ -69,9 +77,15 @@ export const SshProfilesManager: React.FC = () => {
       port: parseInt(editPort) || 22,
       username: editUser.trim(),
       authType: editAuthType,
-      password: editAuthType === "password" ? editPassword : "",
+      password:
+        editAuthType === "password"
+          ? editPassword || (hasSavedPassword ? "__redacted__" : "")
+          : "",
       privateKeyPath: editAuthType === "key" ? editKeyPath.trim() : "",
-      passphrase: editAuthType === "key" ? editPassphrase : "",
+      passphrase:
+        editAuthType === "key"
+          ? editPassphrase || (hasSavedPassphrase ? "__redacted__" : "")
+          : "",
     };
 
     if (isEditingNew) {
@@ -357,7 +371,14 @@ export const SshProfilesManager: React.FC = () => {
             <input
               type="password"
               value={editPassword}
-              onChange={(e) => setEditPassword(e.target.value)}
+              onChange={(e) => {
+                setEditPassword(e.target.value);
+                if (e.target.value) setHasSavedPassword(false);
+              }}
+              onFocus={() => {
+                if (editPassword === "__redacted__") setEditPassword("");
+              }}
+              placeholder={hasSavedPassword ? "•••••••• (saved)" : ""}
               style={{
                 background: "rgba(0,0,0,0.2)",
                 border: "1px solid rgba(255,255,255,0.1)",
@@ -401,7 +422,14 @@ export const SshProfilesManager: React.FC = () => {
               <input
                 type="password"
                 value={editPassphrase}
-                onChange={(e) => setEditPassphrase(e.target.value)}
+                onChange={(e) => {
+                  setEditPassphrase(e.target.value);
+                  if (e.target.value) setHasSavedPassphrase(false);
+                }}
+                onFocus={() => {
+                  if (editPassphrase === "__redacted__") setEditPassphrase("");
+                }}
+                placeholder={hasSavedPassphrase ? "•••••••• (saved)" : ""}
                 style={{
                   background: "rgba(0,0,0,0.2)",
                   border: "1px solid rgba(255,255,255,0.1)",

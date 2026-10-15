@@ -9,6 +9,7 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import { parse } from "tldts-experimental";
 import { getConfig } from "./config";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 let blocker: ElectronBlocker | null = null;
 let adblockerPromise: Promise<void> | null = null;
@@ -107,7 +108,8 @@ export function registerAdblockerIpcHandlers(
     }
   });
 
-  ipcMain.handle("adblocker:toggle", async (_, enabled: boolean) => {
+  ipcMain.handle("adblocker:toggle", async (event, enabled: boolean) => {
+    if (!isTrustedSender(event)) return false;
     isAdblockEnabled = enabled;
     if (enabled) {
       await enableAdblocker();
@@ -117,16 +119,19 @@ export function registerAdblockerIpcHandlers(
     return isAdblockEnabled;
   });
 
-  ipcMain.handle("adblocker:get-stats", (_, webContentsId: number) => {
+  ipcMain.handle("adblocker:get-stats", (event, webContentsId: number) => {
+    if (!isTrustedSender(event)) return 0;
     return blockedCounts.get(String(webContentsId)) || 0;
   });
 
-  ipcMain.handle("adblocker:clear-stats", (_, webContentsId: number) => {
+  ipcMain.handle("adblocker:clear-stats", (event, webContentsId: number) => {
+    if (!isTrustedSender(event)) return 0;
     blockedCounts.delete(String(webContentsId));
     return 0;
   });
 
-  ipcMain.handle("adblocker:get-app-preload-path", () => {
+  ipcMain.handle("adblocker:get-app-preload-path", (event) => {
+    if (!isTrustedSender(event)) return "";
     // Dedicated browser-only preload shim — NEVER the full app preload.
     // The full preload exposes terminal/workspace/config/sftp APIs to guest pages.
     return `file://${join(__dirname, "../preload/browser.js")}`;

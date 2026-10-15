@@ -3,6 +3,7 @@ import { join } from "path";
 import { promises as fs } from "fs";
 import { existsSync, mkdirSync } from "fs";
 import { getConfig } from "./config";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 const CONFIG_DIR = join(app.getPath("home"), ".config", "vet");
 const CLIPBOARD_FILE = join(CONFIG_DIR, "clipboard-history.json");
@@ -22,13 +23,15 @@ export function initClipboardHistoryManager() {
     }
   }
 
-  ipcMain.handle("clipboard:get-history", async () => {
+  ipcMain.handle("clipboard:get-history", async (event) => {
+    if (!isTrustedSender(event)) return [];
     return await loadHistory();
   });
 
   ipcMain.handle(
     "clipboard:set-history",
-    async (_event, items: ClipboardItem[]) => {
+    async (event, items: ClipboardItem[]) => {
+      if (!isTrustedSender(event)) return;
       await saveHistory(items);
     },
   );

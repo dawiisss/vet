@@ -189,7 +189,7 @@ describe("WorkspacePanel Details", () => {
 
     expect(terminalApi.write).toHaveBeenCalledWith(
       "term-1",
-      'cd "/home/user/test-folder"\r',
+      "cd -- '/home/user/test-folder'\r",
     );
   });
 
@@ -221,7 +221,7 @@ describe("WorkspacePanel Details", () => {
 
     expect(terminalApi.write).toHaveBeenCalledWith(
       "term-1",
-      'cd "/home/user"\r',
+      "cd -- '/home/user'\r",
     );
   });
 

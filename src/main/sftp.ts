@@ -201,28 +201,21 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
           return safeReject(err);
         }
 
-        // Get home dir
-        client.exec("pwd", (err, stream) => {
-          let homeDir = "/";
-          if (err) {
-            cleanupTempPassword();
-            const session = { client, sftp, homeDir };
-            sftpSessions.set(sshHostId, session);
-            setupEviction();
-            safeResolve(session);
-            return;
-          }
-          let data = "";
-          stream.on("data", (chunk: Buffer) => (data += chunk.toString()));
-          stream.on("close", () => {
-            cleanupTempPassword();
-            homeDir = data.trim() || "/";
-            const session = { client, sftp, homeDir };
-            sftpSessions.set(sshHostId, session);
-            setupEviction();
-            safeResolve(session);
-          });
-        });
+        // Get home dir via sftp.realpath
+        const onRealpath = (err: any, absPath?: string) => {
+          cleanupTempPassword();
+          const homeDir = !err && absPath ? absPath.trim() || "/" : "/";
+          const session = { client, sftp, homeDir };
+          sftpSessions.set(sshHostId, session);
+          setupEviction();
+          safeResolve(session);
+        };
+
+        if (typeof sftp.realpath === "function") {
+          sftp.realpath(".", onRealpath);
+        } else {
+          onRealpath(null, "/");
+        }
       });
     });
     client.on("error", (err) => {
@@ -326,6 +319,41 @@ export function initSftpManager() {
                 resolve(buffer.toString("utf8", 0, bytesRead));
               },
             );
+          });
+        });
+      } catch (err: any) {
+        return { __ipcError: true, message: err.message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "sftp:read-file",
+    async (event, sshHostId: string, filePath: string) => {
+      if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
+      try {
+        const session = await getSftpSession(sshHostId);
+        return new Promise((resolve, reject) => {
+          const hashIdx = filePath.indexOf("#");
+          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
+          let targetPath = cleanPath;
+          if (targetPath === "~" || targetPath.startsWith("~/")) {
+            targetPath = targetPath.replace(/^~/, session.homeDir);
+          }
+
+          session.sftp.stat(targetPath, (err, stats) => {
+            if (err) return reject(err);
+            if (stats.size > 10 * 1024 * 1024) {
+              return resolve({
+                __ipcError: true,
+                message: "File exceeds maximum editable size (10 MB)",
+              });
+            }
+
+            session.sftp.readFile(targetPath, "utf8", (err, content) => {
+              if (err) return reject(err);
+              resolve(typeof content === "string" ? content : content.toString("utf8"));
+            });
           });
         });
       } catch (err: any) {

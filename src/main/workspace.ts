@@ -40,6 +40,10 @@ function logSensitivePathAccess(resolvedPath: string): void {
     path.join(homeDir, ".gnupg"),
     path.join(homeDir, ".aws"),
     path.join(homeDir, ".config", "vet"),
+    path.join(homeDir, ".bashrc"),
+    path.join(homeDir, ".zshrc"),
+    path.join(homeDir, ".profile"),
+    path.join(homeDir, ".bash_profile"),
   ];
 
   for (const sp of sensitivePaths) {
@@ -57,6 +61,10 @@ function isSensitiveWritePath(resolvedPath: string): boolean {
     path.join(homeDir, ".gnupg"),
     path.join(homeDir, ".aws"),
     path.join(homeDir, ".config", "vet"),
+    path.join(homeDir, ".bashrc"),
+    path.join(homeDir, ".zshrc"),
+    path.join(homeDir, ".profile"),
+    path.join(homeDir, ".bash_profile"),
   ];
 
   return sensitivePaths.some(
@@ -505,6 +513,26 @@ class WorkspaceService {
     }
   }
 
+  async readFile(filePath: string) {
+    try {
+      const hashIdx = filePath.indexOf('#');
+      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
+      const targetPath = path.resolve(expandHome(cleanPath));
+
+      logSensitivePathAccess(targetPath);
+
+      const stat = await fs.stat(targetPath);
+      if (stat.size > MAX_FILE_WRITE_BYTES) {
+        return { __ipcError: true, message: "File exceeds maximum editable size (10 MB)" };
+      }
+
+      return await fs.readFile(targetPath, "utf8");
+    } catch (err: unknown) {
+      console.error(`Failed to read file: ${filePath}`, err);
+      return { __ipcError: true, message: (err as Error).message };
+    }
+  }
+
   async writeFile(filePath: string, content: string) {
     try {
       const hashIdx = filePath.indexOf('#');
@@ -753,6 +781,9 @@ class WorkspaceService {
 
   async gitCheckout(cwd: string, branch: string) {
     try {
+      if (!branch || branch.startsWith("-")) {
+        return { success: false, error: "Invalid branch name" };
+      }
       const targetDir = path.resolve(expandHome(cwd));
       const { stdout } = await execFileAsync("git", ["checkout", branch], { cwd: targetDir });
       return { success: true, output: stdout.trim() };
@@ -764,10 +795,11 @@ class WorkspaceService {
 
   async getGitLog(cwd: string, limit: number = 20) {
     try {
+      const safeLimit = Math.min(500, Math.max(1, Math.floor(Number(limit) || 20)));
       const targetDir = path.resolve(expandHome(cwd));
       const { stdout } = await execFileAsync(
         "git",
-        ["log", `-n${limit}`, "--format=%H%x00%an%x00%ar%x00%s"],
+        ["log", `-n${safeLimit}`, "--format=%H%x00%an%x00%ar%x00%s"],
         { cwd: targetDir }
       );
       const commits: Array<{ hash: string; author: string; date: string; message: string }> = [];
@@ -829,7 +861,7 @@ if [ -z "$1" ]; then
   echo "Usage: e <filename>"
   exit 1
 fi
-FILE_PATH=$(realpath "$1")
+FILE_PATH=$(realpath -m -- "$1" 2>/dev/null || readlink -f -- "$1")
 printf "\\033]999;edit;%s\\007" "$FILE_PATH"
 `;
         await fs.writeFile(editScriptPath, scriptContent, "utf8");
@@ -911,6 +943,17 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     return workspaceService.readFileHead(filePath);
   });
 
+  ipcMain.handle("workspace:read-file", async (event, filePath: string) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked workspace:read-file from untrusted sender");
+      return { __ipcError: true, message: "Access denied" };
+    }
+    if (!nonEmptyPathInput(filePath)) {
+      return { __ipcError: true, message: "Invalid path" };
+    }
+    return workspaceService.readFile(filePath);
+  });
+
   ipcMain.handle("workspace:write-file", async (event, filePath: string, content: string) => {
     if (!isTrustedSender(event)) {
       console.warn("[security] Blocked workspace:write-file from untrusted sender");
@@ -922,8 +965,19 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     const hashIdx = filePath.indexOf('#');
     const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
     const resolvedWritePath = path.resolve(expandHome(cleanPath));
-    if (isSensitiveWritePath(resolvedWritePath)) {
-      console.warn(`[security] Blocked write to sensitive path: ${resolvedWritePath}`);
+    let realTarget = resolvedWritePath;
+    if (typeof fs.realpath === "function") {
+      try {
+        realTarget = await fs.realpath(resolvedWritePath);
+      } catch {
+        try {
+          const realParent = await fs.realpath(path.dirname(resolvedWritePath));
+          realTarget = path.join(realParent, path.basename(resolvedWritePath));
+        } catch { /* intentional ignore */ }
+      }
+    }
+    if (isSensitiveWritePath(realTarget) || isSensitiveWritePath(resolvedWritePath)) {
+      console.warn(`[security] Blocked write to sensitive path: ${realTarget}`);
       return { __ipcError: true, message: "Access denied: sensitive path" };
     }
     return workspaceService.writeFile(filePath, content);
@@ -1021,7 +1075,7 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
       console.warn("[security] Blocked workspace:git-checkout from untrusted sender");
       return { success: false, error: "Access denied" };
     }
-    if (!validPathInput(cwd) || typeof branch !== "string") {
+    if (!validPathInput(cwd) || typeof branch !== "string" || branch.startsWith("-")) {
       return { success: false, error: "Invalid parameters" };
     }
     return workspaceService.gitCheckout(cwd, branch);

@@ -1,7 +1,7 @@
 {
   "name": "vet",
   "desktopName": "vet.desktop",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A feature-rich terminal emulator",
   "author": "Vet Team <vet@route2place.com>",
   "license": "MIT",
@@ -95,7 +95,7 @@
     "dompurify": "^3.4.17",
     "electron-updater": "^6.8.9",
     "json5": "^2.2.3",
-    "node-pty": "^1.0.0",
+    "node-pty": "^1.1.0",
     "ssh2": "^1.17.0",
     "tldts-experimental": "^7.4.10",
     "zustand": "^5.0.14"

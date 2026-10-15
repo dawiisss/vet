@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
+import { useTabStore } from "../useTabStore";
 import ContextMenu from "@/shared/components/ContextMenu";
 
 interface TabBarTab {
@@ -151,9 +152,11 @@ function TabBar({
 
         if (targetTabId && targetTabId !== drag.tabId && onReorderTabRef.current) {
           onReorderTabRef.current(drag.tabId, targetTabId);
+          onDragEndRef.current?.(drag.tabId, e.clientX, e.clientY);
         } else if (onDragEndRef.current) {
           onDragEndRef.current(drag.tabId, e.clientX, e.clientY);
         }
+        useTabStore.getState().setDragState(null);
       }
 
       setDropTargetTabId(null);

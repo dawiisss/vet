@@ -2,7 +2,7 @@
 
 # Vet (Very Easy Terminal) installer script for Linux systems.
 # Designed to be fetched and executed directly:
-# curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/dev/install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/dawiisss/vet/main/install.sh | bash
 
 set -e
 
@@ -18,7 +18,7 @@ echo -e "${BLUE}=== Vet (Very Easy Terminal) installer ===${NC}"
 # Define repository metadata
 REPO_OWNER="dawiisss"
 REPO_NAME="vet"
-FALLBACK_VERSION="1.5.1"
+FALLBACK_VERSION="1.5.2"
 
 # 1. Fetch latest release version from GitHub API
 echo -e "Checking latest release version..."
@@ -202,13 +202,27 @@ if [ "$IS_DEB" = true ]; then
     else
       echo -e "${BLUE}Installing Debian package...${NC}"
     fi
+    deb_success=false
     if command -v apt &> /dev/null; then
-      sudo apt install -y "$DEB_FILE"
+      if sudo apt install -y "$DEB_FILE"; then
+        deb_success=true
+      fi
     else
-      sudo dpkg -i "$DEB_FILE" || sudo apt-get install -f -y
+      if sudo dpkg -i "$DEB_FILE" || sudo apt-get install -f -y; then
+        deb_success=true
+      fi
     fi
-    echo -e "${GREEN}Vet has been installed or updated successfully via APT.${NC}"
-    installed=true
+
+    if [ "$deb_success" = true ]; then
+      echo -e "${GREEN}Vet has been installed or updated successfully via APT.${NC}"
+      installed=true
+    else
+      if [ "$PACKAGE_SOURCE" = "deb" ]; then
+        echo -e "${RED}Error: Debian package update failed; the existing installation was not changed.${NC}"
+        exit 1
+      fi
+      echo -e "${YELLOW}Debian package installation failed. Falling back to AppImage...${NC}"
+    fi
   else
     if [ "$PACKAGE_SOURCE" = "deb" ]; then
       echo -e "${RED}Error: Could not download the latest Debian package; the existing installation was not changed.${NC}"

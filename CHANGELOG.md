@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-15
+
+### Security
+
+- **IPC Sender Verification Hardening**:
+  - Enforced `isTrustedSender(event)` across all registered IPC channels (`window`, `history`, `updater`, `config`, `session`, `clipboard`, `sysinfo`, and `adblocker`), preventing unauthorized invocation from webview guest contexts.
+- **Sensitive Path and Symlink Protection**:
+  - Added user startup scripts (`.bashrc`, `.zshrc`, `.profile`, `.bash_profile`) to restricted paths in `workspace:write-file`.
+  - Added realpath resolution to prevent symlink traversal write attacks into sensitive directories.
+- **Command and Flag Injection Prevention**:
+  - Added `--` end-of-options delimiters and flag validation to `gitCheckout`, SSH connections (`sshPty`), and directory navigation commands (`cd -- '...'`).
+  - Filtered wildcards and flag-like names from SSH host profiles.
+  - Replaced shell execution `client.exec("pwd")` in SFTP with native `sftp.realpath` directory resolution.
+
+### Added
+
+- **Full-File Reading for Built-in Editor**:
+  - Added `workspace:read-file` and `sftp:read-file` IPC APIs with 10 MB limits and path hash stripping, eliminating the 50 KB truncation limitation when editing large local or remote files.
+- **Theme Editor Accent Color Support**:
+  - Added `accent` to editable Core Colors, hex color validation for native color picker inputs, and full hyphen replacement in theme labels.
+- **Docker Shell Configuration**:
+  - Supported configuring the default shell for interactive container sessions via `config.dockerDefaultShell`.
+
+### Fixed
+
+- **Tab Drag State and Split Context Menu**:
+  - Fixed stuck `dragState` during tab reordering and eliminated duplicate reorder event processing.
+  - Forwarded context menu actions in split containers so right-click actions work consistently across nested splits.
+- **Split and Session State Preservation**:
+  - Preserved active URLs when unsplitting browser tabs or merging tabs as splits.
+  - Preserved editor file paths and remote SSH host IDs when merging editor tabs into split layouts.
+  - Ensured resilient fallback and prevented orphan terminal references when restoring sessions or layout profiles.
+- **Script Runner Active Directory Tracking**:
+  - Resolved the active terminal's current working directory dynamically so runnable scripts are detected for the active pane rather than only the workspace root.
+- **SSH Credential Masking and Preservation**:
+  - Masked saved SSH passwords and passphrases with placeholder text and prevented accidental overwrite or corruption of redacted credentials upon saving.
+- **Browser Adblock Sync and Window Broadcasting**:
+  - Synced browser view adblocker toggle actions with `config.browserAdblockEnabled` and broadcasted configuration updates to all open windows.
+- **Installer Debian Fallback**:
+  - Handled Debian package installation failures gracefully under `set -e` in `install.sh` by falling back to the AppImage.
+
+### Changed
+
+- **Dependency Alignment**:
+  - Aligned `node-pty` to `^1.1.0` in `package.json` to match package lock and allowScripts definitions.
+
 ## [1.5.1] - 2026-10-13
 
 ### Security

@@ -8,7 +8,6 @@ import type { DropZone } from "./useTabStore";
 export function useTabDrag() {
   const dragState = useTabStore((s) => s.dragState);
   const setDragState = useTabStore((s) => s.setDragState);
-  const setTabs = useTabStore((s) => s.setTabs);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const detachTab = useTabStore((s) => s.detachTab);
   const mergeTabAsSplit = useTabStore((s) => s.mergeTabAsSplit);
@@ -52,24 +51,11 @@ export function useTabDrag() {
   ) => {
     setDragState(null);
 
-    // Check if dropped onto another tab for reordering
+    // If dropped onto a tab, reordering was already handled by TabBar
     const elements = document.elementsFromPoint(x, y);
     const tabItem = elements.find((el) => el.classList.contains("tab-item"));
 
     if (tabItem) {
-      const targetTabId = (tabItem as HTMLElement).dataset.tabid;
-      if (targetTabId && targetTabId !== tabId) {
-        setTabs((prevTabs) => {
-          const newTabs = [...prevTabs];
-          const sourceIndex = newTabs.findIndex((t) => t.id === tabId);
-          const targetIndex = newTabs.findIndex((t) => t.id === targetTabId);
-          if (sourceIndex > -1 && targetIndex > -1) {
-            const [moved] = newTabs.splice(sourceIndex, 1);
-            newTabs.splice(targetIndex, 0, moved!);
-          }
-          return newTabs;
-        });
-      }
       return;
     }
 

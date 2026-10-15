@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Panel from "@/shared/components/Panel";
+import { useConfig } from "@/features/settings/useConfigStore";
 
 export default function DockerPanel({
   isActive,
@@ -8,6 +9,7 @@ export default function DockerPanel({
   isActive: boolean;
   onRunScript: (cmd: string, cwd: string) => void;
 }) {
+  const { config } = useConfig();
   const [activeSubTab, setActiveSubTab] = useState<"containers" | "images">("containers");
   const [containers, setContainers] = useState<DockerContainerDetailed[]>([]);
   const [images, setImages] = useState<DockerImageInfo[]>([]);
@@ -77,7 +79,8 @@ export default function DockerPanel({
   };
 
   const handleExec = (name: string) => {
-    onRunScript(`docker exec -it ${name} /bin/bash`, "");
+    const shell = config.dockerDefaultShell || "/bin/bash";
+    onRunScript(`docker exec -it ${name} ${shell}`, "");
   };
 
   const parsePortLinks = (portsStr: string) => {

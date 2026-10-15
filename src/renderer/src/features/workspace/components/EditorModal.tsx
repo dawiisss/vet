@@ -74,8 +74,8 @@ export const EditorModal: React.FC<EditorModalProps> = ({
     }
 
     const readPromise = sshHostId
-      ? window.sftpApi.readFileHead(sshHostId, filePath)
-      : window.workspaceApi.readFileHead(filePath);
+      ? window.sftpApi.readFile(sshHostId, filePath)
+      : window.workspaceApi.readFile(filePath);
 
     readPromise
       .then((data) => {

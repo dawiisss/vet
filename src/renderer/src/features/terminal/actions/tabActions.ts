@@ -134,10 +134,16 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
         return { terminalId: newId };
       } catch (err) {
         console.error("Failed to recreate terminal node", err);
-        return node;
+        throw err;
       }
     } else if (node.browserId) {
       return { browserId: node.browserId, url: node.url };
+    } else if (node.editorId) {
+      return {
+        editorId: node.editorId,
+        filePath: node.filePath,
+        sshHostId: node.sshHostId,
+      };
     } else if (node.children) {
       const newChildren = await Promise.all(
         node.children.map((child: any) => recreateTerminalNodes(child))
@@ -264,10 +270,16 @@ export async function loadProfileStateAction(set: any, get: any, profileState: a
         return { terminalId: newId };
       } catch (err) {
         console.error("Failed to recreate terminal node", err);
-        return node;
+        throw err;
       }
     } else if (node.browserId) {
       return { browserId: node.browserId, url: node.url };
+    } else if (node.editorId) {
+      return {
+        editorId: node.editorId,
+        filePath: node.filePath,
+        sshHostId: node.sshHostId,
+      };
     } else if (node.children) {
       const newChildren = await Promise.all(
         node.children.map((child: any) => recreateTerminalNodes(child))
@@ -324,6 +336,17 @@ export async function loadProfileStateAction(set: any, get: any, profileState: a
       return;
     } catch (err) {
       console.error("Error restoring profile, falling back", err);
+      try {
+        const { id } = await api.create();
+        const tabId = get().generateTabId();
+        set({
+          tabs: [get().newTabState(tabId, id, "shell 1")],
+          activeTabId: tabId,
+          tabActivationOrder: [tabId],
+        });
+      } catch (fallbackErr) {
+        console.error("Failed to create fallback terminal after profile error", fallbackErr);
+      }
     }
   }
 }

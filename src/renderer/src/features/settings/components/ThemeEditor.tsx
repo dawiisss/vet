@@ -189,6 +189,7 @@ export const ThemeEditor: React.FC = () => {
             {[
               "background",
               "foreground",
+              "accent",
               "cursor",
               "cursorAccent",
               "selection",
@@ -213,7 +214,11 @@ export const ThemeEditor: React.FC = () => {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
                     type="color"
-                    value={draftTheme[key]}
+                    value={
+                      /^#[0-9a-fA-F]{6}$/.test(draftTheme[key])
+                        ? draftTheme[key]
+                        : "#000000"
+                    }
                     onChange={(e) =>
                       setDraftTheme({ ...draftTheme, [key]: e.target.value })
                     }
@@ -358,7 +363,11 @@ export const ThemeEditor: React.FC = () => {
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <input
                     type="color"
-                    value={draftTheme[key]}
+                    value={
+                      /^#[0-9a-fA-F]{6}$/.test(draftTheme[key])
+                        ? draftTheme[key]
+                        : "#000000"
+                    }
                     onChange={(e) =>
                       setDraftTheme({ ...draftTheme, [key]: e.target.value })
                     }
@@ -459,7 +468,7 @@ export const ThemeEditor: React.FC = () => {
                   textTransform: "capitalize",
                 }}
               >
-                {themeName.replace("-", " ")}
+                {themeName.replace(/-/g, " ")}
               </span>
               {isCustom && (
                 <span

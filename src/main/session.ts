@@ -20,11 +20,13 @@ export function initSessionManager() {
     }
   }
 
-  ipcMain.handle("session:save", async (_event, state: any) => {
+  ipcMain.handle("session:save", async (event, state: any) => {
+    if (!isTrustedSender(event)) return;
     sessionState = state;
   });
 
-  ipcMain.handle("session:get", async () => {
+  ipcMain.handle("session:get", async (event) => {
+    if (!isTrustedSender(event)) return null;
     return await getSessionData();
   });
 
