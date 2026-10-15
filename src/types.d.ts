@@ -259,6 +259,7 @@ interface WorkspaceApi {
   ) => Promise<FileContentMatch[]>;
   revealPath: (itemPath: string) => Promise<void>;
   readFileHead: (filePath: string) => Promise<string>;
+  readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<void>;
   getGitStatus: (cwd: string) => Promise<Record<string, "M" | "U" | "A" | "D">>;
   getGitDetailedStatus: (cwd: string) => Promise<GitDetailedStatus>;
@@ -278,6 +279,7 @@ interface SftpApi {
   setTempPassword: (sshHostId: string, password: string) => Promise<void>;
   listDir: (sshHostId: string, dirPath: string) => Promise<WorkspaceItem[]>;
   readFileHead: (sshHostId: string, filePath: string) => Promise<string>;
+  readFile: (sshHostId: string, filePath: string) => Promise<string>;
   writeFile: (sshHostId: string, filePath: string, content: string) => Promise<void>;
   getHomeDir: (sshHostId: string) => Promise<string>;
 }

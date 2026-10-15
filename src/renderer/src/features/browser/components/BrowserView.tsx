@@ -62,7 +62,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   onContextMenuAction: _onContextMenuAction,
 }) => {
   const webviewRef = useRef<any>(null);
-  const { config } = useConfig();
+  const { config, updateConfig } = useConfig();
   const renameTab = useTabStore((s) => s.renameTab);
   const updateBrowserUrl = useTabStore((s) => s.updateBrowserUrl);
   const activeTabId = useTabStore((s) => s.activeTabId);
@@ -405,6 +405,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   const toggleLocalAdblock = async () => {
     const newState = !localAdblockEnabled;
     setLocalAdblockEnabled(newState);
+    updateConfig({ browserAdblockEnabled: newState });
     if (window.adblockerApi) {
       await window.adblockerApi.toggle(newState);
       if (webviewRef.current) {

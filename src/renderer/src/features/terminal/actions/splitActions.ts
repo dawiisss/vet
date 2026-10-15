@@ -228,7 +228,10 @@ export async function unsplitTabAction(set: any, get: any) {
             sshHostId: focusedNode.sshHostId,
           }
         : focusedNode.browserId
-          ? browserLeafNode(focusedNode.browserId)
+          ? {
+              ...browserLeafNode(focusedNode.browserId),
+              ...(focusedNode.url ? { url: focusedNode.url } : {}),
+            }
           : leafNode(focusedNode.terminalId!),
       focusedPath: [],
     };
@@ -482,17 +485,34 @@ export function mergeTabAsSplitAction(
       newTerminalIds,
     );
 
-    if (browserUrl && fromBrowserId) {
-      const newPath = leafPaths(result.root).find((p) => {
-        const n = getNode(result.root, p);
-        return n.browserId === fromBrowserId;
-      });
-      if (newPath) {
-        const node = getNode(result.root, newPath);
-        result.root = setNode(result.root, newPath, {
-          ...node,
-          url: browserUrl,
+    const fromLeafPaths = leafPaths(fromTab.root);
+    for (const fp of fromLeafPaths) {
+      const fn = getNode(fromTab.root, fp);
+      if (fn.editorId) {
+        const targetPath = leafPaths(result.root).find((p) => {
+          const n = getNode(result.root, p);
+          return n.editorId === fn.editorId;
         });
+        if (targetPath) {
+          const node = getNode(result.root, targetPath);
+          result.root = setNode(result.root, targetPath, {
+            ...node,
+            filePath: fn.filePath,
+            sshHostId: fn.sshHostId,
+          });
+        }
+      } else if (fn.browserId) {
+        const targetPath = leafPaths(result.root).find((p) => {
+          const n = getNode(result.root, p);
+          return n.browserId === fn.browserId;
+        });
+        if (targetPath) {
+          const node = getNode(result.root, targetPath);
+          result.root = setNode(result.root, targetPath, {
+            ...node,
+            url: fn.url || (fn.browserId === fromBrowserId ? browserUrl : undefined),
+          });
+        }
       }
     }
 

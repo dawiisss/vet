@@ -159,9 +159,15 @@ const mockWindow = {
   webContents: mockWebContents,
 };
 
+const mockEvent = {
+  sender: mockWebContents,
+};
+
 jest.mock("electron", () => ({
   ipcMain: { handle: jest.fn() },
-  BrowserWindow: {},
+  BrowserWindow: {
+    fromWebContents: jest.fn(() => mockWindow),
+  },
   app: {
     getAppMetrics: jest.fn(() => [
       {
@@ -210,7 +216,7 @@ describe("sysinfo", () => {
 
   describe("sysinfo:start", () => {
     it("starts polling and sends data", async () => {
-      await startHandler();
+      await startHandler(mockEvent);
 
       // First tick (initializes rates and load baselines)
       await jest.advanceTimersByTimeAsync(2000);
@@ -258,8 +264,8 @@ describe("sysinfo", () => {
     });
 
     it("clears previous timeout when starting again", async () => {
-      await startHandler();
-      await startHandler();
+      await startHandler(mockEvent);
+      await startHandler(mockEvent);
       expect(clearTimeout).toHaveBeenCalled();
     });
 
@@ -272,7 +278,7 @@ describe("sysinfo", () => {
         throw testError;
       });
 
-      await startHandler();
+      await startHandler(mockEvent);
       await jest.advanceTimersByTimeAsync(2000);
 
       expect(errorSpy).toHaveBeenCalledWith("Failed to get sysinfo", testError);
@@ -283,7 +289,7 @@ describe("sysinfo", () => {
     it("does not send data when window is destroyed", async () => {
       mockWindow.isDestroyed.mockReturnValue(true);
 
-      await startHandler();
+      await startHandler(mockEvent);
       await jest.advanceTimersByTimeAsync(2000);
 
       expect(mockWebContents.send).not.toHaveBeenCalled();
@@ -292,9 +298,9 @@ describe("sysinfo", () => {
 
   describe("sysinfo:stop", () => {
     it("stops the polling timeout", async () => {
-      await startHandler(); // start it first to set timeoutId
+      await startHandler(mockEvent); // start it first to set timeoutId
       jest.clearAllMocks(); // clear mocks to ensure clearTimeout counts correctly
-      await stopHandler();
+      await stopHandler(mockEvent);
       expect(clearTimeout).toHaveBeenCalled();
     });
   });

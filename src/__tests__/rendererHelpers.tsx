@@ -83,6 +83,7 @@ const workspaceApi = {
   searchFileContents: jest.fn(() => Promise.resolve([] as FileContentMatch[])),
   revealPath: jest.fn(() => Promise.resolve()),
   readFileHead: jest.fn(() => Promise.resolve("")),
+  readFile: jest.fn(() => Promise.resolve("")),
   writeFile: jest.fn(() => Promise.resolve()),
   getGitStatus: jest.fn(() => Promise.resolve({} as Record<string, "M" | "U" | "A" | "D">)),
   getGitDetailedStatus: jest.fn(() =>

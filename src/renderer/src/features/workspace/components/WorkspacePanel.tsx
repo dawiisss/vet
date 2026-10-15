@@ -158,12 +158,14 @@ export default function WorkspacePanel({
     }
   }, [keyboardIndex]);
 
+  const quotePosix = (p: string) => `'${p.replace(/'/g, "'\\''")}'`;
+
   const handleFolderDoubleClick = (folderName: string) => {
     if (!activeTerminalId || !cwd) return;
     const pathDelimiter = cwd === "/" ? "" : "/";
     const newPath = `${cwd}${pathDelimiter}${folderName}`;
 
-    window.terminalApi.write(activeTerminalId, `cd "${newPath}"\r`);
+    window.terminalApi.write(activeTerminalId, `cd -- ${quotePosix(newPath)}\r`);
     setCwd(newPath);
   };
 
@@ -174,7 +176,7 @@ export default function WorkspacePanel({
     parts.pop();
     const parentPath = parts.join("/") || "/";
 
-    window.terminalApi.write(activeTerminalId, `cd "${parentPath}"\r`);
+    window.terminalApi.write(activeTerminalId, `cd -- ${quotePosix(parentPath)}\r`);
     setCwd(parentPath);
   };
 

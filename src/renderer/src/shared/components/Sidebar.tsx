@@ -125,7 +125,11 @@ export default function Sidebar({
       icon: "⚡",
       name: "Scripts",
       render: (isActive: boolean) => (
-        <ScriptRunnerPanel isActive={isActive} onRunScript={onRunScript} />
+        <ScriptRunnerPanel
+          isActive={isActive}
+          activeTerminalId={activeTerminalId}
+          onRunScript={onRunScript}
+        />
       ),
     },
     {

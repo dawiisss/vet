@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import chokidar, { FSWatcher } from "chokidar";
 import JSON5 from "json5";
 import { DEFAULT_BROWSER_HOMEPAGE } from "../shared/utils/pathUtils";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 function encryptField(value: string): string {
   if (!value) return value;
@@ -363,16 +364,33 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
     },
   });
 
+  function broadcastConfig(config: any): void {
+    const sanitized = sanitizeConfigForRenderer(config);
+    const windows = typeof BrowserWindow.getAllWindows === "function" ? BrowserWindow.getAllWindows() : [mainWindow];
+    for (const win of windows) {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("config:changed", sanitized);
+        win.webContents.send("config:error", null);
+      }
+    }
+  }
+
+  function broadcastConfigError(error: string | null): void {
+    const windows = typeof BrowserWindow.getAllWindows === "function" ? BrowserWindow.getAllWindows() : [mainWindow];
+    for (const win of windows) {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("config:error", error);
+      }
+    }
+  }
+
   watcher.on("change", async () => {
     try {
       const success = await loadConfig();
-      if (!mainWindow.isDestroyed()) {
-        if (success) {
-          mainWindow.webContents.send("config:changed", sanitizeConfigForRenderer(currentConfig));
-          mainWindow.webContents.send("config:error", null);
-        } else {
-          mainWindow.webContents.send("config:error", lastConfigError);
-        }
+      if (success) {
+        broadcastConfig(currentConfig);
+      } else {
+        broadcastConfigError(lastConfigError);
       }
     } catch (e) {
       console.error("Error reloading config:", e);
@@ -380,10 +398,20 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
   });
 
   // IPC Handlers
-  ipcMain.handle("config:get", () => sanitizeConfigForRenderer(currentConfig));
-  ipcMain.handle("config:get-error", () => lastConfigError);
+  ipcMain.handle("config:get", (event) => {
+    if (!isTrustedSender(event)) return null;
+    return sanitizeConfigForRenderer(currentConfig);
+  });
+  ipcMain.handle("config:get-error", (event) => {
+    if (!isTrustedSender(event)) return null;
+    return lastConfigError;
+  });
 
-  ipcMain.handle("config:set", async (_event, partialConfig: any) => {
+  ipcMain.handle("config:set", async (event, partialConfig: any) => {
+    if (!isTrustedSender(event)) {
+      console.warn("[security] Blocked config:set from untrusted sender");
+      throw new Error("Access denied");
+    }
     if (
       !partialConfig ||
       typeof partialConfig !== "object" ||
@@ -453,15 +481,11 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
     }
     currentConfig = sanitizeConfig({ ...currentConfig, ...partialConfig });
     await saveConfig();
-    // The chokidar watcher will detect the save and emit to renderer.
-    // However, to ensure immediate response, we can also return it or send it directly.
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("config:changed", sanitizeConfigForRenderer(currentConfig));
-      mainWindow.webContents.send("config:error", null);
-    }
+    broadcastConfig(currentConfig);
   });
 
-  ipcMain.handle("config:open-in-editor", async () => {
+  ipcMain.handle("config:open-in-editor", async (event) => {
+    if (!isTrustedSender(event)) return;
     await shell.openExternal(`file://${CONFIG_FILE}`);
   });
 }

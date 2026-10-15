@@ -16,7 +16,7 @@ export function createSshPty(host: SshHost, cleanEnv: Record<string, string>, co
     }
     args.push("-i", keyPath);
   }
-  args.push(`${host.username}@${host.host}`);
+  args.push("--", `${host.username}@${host.host}`);
 
   return spawn(shell, args, {
     name: "xterm-256color",

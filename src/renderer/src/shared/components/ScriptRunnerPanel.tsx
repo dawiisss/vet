@@ -3,9 +3,11 @@ import Panel from "./Panel";
 
 export default function ScriptRunnerPanel({
   isActive,
+  activeTerminalId,
   onRunScript,
 }: {
   isActive: boolean;
+  activeTerminalId?: string | null | undefined;
   onRunScript: (cmd: string, cwd: string) => void;
 }) {
   const [tasks, setTasks] = useState<WorkspaceTask[]>([]);
@@ -21,9 +23,22 @@ export default function ScriptRunnerPanel({
     const api = window.workspaceApi;
     if (!api) return;
 
-    api
-      .getScripts("")
-      .then((res: WorkspaceScriptsResult | null) => {
+    let isMounted = true;
+
+    const fetchScripts = async () => {
+      let targetCwd = "";
+      if (activeTerminalId && window.terminalApi?.getTerminalInfo) {
+        try {
+          const info = await window.terminalApi.getTerminalInfo(activeTerminalId);
+          if (info?.cwd) {
+            targetCwd = info.cwd;
+          }
+        } catch { /* intentional ignore */ }
+      }
+
+      try {
+        const res = await api.getScripts(targetCwd);
+        if (!isMounted) return;
         if (res) {
           setWorkspaceDir(res.cwd || "");
           if (res.tasks && Array.isArray(res.tasks) && res.tasks.length > 0) {
@@ -42,12 +57,18 @@ export default function ScriptRunnerPanel({
         } else {
           setTasks([]);
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         console.error("Failed to fetch scripts:", err);
-        setTasks([]);
-      });
-  }, [isActive]);
+        if (isMounted) setTasks([]);
+      }
+    };
+
+    fetchScripts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isActive, activeTerminalId]);
 
   const sources = useMemo(() => {
     const s = new Set<string>();

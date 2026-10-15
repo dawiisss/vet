@@ -118,6 +118,7 @@ function SplitPane({
       onExit={onExit}
       onResize={onResize}
       onExtract={onExtract}
+      onContextMenuAction={onContextMenuAction}
       leafCount={leafCount}
       childrenNodes={children}
     />

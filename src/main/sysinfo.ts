@@ -5,6 +5,7 @@ import { constants } from "fs";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { getPtyPids } from "./pty";
+import { isTrustedSender } from "./ipc/ipcUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -439,7 +440,8 @@ function scheduleNext(mainWindow: BrowserWindow) {
 }
 
 export function initSysInfoManager(mainWindow: BrowserWindow) {
-  ipcMain.handle("sysinfo:start", () => {
+  ipcMain.handle("sysinfo:start", (event) => {
+    if (!isTrustedSender(event)) return;
     if (timeoutId) {
       clearTimeout(timeoutId);
       timeoutId = null;
@@ -448,7 +450,8 @@ export function initSysInfoManager(mainWindow: BrowserWindow) {
     scheduleNext(mainWindow);
   });
 
-  ipcMain.handle("sysinfo:stop", () => {
+  ipcMain.handle("sysinfo:stop", (event) => {
+    if (!isTrustedSender(event)) return;
     running = false;
     if (timeoutId) {
       clearTimeout(timeoutId);

@@ -38,6 +38,15 @@ export function initConnectionsManager() {
             ) {
               const hostNames = trimmed.substring(5).trim().split(/\s+/);
               for (const name of hostNames) {
+                if (
+                  !name ||
+                  name.includes("*") ||
+                  name.includes("?") ||
+                  name.includes("!") ||
+                  name.startsWith("-")
+                ) {
+                  continue;
+                }
                 hosts.push({
                   name,
                   command: `ssh ${name}`,

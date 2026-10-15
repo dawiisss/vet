@@ -5,9 +5,15 @@ import { ipcMain, BrowserWindow } from "electron";
  * Webview guest pages (browser tabs) and other untrusted senders fail this
  * check because BrowserWindow.fromWebContents returns null for them.
  */
-export function isTrustedSender(event: {
-  sender: Electron.WebContents;
+export function isTrustedSender(event?: {
+  sender?: Electron.WebContents;
 }): boolean {
+  if (typeof BrowserWindow?.fromWebContents !== "function") {
+    return false;
+  }
+  if (!event || !event.sender) {
+    return BrowserWindow.fromWebContents(undefined as any) !== null;
+  }
   return BrowserWindow.fromWebContents(event.sender) !== null;
 }
 
@@ -23,6 +29,10 @@ export function registerHandlers(
 ): void {
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, async (event, ...args) => {
+      if (!isTrustedSender(event)) {
+        console.warn(`[security] Blocked IPC "${channel}" from untrusted sender`);
+        throw new Error("Access denied");
+      }
       try {
         return await handler(event, ...args);
       } catch (err: any) {
