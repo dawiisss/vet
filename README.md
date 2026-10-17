@@ -45,11 +45,11 @@ Windows build is provided, but no support will be provided for it at the moment.
 
 * **GPU-Accelerated Command-Line**: Powered by `xterm.js` and WebGL rendering for ultra-low-latency text output, supporting font ligatures, Unicode 11, Sixel graphics, and advanced regex text search.
 * **Workspace Session Persistence**: Automatically saves and restores your complex tiling layouts, active tabs, split panes, and web browser sessions across application restarts.
-* **Flexible Window Tiling**: Arrange tabs and split-panes dynamically. Drag-and-drop split handles feature glowing visual feedback and live percentage overlays (`40% / 60%`), with double-click split size equalization.
+* **Flexible Window Tiling and Tab Transfers**: Arrange tabs and split panes dynamically, extract panes into tabs, and detach tabs to another window with their pane layout and editor buffers intact. Drag-and-drop split handles show live percentage overlays (`40% / 60%`), with double-click split size equalization.
 * **Command Palette Autocomplete and Line Navigation**: Fast fuzzy file/command search with `Ctrl+Shift+P`, featuring `Right Arrow` prefilling and instant line-number jumping (`filename:line`) across all editor modes.
-* **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes (split pane tiling, new tab, modal), and a line-numbered Git diff viewer.
-* **Visual Source Control and Git Management**: Dedicated sidebar panel for checking out branches, staging/unstaging changes, inspecting diffs, reviewing commit graphs, and composing commits with `Ctrl+Enter`.
-* **Workspace-Wide Global Text Search**: Find in Files panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regex (`.*`) modes, expandable match groups, and direct `#L<line>:<col>` navigation.
+* **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes (split pane tiling, new tab, modal), and a line-numbered Git diff viewer. Unsaved buffers and dirty state survive layout changes and tab transfers, and closing a dirty editor prompts before discarding changes.
+* **Visual Source Control and Git Management**: Dedicated sidebar panel for checking out branches, staging/unstaging changes, inspecting diffs, reviewing commit graphs, and composing commits with `Ctrl+Enter`. File operations support paths with whitespace and Unicode, including renamed files.
+* **Workspace-Wide Global Text Search**: Find in Files panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regex (`.*`) modes, expandable match groups, and direct `#L<line>:<col>` navigation. Command Palette file search follows the active terminal's workspace and supports `filename:line` navigation; timed-out regular expression searches can be stopped.
 * **Docker Container and Image Management**: Live container monitor with start/stop/restart/remove actions, real-time log tailing, container terminal exec, and clickable exposed ports.
 * **Multi-Ecosystem Script and Task Discovery**: Automatically parses and indexes tasks across NPM, Cargo, Make, Python, Docker Compose, Deno, and Taskfile with instant filtering and search.
 * **Customizable and Reorderable Sidebar**: Drag-and-drop panel reordering, right-click move and show/hide controls, and persistent configuration saving.
@@ -69,7 +69,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 Vet provides a fast, responsive command-line interface on Linux, macOS, and Windows. Utilizing WebGL rendering, it handles high-throughput logs and text processing without lag. Features include URL/path detection, customizable scrollback limits, and native node-pty integrations.
 
 ### 2. Multi-Tab and Split-Pane Layouts
-Customize your terminal layout dynamically. Split panes vertically or horizontally, resize panels with interactive drag handles displaying live percentage overlays (`40% / 60%`), and extract individual panes to standalone tabs instantly to stay organized.
+Customize your terminal layout dynamically. Split panes vertically or horizontally, resize panels with interactive drag handles displaying live percentage overlays (`40% / 60%`), and extract individual panes to standalone tabs instantly to stay organized. Detaching a tab to another window transfers its full pane tree, browser URLs, and editor buffers; the source tab remains available until the destination confirms receipt.
 
 ### 3. Integrated SSH and SFTP Client
 Ditch standalone SSH managers. Vet includes a secure connection manager allowing you to configure SSH profiles, launch remote terminal sessions, and use the integrated SFTP panel to upload and download files.
@@ -90,7 +90,7 @@ New users are introduced to Vet's features upon launch with a beautiful welcome 
 Vet includes a secure, user-controlled auto-updater for Windows (NSIS/ZIP) and Linux (AppImage). When a new release is published, a pulsing green update badge appears in the TitleBar. Click it to open the dedicated Update Modal, view release notes, and track the download progress (percentage, transfer speed, and downloaded bytes) before hot-relaunching.
 
 ### 9. Integrated CodeMirror 6 Code Editor
-Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes Tab-key autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup.
+Open and edit files directly from your terminal tab using the `e [filename]` command. Vet integrates a full-featured CodeMirror 6 text editor that includes Tab-key autocomplete, smart indentation, and support for 50+ languages with auto-detected syntax highlighting. Through the "Default Editor Layout" setting, you can choose to open the editor in split-pane tiling window mode, in a new standalone tab, or inside a floating modal popup. Editor buffers and unsaved changes persist across layout remounts and tab transfers, and Vet asks before closing a dirty editor.
 
 ### 10. Visual Source Control and Git Management
 Manage version control directly from the sidebar. Inspect staged and unstaged changes, review unified diffs, switch branches, sync with remotes (pull/push), and author commits with `Ctrl+Enter`.
@@ -130,15 +130,15 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.5.1_amd64.deb
+  sudo apt install ./dist/vet_1.5.3_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.5.1.x86_64.rpm
+  sudo dnf install ./dist/vet-1.5.3.x86_64.rpm
   ```
 * **Arch Linux (`.pacman`)**:
   ```bash
-  sudo pacman -U ./dist/vet-1.5.1.pacman
+  sudo pacman -U ./dist/vet-1.5.3.pacman
   ```
 * **Arch Linux via AUR (`vet-bin`)**:
   ```bash
@@ -148,8 +148,8 @@ Download distribution-specific binaries from the GitHub releases page:
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.5.1.AppImage
-  ./dist/Vet-1.5.1.AppImage
+  chmod +x dist/Vet-1.5.3.AppImage
+  ./dist/Vet-1.5.3.AppImage
   ```
 
 Running `install.sh` again checks the installed package type and updates it in
