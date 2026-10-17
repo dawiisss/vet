@@ -46,8 +46,9 @@ export default function ProfilesPanel({ isActive }: { isActive: boolean }) {
     const profile = profiles[name];
     if (!profile) return;
     try {
-      await loadProfileState(profile);
-      addToast(`Workspace "${name}" loaded`, "info");
+      if (await loadProfileState(profile)) {
+        addToast(`Workspace "${name}" loaded`, "info");
+      }
     } catch (err: any) {
       addToast(`Failed to load profile: ${err.message}`, "error");
     }

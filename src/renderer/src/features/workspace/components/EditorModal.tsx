@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
 import CodeMirror from "@uiw/react-codemirror";
 import { languages } from "@codemirror/language-data";
@@ -6,6 +6,7 @@ import { acceptCompletion } from "@codemirror/autocomplete";
 import { keymap, EditorView as CMEditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
+import { registerWindowDirtyCheck } from "@/features/terminal/tabLifecycle";
 
 const tabCompletionExtension = Prec.highest(
   keymap.of([
@@ -45,13 +46,23 @@ export const EditorModal: React.FC<EditorModalProps> = ({
   const editorRef = useRef<any>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const contentRef = useRef("");
+  const dirtyRef = useRef(false);
+
+  const setDocumentDirty = useCallback((dirty: boolean) => {
+    dirtyRef.current = dirty;
+    setIsDirty(dirty);
+  }, []);
+
+  useEffect(() => registerWindowDirtyCheck(() => dirtyRef.current), []);
 
   // 1. Fetch file content and dynamic language pack
   useEffect(() => {
     let active = true;
     setLoading(true);
     setStatusMsg(null);
-    setIsDirty(false);
+    setDocumentDirty(false);
+    contentRef.current = "";
 
     // Resolve language based on extension
     const ext = filePath.split(".").pop()?.toLowerCase();
@@ -85,6 +96,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
             setStatusMsg({ text: data, type: "error" });
             setContent("");
           } else {
+            contentRef.current = data;
             setContent(data);
           }
           setLoading(false);
@@ -101,7 +113,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
     return () => {
       active = false;
     };
-  }, [filePath, sshHostId]);
+  }, [filePath, sshHostId, setDocumentDirty]);
 
   const jumpToLine = (lineNum: number) => {
     const view = editorRef.current;
@@ -167,8 +179,11 @@ export const EditorModal: React.FC<EditorModalProps> = ({
       } else {
         await window.workspaceApi.writeFile(filePath, valToSave);
       }
-      setIsDirty(false);
-      setStatusMsg({ text: "All changes saved", type: "success" });
+      const hasNewerEdits = contentRef.current !== valToSave;
+      setDocumentDirty(hasNewerEdits);
+      setStatusMsg(hasNewerEdits
+        ? { text: "Saved. Newer changes are unsaved.", type: "info" }
+        : { text: "All changes saved", type: "success" });
     } catch (err: any) {
       console.error("Save failed:", err);
       setStatusMsg({ text: `Save failed: ${err.message || err}`, type: "error" });
@@ -445,8 +460,9 @@ export const EditorModal: React.FC<EditorModalProps> = ({
               theme="dark"
               extensions={[...langExtensions, tabCompletionExtension]}
               onChange={(value) => {
+                contentRef.current = value;
                 setContent(value);
-                setIsDirty(true);
+                setDocumentDirty(true);
                 if (statusMsg?.type === "success") {
                   setStatusMsg(null);
                 }

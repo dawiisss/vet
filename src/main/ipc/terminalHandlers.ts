@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain } from "electron";
+import { randomUUID } from "node:crypto";
 import { registerHandlers, isTrustedSender } from "./ipcUtils";
 import {
   createTerminal,
@@ -19,6 +20,39 @@ interface TerminalHandlersOptions {
   registerForwardTarget: (terminalId: string, window: BrowserWindow) => void;
 }
 
+function getTransferredTerminalIds(root: unknown): string[] {
+  if (!root || typeof root !== "object") return [];
+  const node = root as { terminalId?: unknown; children?: unknown };
+  const ids = typeof node.terminalId === "string" ? [node.terminalId] : [];
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) ids.push(...getTransferredTerminalIds(child));
+  }
+  return ids;
+}
+
+function transferMatchesTerminalIds(root: unknown, terminalIds: string[]): boolean {
+  const expected = getTransferredTerminalIds(root).sort();
+  const supplied = [...terminalIds].sort();
+  return expected.length === supplied.length && expected.every((id, index) => id === supplied[index]);
+}
+
+function validTransfer(tab: TabTransferState): boolean {
+  return !!tab && typeof tab.label === "string" && !!tab.root &&
+    Array.isArray(tab.focusedPath) && Array.isArray(tab.editorDocuments) &&
+    tab.editorDocuments.every((document) => !!document &&
+      typeof document.editorId === "string" && typeof document.filePath === "string" &&
+      (document.sshHostId == null || typeof document.sshHostId === "string") &&
+      typeof document.content === "string" && typeof document.isDirty === "boolean");
+}
+
+interface PendingTabTransfer {
+  source: BrowserWindow;
+  destination: BrowserWindow;
+  terminalIds: string[];
+  tab: TabTransferState;
+  finish: (success: boolean) => void;
+}
+
 /**
  * Registers terminal and PTY control IPC handlers.
  */
@@ -30,6 +64,38 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
     loadWindow,
     registerForwardTarget,
   } = options;
+  const pendingTransfers = new Map<string, PendingTabTransfer>();
+
+  // The source keeps its panes and PTY ownership until the destination has
+  // hydrated the editor buffers and acknowledges the transfer over IPC.
+  const beginTransfer = (
+    source: BrowserWindow,
+    destination: BrowserWindow,
+    terminalIds: string[],
+    tab: TabTransferState,
+    reattaching: boolean,
+    notify: (transferId: string) => void,
+  ): Promise<{ success: boolean }> => new Promise((resolve) => {
+    const transferId = randomUUID();
+    const onClosed = () => finish(false);
+    const timer = setTimeout(() => finish(false), 30000);
+    const finish = (success: boolean) => {
+      if (!pendingTransfers.delete(transferId)) return;
+      clearTimeout(timer);
+      source.removeListener("closed", onClosed);
+      destination.removeListener("closed", onClosed);
+      if (!success && !reattaching && !destination.isDestroyed()) destination.destroy();
+      resolve({ success });
+    };
+    pendingTransfers.set(transferId, { source, destination, terminalIds, tab, finish });
+    source.once("closed", onClosed);
+    destination.once("closed", onClosed);
+    try {
+      notify(transferId);
+    } catch {
+      finish(false);
+    }
+  });
 
   const isTerminalOwnedBySender = (
     event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent,
@@ -85,7 +151,7 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       }
 
       const id = createTerminal({
-        cwd: cwd || process.cwd(),
+        cwd,
         profileId,
         sshHostId,
         cols,
@@ -136,9 +202,14 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       }
       return getHistory(id);
     },
-    "terminal:detach-tab": (event, { tabId, terminalIds }: { tabId: string; terminalIds: string[] }) => {
+    "terminal:detach-tab": (event, { tabId, terminalIds, tab }: {
+      tabId: string;
+      terminalIds: string[];
+      tab: TabTransferState;
+    }) => {
       const senderWin = BrowserWindow.fromWebContents(event.sender);
-      if (!senderWin) return { success: false };
+      if (!senderWin || !Array.isArray(terminalIds) || terminalIds.some((id) => typeof id !== "string") || !validTransfer(tab) || !transferMatchesTerminalIds(tab.root, terminalIds)) return { success: false };
+      if ([...pendingTransfers.values()].some((pending) => pending.source === senderWin)) return { success: false };
 
       for (const terminalId of terminalIds) {
         if (!isTerminalOwnedBySender(event, terminalId)) {
@@ -149,28 +220,21 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
 
       const detachedWin = createWindow();
 
-      const params = new URLSearchParams();
-      params.set("detached", tabId);
-      params.set("terminals", terminalIds.join(","));
-      loadWindow(detachedWin, params.toString());
-
-      if (!windowTerminals.has(detachedWin.id)) {
-        windowTerminals.set(detachedWin.id, new Set());
-      }
-
-      for (const terminalId of terminalIds) {
-        registerForwardTarget(terminalId, detachedWin);
-        windowTerminals.get(detachedWin.id)!.add(terminalId);
-        if (senderWin && windowTerminals.has(senderWin.id)) {
-          windowTerminals.get(senderWin.id)!.delete(terminalId);
-        }
-      }
-
-      return { success: true };
+      return beginTransfer(senderWin, detachedWin, terminalIds, tab, false, (transferId) => {
+        const params = new URLSearchParams();
+        params.set("detached", tabId);
+        params.set("terminals", terminalIds.join(","));
+        params.set("transfer", transferId);
+        loadWindow(detachedWin, params.toString());
+      });
     },
-    "terminal:reattach-tab": (event, { terminalIds }: { terminalIds: string[] }) => {
+    "terminal:reattach-tab": (event, { terminalIds, tab }: {
+      terminalIds: string[];
+      tab: TabTransferState;
+    }) => {
       const senderWin = BrowserWindow.fromWebContents(event.sender);
-      if (!senderWin) return { success: false };
+      if (!senderWin || !Array.isArray(terminalIds) || terminalIds.some((id) => typeof id !== "string") || !validTransfer(tab) || !transferMatchesTerminalIds(tab.root, terminalIds)) return { success: false };
+      if ([...pendingTransfers.values()].some((pending) => pending.source === senderWin)) return { success: false };
 
       for (const terminalId of terminalIds) {
         if (!isTerminalOwnedBySender(event, terminalId)) {
@@ -180,27 +244,35 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       }
 
       const mainWindow = getMainWindow();
-      if (mainWindow) {
-        if (!windowTerminals.has(mainWindow.id)) {
-          windowTerminals.set(mainWindow.id, new Set());
-        }
-        for (const terminalId of terminalIds) {
-          registerForwardTarget(terminalId, mainWindow);
-          windowTerminals.get(mainWindow.id)!.add(terminalId);
-        }
+      if (!mainWindow || mainWindow.isDestroyed() || mainWindow === senderWin) return { success: false };
+      return beginTransfer(senderWin, mainWindow, terminalIds, tab, true, (transferId) => {
+        mainWindow.webContents.send("terminal:reattach-tab", { transferId });
+      });
+    },
+    "terminal:get-tab-transfer": (event, { transferId }: { transferId: string }) => {
+      const transfer = pendingTransfers.get(transferId);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      return transfer && transfer.destination === win ? transfer.tab : null;
+    },
+    "terminal:complete-tab-transfer": (event, { transferId }: { transferId: string }) => {
+      const transfer = pendingTransfers.get(transferId);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!transfer || transfer.destination !== win) return { success: false };
+      const { source, destination, terminalIds } = transfer;
+      if (source.isDestroyed() || destination.isDestroyed() ||
+          terminalIds.some((id) => !windowTerminals.get(source.id)?.has(id))) {
+        transfer.finish(false);
+        return { success: false };
       }
-
-      if (senderWin && windowTerminals.has(senderWin.id)) {
-        for (const terminalId of terminalIds) {
-          windowTerminals.get(senderWin.id)!.delete(terminalId);
-        }
+      if (!windowTerminals.has(destination.id)) windowTerminals.set(destination.id, new Set());
+      for (const id of terminalIds) {
+        registerForwardTarget(id, destination);
+        windowTerminals.get(destination.id)!.add(id);
+        windowTerminals.get(source.id)?.delete(id);
       }
-      senderWin?.close();
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("terminal:reattach-tab", { terminalIds });
-      }
-
+      transfer.finish(true);
+      // The source renderer removes the moved tab and closes itself only if
+      // no other tabs remain. Closing here would discard those other tabs.
       return { success: true };
     },
     "terminal:get-info": async (event, { id }: { id: string }) => {

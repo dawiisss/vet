@@ -29,6 +29,7 @@ import {
   openEditorInNewTabAction,
 } from "./actions/splitActions";
 import { detachTabAction, reattachMeAction } from "./actions/windowActions";
+import { hasPendingTabOperation } from "./tabLifecycle";
 
 export interface TabState {
   id: string;
@@ -76,7 +77,7 @@ interface TabStore {
 
   // Logical Actions
   initializeTabs: () => void;
-  loadProfileState: (state: any) => Promise<void>;
+  loadProfileState: (state: any) => Promise<boolean>;
   onReattachTab: () => () => void;
   pollTabLabels: () => () => void;
   newTab: (profileId?: string, sshHostId?: string) => Promise<void>;
@@ -167,10 +168,12 @@ export const useTabStore = create<TabStore>((set, get) => {
             : dragState,
       })),
     setActiveTabId: (id) => setActiveTabIdAction(set, get, id),
-    setTabs: (tabs) =>
+    setTabs: (tabs) => {
+      if (hasPendingTabOperation()) return;
       set((state) => ({
         tabs: typeof tabs === "function" ? tabs(state.tabs) : tabs,
-      })),
+      }));
+    },
 
     initializeTabs: () => initializeTabsAction(set, get, initializedRef),
     loadProfileState: (state) => loadProfileStateAction(set, get, state),

@@ -99,21 +99,24 @@ export function removeForwardTarget(terminalId: string): void {
 export function getHistory(id: string): {
   data: string;
   oldestTimestamp: number;
+  oldestId: number;
 } {
   const config = getConfig();
   if (config.historyLoggingEnabled === false) {
     return {
       data: terminalHistories.get(id) || "",
       oldestTimestamp: Date.now(),
+      oldestId: Number.MAX_SAFE_INTEGER,
     };
   } else {
     const chunks = historyDb.getScrollbackChunk(id, Date.now() + 100000);
     if (!chunks || chunks.length === 0) {
-      return { data: "", oldestTimestamp: Date.now() };
+      return { data: "", oldestTimestamp: Date.now(), oldestId: Number.MAX_SAFE_INTEGER };
     }
     return {
       data: chunks.map((c) => c.data).join(""),
       oldestTimestamp: chunks[0]!.timestamp,
+      oldestId: chunks[0]!.id,
     };
   }
 }
@@ -150,7 +153,7 @@ export function setForegroundTerminals(ids: string[]): void {
 }
 
 export function createTerminal(options: {
-  cwd?: string;
+  cwd?: string | undefined;
   profileId?: string | undefined;
   sshHostId?: string | undefined;
   cols?: number;
@@ -184,7 +187,7 @@ export function createTerminal(options: {
       connectionTarget = `${sshHost.username}@${sshHost.host}`;
       pty = createSshPty(sshHost, cleanEnv, options.cols, options.rows);
     } else {
-      let shell = process.env["SHELL"] || "/bin/bash";
+      let shell = config.shell || process.env["SHELL"] || "/bin/bash";
       let args: string[] = [];
       let env = { ...process.env } as Record<string, string>;
 
@@ -193,11 +196,12 @@ export function createTerminal(options: {
         Array.isArray(config.profiles) &&
         config.profiles.length > 0
       ) {
-        const profile =
-          config.profiles.find((p: any) => p.id === options.profileId) ||
-          config.profiles[0];
+        const profile = options.profileId
+          ? config.profiles.find((p: any) => p.id === options.profileId)
+          : config.profiles.find((p: any) => p.id === "default") ||
+            config.profiles[0];
         if (profile) {
-          if (profile.shell) shell = profile.shell;
+          if (options.profileId && profile.shell) shell = profile.shell;
           if (profile.args) args = profile.args;
           if (profile.env) env = { ...env, ...profile.env };
           if (profile.cwd && !options.cwd) resolvedCwd = profile.cwd;

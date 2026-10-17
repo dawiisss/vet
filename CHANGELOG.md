@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-10-17
+
+### Fixed
+
+- **Floating Editor Unsaved Changes**: Included floating editor modals in the application window-close guard, with one confirmation for dirty modal and tab editors. Completing an earlier modal save now preserves the dirty state of newer edits.
+- **Blank Tab After Close**: Closing an active tab now wakes the next tab when it was hibernated, preserving its existing shell and restoring terminal input and output. The same wake-up applies when closing a tab's final pane or moving its tab to another window.
+- **Git Status and File Operations**: Resolved Git paths from the repository root for stage, unstage, and discard operations, and switched status parsing to NUL-delimited porcelain records so filenames with whitespace, Unicode, and renames remain valid. Unstaging a rename now restores both index paths without leaving its source staged for deletion. Source Control now refreshes the active terminal's current directory while it is open.
+- **Editor and Detached Tab State**: Kept unsaved editor content, dirty state, pending saves, and language support across layout remounts. Completing a save preserves any newer edits. Detaching and reattaching now transfers the complete pane tree and editor buffers through IPC, including browser URLs and remote editor metadata, validates PTY ownership separately, and keeps the source until the destination acknowledges receipt. Editors remain read-only and pane layout changes are blocked during transfer; failed transfers restore editing without removing the source tab. Reattachment preserves any other tabs in the source window. Pane close, tab close, profile replacement, and window shutdown now check for unsaved editor changes before discarding them.
+- **Browser Request Handling**: Removed the retry of failed fetch requests from the adblock response filter and read response bodies from a clone, preventing duplicate side effects and preserving the original response.
+- **SFTP Host Verification**: Updated SSH host-key verification to use the `Buffer` supplied by `ssh2`, restoring host pinning for real SFTP connections.
+- **Workspace Search**: Made the command palette search the active terminal's current workspace as the query changes, preserving `filename:line` navigation by excluding the line suffix from file matching. Regular-expression content searches now run in a worker that can be stopped when it exceeds its time limit.
+- **History Reliability**: Clearing history now preserves active terminal session records, and pruning skips active sessions. Scrollback pagination now uses the timestamp and chunk ID together so equal-timestamp chunks are not skipped.
+- **Keyboard and SSH Profile Forms**: Forwarded webview shortcuts through a single bubbling event, and kept the new SSH host form selected while existing hosts are present.
+- **Terminal Settings**: Preserved `0` for the unlimited active-terminal setting and applied the configured global shell to new default terminals while retaining explicit profile shell selection.
+
 ## [1.5.2] - 2026-10-15
 
 ### Security

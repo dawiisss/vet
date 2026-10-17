@@ -7,6 +7,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
+        input: {
+          index: resolve("src/main/index.ts"),
+          workspaceRegexWorker: resolve("src/main/workspaceRegexWorker.ts"),
+        },
         external: ["node-pty", "better-sqlite3"],
       },
     },

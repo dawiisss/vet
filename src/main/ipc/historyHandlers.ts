@@ -19,8 +19,9 @@ export function registerHistoryHandlers() {
       _event,
       id: string,
       beforeTimestamp: number,
+      beforeId?: number,
     ) => {
-      return historyDb.getScrollbackChunk(id, beforeTimestamp);
+      return historyDb.getScrollbackChunk(id, beforeTimestamp, beforeId);
     },
     "history:clear": () => {
       historyDb.clearHistory();

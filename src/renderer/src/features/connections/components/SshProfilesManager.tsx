@@ -58,10 +58,10 @@ export const SshProfilesManager: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!selectedId && sshHosts.length > 0) {
+    if (!isEditingNew && !selectedId && sshHosts.length > 0) {
       selectHost(sshHosts[0]);
     }
-  }, [sshHosts, selectedId]);
+  }, [sshHosts, selectedId, isEditingNew]);
 
   const saveHost = () => {
     if (!editName.trim() || !editHost.trim() || !editUser.trim()) {

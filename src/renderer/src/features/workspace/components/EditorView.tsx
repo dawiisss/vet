@@ -7,6 +7,7 @@ import { Prec } from "@codemirror/state";
 import ContextMenu, { ContextMenuAction } from "@/shared/components/ContextMenu";
 import { parseDiffLines } from "../../../../../shared/utils/diffUtils";
 import { useStatusBarStore } from "@/shared/stores/useStatusBarStore";
+import { getEditorDocument, setEditorDocument, useEditorDocument, saveEditorDocument } from "../editorDocumentStore";
 
 const tabCompletionExtension = Prec.highest(
   keymap.of([
@@ -46,10 +47,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
   const filePath = safeRawPath.split("#")[0]!;
 
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const cachedDocument = useEditorDocument(_editorId, filePath, sshHostId);
+  const content = cachedDocument?.content || "";
+  const [loading, setLoading] = useState(!cachedDocument);
+  const saving = cachedDocument?.isSaving || false;
+  const isDirty = cachedDocument?.isDirty || false;
   const [isDiffMode, setIsDiffMode] = useState(isGitDiffInitial);
   const [diffContent, setDiffContent] = useState("");
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: "info" | "success" | "error" } | null>(null);
@@ -63,17 +65,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
     y: number;
   }>({ isOpen: false, x: 0, y: 0 });
 
-  // 1. Fetch file content and dynamic language pack
+  // Language extensions belong to each mounted CodeMirror instance, even
+  // when its document is already cached.
   useEffect(() => {
-    if (!filePath) {
-      setLoading(false);
-      return;
-    }
     let active = true;
-    setLoading(true);
-    setStatusMsg(null);
-    setIsDirty(false);
-
+    setLangExtensions([]);
     // Resolve language based on extension safely
     const ext = filePath.split(".").pop()?.toLowerCase();
     if (ext) {
@@ -107,6 +103,18 @@ export const EditorView: React.FC<EditorViewProps> = ({
       });
     }
 
+    return () => { active = false; };
+  }, [filePath, _editorId]);
+
+  // A layout remount reuses both the buffer and any outstanding save.
+  useEffect(() => {
+    if (!filePath || getEditorDocument(_editorId, filePath, sshHostId)) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setStatusMsg(null);
     const readPromise = sshHostId
       ? window.sftpApi.readFile(sshHostId, filePath)
       : window.workspaceApi.readFile(filePath);
@@ -116,9 +124,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
         if (active) {
           if (data.startsWith("Error: Failed to read file.")) {
             setStatusMsg({ text: data, type: "error" });
-            setContent("");
           } else {
-            setContent(data);
+            setEditorDocument(_editorId, filePath, sshHostId, {
+              content: data,
+              isDirty: false,
+            });
           }
           setLoading(false);
         }
@@ -126,7 +136,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
       .catch((err) => {
         if (active) {
           setStatusMsg({ text: `Failed to read file: ${err.message || err}`, type: "error" });
-          setContent("");
           setLoading(false);
         }
       });
@@ -214,30 +223,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
   const handleSave = async (currentVal?: string) => {
     const valToSave = currentVal !== undefined ? currentVal : content;
-    setSaving(true);
+    if (cachedDocument?.isTransferring) return;
+    if (valToSave !== content) {
+      setEditorDocument(_editorId, filePath, sshHostId, { content: valToSave, isDirty: true });
+    }
     setStatusMsg({ text: "Saving...", type: "info" });
 
     try {
-      if (sshHostId) {
-        await window.sftpApi.writeFile(sshHostId, filePath, valToSave);
-      } else {
-        await window.workspaceApi.writeFile(filePath, valToSave);
-      }
-      setIsDirty(false);
+      await saveEditorDocument(_editorId, filePath, sshHostId, (value) => sshHostId
+        ? window.sftpApi.writeFile(sshHostId, filePath, value)
+        : window.workspaceApi.writeFile(filePath, value));
       setStatusMsg({ text: "Saved", type: "success" });
     } catch (err: any) {
       console.error("Save failed:", err);
       setStatusMsg({ text: `Failed: ${err.message || err}`, type: "error" });
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleCloseAttempt = () => {
-    if (isDirty) {
-      const confirmClose = window.confirm("You have unsaved changes. Are you sure you want to close this editor pane?");
-      if (!confirmClose) return;
-    }
+    // Pane, tab, and keyboard closes share the guard in the tab actions.
     if (onExit) onExit();
   };
 
@@ -248,7 +252,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       label: "Save File",
       shortcut: "Ctrl+S",
       onExecute: () => {
-        const val = editorRef.current?.state?.doc?.toString() || content;
+        const val = editorRef.current?.state?.doc?.toString() ?? content;
         handleSave(val);
       },
     });
@@ -405,7 +409,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
           <button
             onClick={() => handleSave()}
-            disabled={loading || saving || !isDirty}
+            disabled={loading || saving || cachedDocument?.isTransferring || !isDirty}
             style={{
               padding: "3px 8px",
               borderRadius: 4,
@@ -579,10 +583,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
             value={content}
             height="100%"
             theme="dark"
+            editable={!cachedDocument?.isTransferring}
             extensions={[...langExtensions, tabCompletionExtension, updateListener.current]}
             onChange={(value) => {
-              setContent(value);
-              setIsDirty(true);
+              if (getEditorDocument(_editorId, filePath, sshHostId)?.isTransferring) return;
+              setEditorDocument(_editorId, filePath, sshHostId, {
+                content: value,
+                isDirty: true,
+              });
               if (statusMsg?.type === "success") {
                 setStatusMsg(null);
               }
@@ -608,7 +616,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               // Intercept Ctrl+S
               if ((e.ctrlKey || e.metaKey) && e.key === "s") {
                 e.preventDefault();
-                const currentEditorValue = editorRef.current?.state?.doc?.toString() || content;
+                const currentEditorValue = editorRef.current?.state?.doc?.toString() ?? content;
                 handleSave(currentEditorValue);
               }
             }}

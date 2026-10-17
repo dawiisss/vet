@@ -28,6 +28,17 @@ interface OutputChunk {
 
 let writeBuffer: OutputChunk[] = [];
 let flushInterval: NodeJS.Timeout | null = null;
+const activeSessionIds = new Set<string>();
+
+function deleteSessionIds(ids: string[]): void {
+  if (!db || ids.length === 0) return;
+  for (let offset = 0; offset < ids.length; offset += 500) {
+    const batch = ids.slice(offset, offset + 500);
+    const placeholders = batch.map(() => "?").join(",");
+    db.prepare(`DELETE FROM session_search WHERE session_id IN (${placeholders})`).run(...batch);
+    db.prepare(`DELETE FROM sessions WHERE id IN (${placeholders})`).run(...batch);
+  }
+}
 
 const ANSI_REGEX = new RegExp(
   [
@@ -120,6 +131,7 @@ export function startSession(
   connectionType: string,
   connectionTarget: string,
 ) {
+  activeSessionIds.add(id);
   if (!db || !insertSessionStmt) return;
   const config = getConfig();
   if (config.historyLoggingEnabled === false) return;
@@ -137,6 +149,7 @@ export function closeSession(id: string) {
 
   try {
     updateSessionCloseStmt.run(Date.now(), id);
+    activeSessionIds.delete(id);
     setTimeout(pruneHistory, 500);
   } catch (err) {
     console.error("DB Update Error:", err);
@@ -264,17 +277,19 @@ export function getSessionTranscript(id: string): string {
 export function getScrollbackChunk(
   id: string,
   beforeTimestamp: number,
+  beforeId: number = Number.MAX_SAFE_INTEGER,
   _limitLines: number = 1000,
-): { data: string; timestamp: number }[] {
+): { id: number; data: string; timestamp: number }[] {
   if (!db) return [];
   flushBuffer();
   try {
     const stmt = db.prepare(`
-      SELECT timestamp, data FROM session_chunks 
-      WHERE session_id = ? AND timestamp < ? 
+      SELECT id, timestamp, data FROM session_chunks
+      WHERE session_id = ? AND (timestamp < ? OR (timestamp = ? AND id < ?))
       ORDER BY timestamp DESC, id DESC LIMIT 50
     `);
-    const rows = stmt.all(id, beforeTimestamp) as {
+    const rows = stmt.all(id, beforeTimestamp, beforeTimestamp, beforeId) as {
+      id: number;
       data: string;
       timestamp: number;
     }[];
@@ -286,11 +301,16 @@ export function getScrollbackChunk(
 
 export function clearHistory() {
   if (!db) return;
-  writeBuffer = [];
+  flushBuffer();
   try {
     const trx = db.transaction(() => {
       db!.exec("DELETE FROM session_search");
-      db!.exec("DELETE FROM sessions");
+      db!.exec("DELETE FROM session_chunks");
+      const idleIds = db!.prepare("SELECT id FROM sessions").all() as { id: string }[];
+      const idsToDelete = idleIds
+        .map((row) => row.id)
+        .filter((id) => !activeSessionIds.has(id));
+      deleteSessionIds(idsToDelete);
     });
     trx();
     db.pragma("incremental_vacuum");
@@ -345,20 +365,19 @@ function pruneHistory() {
   try {
     const cutoffTime = Date.now() - keepDays * 24 * 60 * 60 * 1000;
 
-    const pruneDaysStmt = db.prepare(
-      "DELETE FROM sessions WHERE created_at < ?",
-    );
+    const oldSessionRows = db.prepare(
+      "SELECT id FROM sessions WHERE created_at < ?",
+    ).all(cutoffTime) as { id: string }[];
+    const expiredIds = oldSessionRows
+      .map((row) => row.id)
+      .filter((id) => !activeSessionIds.has(id));
     const pruneBrowserStmt = db.prepare(
       "DELETE FROM browser_history WHERE timestamp < ?",
     );
-    const deleteSearchStmt = db.prepare(
-      "DELETE FROM session_search WHERE session_id IN (SELECT id FROM sessions WHERE created_at < ?)",
-    );
-
     const pruneTrx = db.transaction(() => {
-      // Delete FTS rows first (before sessions are deleted, so the subquery still finds them)
-      deleteSearchStmt.run(cutoffTime);
-      pruneDaysStmt.run(cutoffTime);
+      if (expiredIds.length) {
+        deleteSessionIds(expiredIds);
+      }
       pruneBrowserStmt.run(cutoffTime);
     });
     pruneTrx();
@@ -368,23 +387,16 @@ function pruneHistory() {
       let deletedCount = 0;
       while (sizeMb > limitMb) {
         const oldestStmt = db.prepare(
-          "SELECT id FROM sessions ORDER BY created_at ASC, id ASC LIMIT 100",
+          "SELECT id FROM sessions ORDER BY created_at ASC, id ASC",
         );
-        const oldest = oldestStmt.all() as { id: string }[];
+        const oldest = (oldestStmt.all() as { id: string }[])
+          .filter((row) => !activeSessionIds.has(row.id))
+          .slice(0, 100);
         if (oldest.length === 0) break;
 
         const ids = oldest.map((row) => row.id);
-        const placeholders = ids.map(() => "?").join(",");
-        const deleteStmt = db.prepare(
-          `DELETE FROM sessions WHERE id IN (${placeholders})`,
-        );
-        const deleteSearchStmt = db.prepare(
-          `DELETE FROM session_search WHERE session_id IN (${placeholders})`,
-        );
-
         const trx = db.transaction(() => {
-          deleteStmt.run(...ids);
-          deleteSearchStmt.run(...ids);
+          deleteSessionIds(ids);
         });
         trx();
 

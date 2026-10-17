@@ -14,6 +14,8 @@ import { destroyTerminalCache } from "../hooks/useTerminal";
 import { useConfigStore } from "@/features/settings/useConfigStore";
 import { useUIStore } from "@/shared/stores/useUIStore";
 import { pathsEqual, DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/utils/pathUtils";
+import { isTabLocked, isWorkspaceLocked, confirmDiscardDocuments } from "../tabLifecycle";
+import { forgetEditorDocuments } from "../../workspace/editorDocumentStore";
 
 export async function splitTabAction(
   set: any,
@@ -24,7 +26,7 @@ export async function splitTabAction(
 ) {
   const activeTabId = get().activeTabId;
   const tabId = targetTabId || activeTabId;
-  if (!tabId) return;
+  if (!tabId || isTabLocked(tabId)) return;
 
   const tab = get().tabs.find((t: any) => t.id === tabId);
   if (!tab) return;
@@ -121,7 +123,7 @@ export async function splitTabAction(
       const { id } = await api.create();
       set((state: any) => {
         const currentTab = state.tabs.find((t: any) => t.id === tabId);
-        if (!currentTab) {
+        if (!currentTab || isTabLocked(tabId) || currentTab.root !== tab.root) {
           api.destroy(id);
           return state;
         }
@@ -145,7 +147,7 @@ export async function splitTabAction(
 
 export async function unsplitTabAction(set: any, get: any) {
   const activeTabId = get().activeTabId;
-  if (!activeTabId) return;
+  if (!activeTabId || isTabLocked(activeTabId)) return;
   const prevTabs = get().tabs;
   const activeTab = prevTabs.find((t: any) => t.id === activeTabId);
   if (!activeTab) return;
@@ -217,7 +219,7 @@ export async function unsplitTabAction(set: any, get: any) {
   set((state: any) => {
     const next = [...state.tabs];
     const tabIdx = next.findIndex((t) => t.id === activeTabId);
-    if (tabIdx === -1) return state;
+    if (tabIdx === -1 || isTabLocked(activeTabId) || next[tabIdx].root !== activeTab.root) return state;
 
     next[tabIdx] = {
       ...next[tabIdx],
@@ -255,14 +257,7 @@ export function closeSplitAction(
   tabId: string,
   terminalId: string,
 ) {
-  if (!terminalId.startsWith("browser-") && !terminalId.startsWith("editor-")) {
-    const api = window.terminalApi;
-    if (api) {
-      api.destroy(terminalId);
-    }
-    destroyTerminalCache(terminalId);
-  }
-
+  if (isTabLocked(tabId)) return;
   const activeTabId = get().activeTabId;
   const prevTabs = get().tabs;
 
@@ -281,6 +276,13 @@ export function closeSplitAction(
   });
 
   if (!foundPath) return;
+  const target = getNode(tab.root, foundPath);
+  if (!confirmDiscardDocuments([target])) return;
+  if (target.terminalId) {
+    window.terminalApi?.destroy(target.terminalId);
+    destroyTerminalCache(target.terminalId);
+  }
+  forgetEditorDocuments(target);
 
   const result = removeLeaf(tab.root, foundPath);
   const next = [...prevTabs];
@@ -300,6 +302,7 @@ export function closeSplitAction(
       ),
       hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== tabId),
     });
+    if (newActiveTabId !== activeTabId) get().setActiveTabId(newActiveTabId);
     return;
   }
 
@@ -330,6 +333,7 @@ export async function extractToTabAction(
   tabId: string,
   path: number[],
 ) {
+  if (isTabLocked(tabId)) return;
   const prevTabs = get().tabs;
   const tab = prevTabs.find((t: any) => t.id === tabId);
   if (!tab) return;
@@ -360,14 +364,17 @@ export async function extractToTabAction(
     } catch { /* intentional ignore */ }
   }
 
-  const tIndex = prevTabs.findIndex((t: any) => t.id === tabId);
+  if (isTabLocked(tabId)) return;
+  const currentTabs = get().tabs;
+  const tIndex = currentTabs.findIndex((t: any) => t.id === tabId);
   if (tIndex === -1) return;
-  const currentTab = prevTabs[tIndex];
+  const currentTab = currentTabs[tIndex];
+  if (currentTab.root !== tab.root) return;
 
   const { root: newRoot, newPath } = removeLeaf(currentTab.root, path);
   if (!newRoot) return;
 
-  const updated = [...prevTabs];
+  const updated = [...currentTabs];
   updated[tIndex] = { ...currentTab, root: newRoot, focusedPath: newPath };
 
   const { newTabState, newBrowserTabState, newEditorTabState, generateTabId } = get();
@@ -415,6 +422,7 @@ export function onResizeAction(
   path: number[],
   newSizes: number[],
 ) {
+  if (isTabLocked(tabId)) return;
   set((state: any) => ({
     tabs: state.tabs.map((tab: any) => {
       if (tab.id !== tabId) return tab;
@@ -455,6 +463,7 @@ export function mergeTabAsSplitAction(
   const activeTabId = get().activeTabId;
   const prevTabs = get().tabs;
   if (!activeTabId || fromTabId === activeTabId) return;
+  if (isTabLocked(activeTabId) || isTabLocked(fromTabId)) return;
   const fromTab = prevTabs.find((t: any) => t.id === fromTabId);
   if (!fromTab) return;
 
@@ -538,6 +547,7 @@ export function openEditorInSplitAction(
   sshHostId: string | null,
 ) {
   const activeTabId = get().activeTabId;
+  if (isWorkspaceLocked() || (activeTabId && isTabLocked(activeTabId))) return;
   const tab = activeTabId
     ? get().tabs.find((t: any) => t.id === activeTabId)
     : null;
@@ -622,6 +632,7 @@ export function openEditorInNewTabAction(
   filePath: string,
   sshHostId: string | null,
 ) {
+  if (isWorkspaceLocked()) return;
   const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const tabId = get().generateTabId();
   set((state: any) => {

@@ -18,6 +18,7 @@ import { useUpdaterStore } from "@/shared/stores/useUpdaterStore";
 import ThemeProvider from "@/shared/components/ThemeProvider";
 import ModalManager from "@/shared/components/ModalManager";
 import { useKeybindings } from "@/shared/hooks/useKeybindings";
+import { registerWindowCloseGuard } from "@/features/terminal/tabLifecycle";
 import { StatusBar } from "@/shared/components/StatusBar";
 
 /**
@@ -26,6 +27,9 @@ import { StatusBar } from "@/shared/components/StatusBar";
  * and delegates themes, modals, and hotkeys to custom hooks and providers.
  */
 function App() {
+  useEffect(() => registerWindowCloseGuard(() =>
+    useTabStore.getState().tabs.map((tab) => tab.root),
+  ), []);
   const { config, isInitialized } = useConfig();
   const error = useUIStore((s) => s.error);
   const configError = useUIStore((s) => s.configError);

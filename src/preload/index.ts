@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 const dataHandlers = new Set<(id: string, data: string) => void>();
 const exitHandlers = new Set<(id: string, exitCode: number) => void>();
-const reattachHandlers = new Set<(terminalIds: string[]) => void>();
+const reattachHandlers = new Set<(transferId: string) => void>();
 const maximizeHandlers = new Set<(maximized: boolean) => void>();
 
 ipcRenderer.on(
@@ -21,8 +21,8 @@ ipcRenderer.on(
 
 ipcRenderer.on(
   "terminal:reattach-tab",
-  (_event, { terminalIds }: { terminalIds: string[] }) => {
-    reattachHandlers.forEach((h) => h(terminalIds));
+  (_event, { transferId }: { transferId: string }) => {
+    reattachHandlers.forEach((h) => h(transferId));
   },
 );
 
@@ -48,12 +48,14 @@ const terminalApi: TerminalApi = {
   enableForwarding: (id) => invoke<void>("terminal:enable-forwarding")({ id }),
   write: (id, data) => send("terminal:write")({ id, data }),
   resize: (id, cols, rows) => invoke<void>("terminal:resize")({ id, cols, rows }),
-  getHistory: (id) => invoke<string>("terminal:get-history")({ id }),
+  getHistory: (id) => invoke<{ data: string; oldestTimestamp: number; oldestId: number }>("terminal:get-history")({ id }),
   destroy: (id) => invoke<void>("terminal:destroy")({ id }),
-  detachTab: (tabId, terminalIds) =>
-    invoke<{ success: boolean }>("terminal:detach-tab")({ tabId, terminalIds }),
-  reattachTab: (terminalIds) =>
-    invoke<{ success: boolean }>("terminal:reattach-tab")({ terminalIds }),
+  detachTab: (tabId, terminalIds, tab) =>
+    invoke<{ success: boolean }>("terminal:detach-tab")({ tabId, terminalIds, tab }),
+  reattachTab: (terminalIds, tab) =>
+    invoke<{ success: boolean }>("terminal:reattach-tab")({ terminalIds, tab }),
+  getTabTransfer: (transferId) => invoke<TabTransferState | null>("terminal:get-tab-transfer")({ transferId }),
+  completeTabTransfer: (transferId) => invoke<{ success: boolean }>("terminal:complete-tab-transfer")({ transferId }),
   getTerminalInfo: (id) =>
     invoke<{ title: string; cwd: string; sshHostId?: string }>("terminal:get-info")({ id }),
   setForeground: (ids) => invoke<void>("terminal:set-foreground")({ ids }),
@@ -221,10 +223,11 @@ const historyApi: HistoryApi = {
   getSessions: () => invoke<unknown[]>("history:get-sessions")(),
   getSessionTranscript: (id: string) =>
     invoke<string>("history:get-session-transcript")(id),
-  getScrollbackChunk: (id: string, beforeTimestamp: number) =>
-    invoke<{ data: string; timestamp: number }[]>("history:get-scrollback-chunk")(
+  getScrollbackChunk: (id: string, beforeTimestamp: number, beforeId?: number) =>
+    invoke<{ id: number; data: string; timestamp: number }[]>("history:get-scrollback-chunk")(
       id,
       beforeTimestamp,
+      beforeId,
     ),
   clear: () => invoke<void>("history:clear")(),
   deleteSession: (id: string) => invoke<void>("history:delete-session")(id),

@@ -21,6 +21,8 @@ export default function GitPanel({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const activeTerminalIdRef = useRef(activeTerminalId);
+  activeTerminalIdRef.current = activeTerminalId;
 
   const showStatus = (text: string, type: "info" | "success" | "error" = "info") => {
     setStatusMessage({ text, type });
@@ -43,16 +45,33 @@ export default function GitPanel({
 
   // 2. Fetch Git Data
   const refreshGit = useCallback(async () => {
-    if (!cwd) return;
+    if (!activeTerminalId) return;
+    const requestedTerminalId = activeTerminalId;
+    let currentCwd: string;
+    try {
+      const info = await window.terminalApi.getTerminalInfo(requestedTerminalId);
+      if (activeTerminalIdRef.current !== requestedTerminalId) return;
+      currentCwd = info.cwd;
+    } catch {
+      return;
+    }
+    if (!currentCwd) return;
+    if (currentCwd !== cwd) {
+      setCwd(currentCwd);
+      setGitStatus(null);
+      return;
+    }
     setLoading(true);
     try {
-      const status = await window.workspaceApi.getGitDetailedStatus(cwd);
+      const status = await window.workspaceApi.getGitDetailedStatus(currentCwd);
+      if (activeTerminalIdRef.current !== requestedTerminalId) return;
       setGitStatus(status);
       if (status.isGit) {
         const [branchData, logData] = await Promise.all([
-          window.workspaceApi.getGitBranches(cwd),
-          window.workspaceApi.getGitLog(cwd, 15),
+          window.workspaceApi.getGitBranches(status.repoRoot),
+          window.workspaceApi.getGitLog(status.repoRoot, 15),
         ]);
+        if (activeTerminalIdRef.current !== requestedTerminalId) return;
         setBranches(branchData.all || []);
         setRecentCommits(logData || []);
       } else {
@@ -64,7 +83,7 @@ export default function GitPanel({
     } finally {
       setLoading(false);
     }
-  }, [cwd]);
+  }, [activeTerminalId, cwd]);
 
   useEffect(() => {
     if (isActive && cwd) {
@@ -76,8 +95,9 @@ export default function GitPanel({
   }, [isActive, cwd, refreshGit]);
 
   const handleStage = async (files?: string[]) => {
-    if (!cwd) return;
-    const res = await window.workspaceApi.gitStage(cwd, files);
+    const gitCwd = gitStatus?.repoRoot || cwd;
+    if (!gitCwd) return;
+    const res = await window.workspaceApi.gitStage(gitCwd, files);
     if (!res.success) {
       showStatus(res.error || "Failed to stage files", "error");
     }
@@ -85,8 +105,9 @@ export default function GitPanel({
   };
 
   const handleUnstage = async (files?: string[]) => {
-    if (!cwd) return;
-    const res = await window.workspaceApi.gitUnstage(cwd, files);
+    const gitCwd = gitStatus?.repoRoot || cwd;
+    if (!gitCwd) return;
+    const res = await window.workspaceApi.gitUnstage(gitCwd, files);
     if (!res.success) {
       showStatus(res.error || "Failed to unstage files", "error");
     }
@@ -94,9 +115,10 @@ export default function GitPanel({
   };
 
   const handleDiscard = async (files: string[]) => {
-    if (!cwd) return;
+    const gitCwd = gitStatus?.repoRoot || cwd;
+    if (!gitCwd) return;
     if (!window.confirm(`Discard changes to ${files.join(", ")}? This cannot be undone.`)) return;
-    const res = await window.workspaceApi.gitDiscard(cwd, files);
+    const res = await window.workspaceApi.gitDiscard(gitCwd, files);
     if (!res.success) {
       showStatus(res.error || "Failed to discard changes", "error");
     }

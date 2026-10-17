@@ -4,6 +4,7 @@ import * as path from "path";
 import * as os from "os";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { Worker } from "node:worker_threads";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
 import { isTrustedSender } from "./ipc/ipcUtils";
 
@@ -12,11 +13,78 @@ const execFileAsync = promisify(execFile);
 const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
 const MAX_PATH_LENGTH = 4096;
 
+function searchRegexInWorker(request: {
+  rootPath: string;
+  query: string;
+  caseSensitive?: boolean | undefined;
+  wholeWord?: boolean | undefined;
+  maxResults: number;
+  filePattern?: string | undefined;
+}): Promise<Array<{
+  filePath: string;
+  relativePath: string;
+  line: number;
+  column: number;
+  lineContent: string;
+  matchLength: number;
+}>> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(path.join(__dirname, "workspaceRegexWorker.js"), {
+      workerData: request,
+    });
+    const timeout = setTimeout(() => {
+      void worker.terminate();
+      reject(new Error("Regular expression search exceeded its time limit"));
+    }, 5000);
+    worker.once("message", (result: { matches?: unknown; error?: string }) => {
+      clearTimeout(timeout);
+      void worker.terminate();
+      if (result.error) reject(new Error(result.error));
+      else resolve((result.matches || []) as Awaited<ReturnType<typeof searchRegexInWorker>>);
+    });
+    worker.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+  });
+}
+
 interface DirectoryItem {
   name: string;
   isDirectory: boolean;
   size: number;
   ext: string;
+}
+
+interface GitStatusRecord {
+  code: string;
+  path: string;
+  originalPath?: string | undefined;
+}
+
+function parseGitPorcelainZ(output: string): GitStatusRecord[] {
+  const fields = output.split("\0");
+  const records: GitStatusRecord[] = [];
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i]!;
+    if (field.length < 4) continue;
+    const code = field.slice(0, 2);
+    const filePath = field.slice(3);
+    if (!filePath) continue;
+    // In -z mode a rename/copy record is followed by its original pathname.
+    const originalPath = code.includes("R") || code.includes("C") ? fields[++i] : undefined;
+    records.push({ code, path: filePath, originalPath });
+  }
+  return records;
+}
+
+function fuzzyPathMatch(value: string, query: string): boolean {
+  let queryIndex = 0;
+  for (const char of value) {
+    if (char === query[queryIndex]) queryIndex++;
+    if (queryIndex === query.length) return true;
+  }
+  return query.length === 0;
 }
 
 function expandHome(inputPath: string): string {
@@ -321,7 +389,7 @@ class WorkspaceService {
               await walk(fullPath, depth + 1);
             }
           } else if (entry.isFile()) {
-            if (!lowerQuery || relPath.toLowerCase().includes(lowerQuery) || entry.name.toLowerCase().includes(lowerQuery)) {
+            if (!lowerQuery || fuzzyPathMatch(relPath.toLowerCase(), lowerQuery) || fuzzyPathMatch(entry.name.toLowerCase(), lowerQuery)) {
               results.push({
                 relativePath: relPath,
                 absolutePath: fullPath,
@@ -358,6 +426,24 @@ class WorkspaceService {
       logSensitivePathAccess(rootPath);
 
       const maxResults = options.maxResults || 200;
+      if (options.isRegex) {
+        try {
+          // Compile here for prompt syntax errors; actual matching runs in a killable worker.
+          new RegExp(options.wholeWord ? `\\b${query}\\b` : query, options.caseSensitive ? "g" : "gi");
+          return await searchRegexInWorker({
+            rootPath,
+            query,
+            caseSensitive: options.caseSensitive,
+            wholeWord: options.wholeWord,
+            maxResults,
+            filePattern: options.filePattern,
+          });
+        } catch (error) {
+          if (error instanceof SyntaxError) return [];
+          console.warn("Regex search worker failed:", error);
+          return [];
+        }
+      }
       const matches: Array<{
         filePath: string;
         relativePath: string;
@@ -558,14 +644,9 @@ class WorkspaceService {
         if (rootOut.trim()) repoRoot = rootOut.trim();
       } catch { /* intentional ignore */ }
 
-      const { stdout } = await execFileAsync("git", ["status", "--porcelain", "-u"], { cwd: repoRoot });
+      const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "-u"], { cwd: repoRoot });
       const statusMap: Record<string, "M" | "U" | "A" | "D"> = {};
-      const lines = stdout.split("\n");
-
-      for (const line of lines) {
-        if (!line || line.length < 4) continue;
-        const code = line.substring(0, 2);
-        const gitPath = line.substring(3).trim();
+      for (const { code, path: gitPath } of parseGitPorcelainZ(stdout)) {
 
         const fullGitPath = path.resolve(repoRoot, gitPath);
         const computedRel = path.relative(targetDir, fullGitPath);
@@ -624,17 +705,14 @@ class WorkspaceService {
         behind = parseInt(b || "0", 10) || 0;
       } catch { /* intentional ignore */ }
 
-      const { stdout: statusOut } = await execFileAsync("git", ["status", "--porcelain", "-u"], { cwd: repoRoot });
+      const { stdout: statusOut } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "-u"], { cwd: repoRoot });
       const staged: Array<{ path: string; status: string }> = [];
       const unstaged: Array<{ path: string; status: string }> = [];
       const untracked: Array<{ path: string }> = [];
 
-      const lines = statusOut.split("\n");
-      for (const line of lines) {
-        if (!line || line.length < 3) continue;
-        const x = line[0];
-        const y = line[1];
-        const filePath = line.substring(3).trim();
+      for (const { code, path: filePath } of parseGitPorcelainZ(statusOut)) {
+        const x = code[0];
+        const y = code[1];
 
         if (x === "?" && y === "?") {
           untracked.push({ path: filePath });
@@ -665,7 +743,7 @@ class WorkspaceService {
 
   async gitStage(cwd: string, files: string[] = []) {
     try {
-      const targetDir = path.resolve(expandHome(cwd));
+      const targetDir = await this.getGitRoot(cwd);
       if (!files || files.length === 0 || files.includes(".")) {
         await execFileAsync("git", ["add", "-A"], { cwd: targetDir });
       } else {
@@ -680,7 +758,7 @@ class WorkspaceService {
 
   async gitUnstage(cwd: string, files: string[] = []) {
     try {
-      const targetDir = path.resolve(expandHome(cwd));
+      const targetDir = await this.getGitRoot(cwd);
       if (!files || files.length === 0 || files.includes(".")) {
         try {
           await execFileAsync("git", ["restore", "--staged", "."], { cwd: targetDir });
@@ -688,10 +766,20 @@ class WorkspaceService {
           await execFileAsync("git", ["reset", "HEAD"], { cwd: targetDir });
         }
       } else {
+        // Unstaging only the destination of a rename leaves its source staged
+        // for deletion. Resolve both paths from the current index status here
+        // so every caller uses the same contract, including nested-cwd callers.
+        const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "-u"], { cwd: targetDir });
+        const paths = new Set(files);
+        for (const record of parseGitPorcelainZ(stdout)) {
+          if (record.code[0] === "R" && paths.has(record.path) && record.originalPath) {
+            paths.add(record.originalPath);
+          }
+        }
         try {
-          await execFileAsync("git", ["restore", "--staged", "--", ...files], { cwd: targetDir });
+          await execFileAsync("git", ["restore", "--staged", "--", ...paths], { cwd: targetDir });
         } catch {
-          await execFileAsync("git", ["reset", "HEAD", "--", ...files], { cwd: targetDir });
+          await execFileAsync("git", ["reset", "HEAD", "--", ...paths], { cwd: targetDir });
         }
       }
       return { success: true };
@@ -703,7 +791,7 @@ class WorkspaceService {
 
   async gitDiscard(cwd: string, files: string[]) {
     try {
-      const targetDir = path.resolve(expandHome(cwd));
+      const targetDir = await this.getGitRoot(cwd);
       if (!files || files.length === 0) return { success: true };
       try {
         await execFileAsync("git", ["restore", "--", ...files], { cwd: targetDir });
@@ -719,6 +807,16 @@ class WorkspaceService {
       const e = err as { stderr?: string; message?: string };
       return { success: false, error: e.stderr || e.message || String(err) };
     }
+  }
+
+  private async getGitRoot(cwd: string): Promise<string> {
+    const targetDir = path.resolve(expandHome(cwd));
+    const { stdout } = await execFileAsync(
+      "git",
+      ["rev-parse", "--show-toplevel"],
+      { cwd: targetDir },
+    );
+    return stdout.trim() || targetDir;
   }
 
   async gitCommit(cwd: string, message: string) {

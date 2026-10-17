@@ -217,6 +217,7 @@ export function useTerminal({
 
       // Fetch history (mainly useful when detaching to a new window)
       let oldestTimestamp = Date.now();
+      let oldestId = Number.MAX_SAFE_INTEGER;
       let isFetchingHistory = false;
       let hasMoreHistory = true;
       let initialWriteDone = false;
@@ -230,6 +231,7 @@ export function useTerminal({
           } else if (res && typeof res === "object") {
             historyData = res.data || "";
             if (res.oldestTimestamp) oldestTimestamp = res.oldestTimestamp;
+            if (res.oldestId) oldestId = res.oldestId;
           }
 
           if (historyData) {
@@ -263,9 +265,11 @@ export function useTerminal({
           const chunks = await apiHist.getScrollbackChunk(
             terminalId,
             oldestTimestamp,
+            oldestId,
           );
           if (chunks && chunks.length > 0) {
             oldestTimestamp = chunks[0].timestamp;
+            oldestId = chunks[0].id;
 
             const serializeAddon = window.serializeAddons?.get(terminalId);
             if (serializeAddon) {
