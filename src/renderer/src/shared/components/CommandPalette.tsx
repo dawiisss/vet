@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { ModalOverlay } from "@/shared/components/ModalOverlay";
 import { useUIStore } from "@/shared/stores/useUIStore";
+import { useTabStore } from "@/features/terminal/useTabStore";
+import { collectTerminalIds, getNode } from "@/features/terminal/splitTree";
 
 export type PaletteStep =
   | { type: "input"; placeholder: string; onComplete: (val: string) => void }
@@ -64,6 +66,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   initialMode,
 }) => {
   const storeMode = useUIStore((s) => s.commandPaletteInitialMode);
+  const activeTerminalId = useTabStore((s) => {
+    const tab = s.tabs.find((entry) => entry.id === s.activeTabId);
+    if (!tab) return null;
+    return getNode(tab.root, tab.focusedPath).terminalId || collectTerminalIds(tab.root)[0] || null;
+  });
   const [mode, setMode] = useState<"files" | "commands">(initialMode || storeMode || "files");
   const [query, setQuery] = useState("");
   const [files, setFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
@@ -100,35 +107,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, [isOpen, initialMode, storeMode]);
 
-  // Load files from workspace when opening or in files mode
-  useEffect(() => {
-    let active = true;
-    if (isOpen && window.workspaceApi?.searchFiles) {
-      window.workspaceApi
-        .searchFiles("", "")
-        .then((res) => {
-          if (active) setFiles(res || []);
-        })
-        .catch(() => {
-          if (active) setFiles([]);
-        });
-    }
-    return () => {
-      active = false;
-    };
-  }, [isOpen]);
-
-  // Auto-switch mode based on query prefix
+  // Auto-switch mode based on query prefix.
   const activeMode = useMemo(() => {
     if (query.startsWith(">")) return "commands";
     return mode;
   }, [query, mode]);
 
-  // Parse line number if typed like "filename.ts:42" or ":42"
+  // Keep the line suffix out of file search; it is used only when opening.
   const { cleanQuery, targetLine } = useMemo(() => {
     let q = query;
     if (q.startsWith(">")) q = q.slice(1).trim();
-
     const match = q.match(/^(.*?)(?::(\d+))?$/);
     if (match && match[2]) {
       return {
@@ -138,6 +126,34 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
     return { cleanQuery: q.trim(), targetLine: undefined };
   }, [query]);
+
+  // Search the active terminal's workspace as the query changes.
+  useEffect(() => {
+    let active = true;
+    if (isOpen && activeMode === "files" && activeTerminalId && window.workspaceApi?.searchFiles) {
+      const timer = setTimeout(async () => {
+        try {
+          const info = await window.terminalApi.getTerminalInfo(activeTerminalId);
+          if (!active) return;
+          const res = await window.workspaceApi.searchFiles(
+            info.cwd,
+            cleanQuery,
+          );
+          if (active) setFiles(res || []);
+        } catch {
+          if (active) setFiles([]);
+        }
+      }, 150);
+      return () => {
+        active = false;
+        clearTimeout(timer);
+      };
+    }
+    setFiles([]);
+    return () => {
+      active = false;
+    };
+  }, [isOpen, activeTerminalId, activeMode, cleanQuery]);
 
   // Generate combined filtered items
   const filteredItems = useMemo<PaletteItem[]>(() => {

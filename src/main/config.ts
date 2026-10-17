@@ -308,14 +308,15 @@ export function sanitizeConfig(conf: any): any {
   // maxActiveTerminals validation
   if (
     typeof sanitized.maxActiveTerminals !== "number" ||
-    isNaN(sanitized.maxActiveTerminals)
+    !Number.isFinite(sanitized.maxActiveTerminals)
   ) {
     sanitized.maxActiveTerminals = 4;
   } else {
     sanitized.maxActiveTerminals = Math.max(
-      1,
+      0,
       Math.min(50, sanitized.maxActiveTerminals),
     );
+    sanitized.maxActiveTerminals = Math.floor(sanitized.maxActiveTerminals);
   }
 
   // cursorStyle validation

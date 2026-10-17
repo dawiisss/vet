@@ -93,16 +93,22 @@ interface TerminalApi {
   enableForwarding: (id: string) => Promise<void>;
   write: (id: string, data: string) => void;
   resize: (id: string, cols: number, rows: number) => Promise<void>;
-  getHistory: (id: string) => Promise<string>;
+  getHistory: (id: string) => Promise<{ data: string; oldestTimestamp: number; oldestId: number }>;
   destroy: (id: string) => Promise<void>;
   detachTab: (
     tabId: string,
     terminalIds: string[],
+    tab: TabTransferState,
   ) => Promise<{ success: boolean }>;
-  reattachTab: (terminalIds: string[]) => Promise<{ success: boolean }>;
+  reattachTab: (
+    terminalIds: string[],
+    tab: TabTransferState,
+  ) => Promise<{ success: boolean }>;
   onData: (callback: (id: string, data: string) => void) => () => void;
   onExit: (callback: (id: string, exitCode: number) => void) => () => void;
-  onReattachTab: (callback: (terminalIds: string[]) => void) => () => void;
+  getTabTransfer: (transferId: string) => Promise<TabTransferState | null>;
+  completeTabTransfer: (transferId: string) => Promise<{ success: boolean }>;
+  onReattachTab: (callback: (transferId: string) => void) => () => void;
   getTerminalInfo: (
     id: string,
   ) => Promise<{ title: string; cwd: string; sshHostId?: string }>;
@@ -154,7 +160,8 @@ interface HistoryApi {
   getScrollbackChunk: (
     id: string,
     beforeTimestamp: number,
-  ) => Promise<{ data: string; timestamp: number }[]>;
+    beforeId?: number,
+  ) => Promise<{ id: number; data: string; timestamp: number }[]>;
   clear: () => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   addBrowserVisit: (url: string, title: string) => Promise<void>;
@@ -210,6 +217,33 @@ interface GitDetailedStatus {
   staged: Array<{ path: string; status: string }>;
   unstaged: Array<{ path: string; status: string }>;
   untracked: Array<{ path: string }>;
+}
+
+interface TabTransferNode {
+  terminalId?: string | undefined;
+  browserId?: string | undefined;
+  editorId?: string | undefined;
+  filePath?: string | undefined;
+  sshHostId?: string | null | undefined;
+  url?: string | undefined;
+  direction?: "horizontal" | "vertical" | undefined;
+  children?: TabTransferNode[] | undefined;
+  sizes?: number[] | undefined;
+}
+
+interface TabTransferState {
+  label: string;
+  root: TabTransferNode;
+  focusedPath: number[];
+  editorDocuments: EditorDocumentSnapshot[];
+}
+
+interface EditorDocumentSnapshot {
+  editorId: string;
+  filePath: string;
+  sshHostId?: string | null | undefined;
+  content: string;
+  isDirty: boolean;
 }
 
 interface GitCommitInfo {

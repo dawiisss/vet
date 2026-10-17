@@ -12,10 +12,13 @@ const terminalApi = {
   enableForwarding: jest.fn(() => Promise.resolve()),
   write: jest.fn(() => Promise.resolve()),
   resize: jest.fn(() => Promise.resolve()),
+  setForeground: jest.fn(() => Promise.resolve()),
   getHistory: jest.fn(() => Promise.resolve("")),
   destroy: jest.fn(() => Promise.resolve()),
   detachTab: jest.fn(() => Promise.resolve({ success: true })),
   reattachTab: jest.fn(() => Promise.resolve({ success: true })),
+  getTabTransfer: jest.fn(() => Promise.resolve(null as TabTransferState | null)),
+  completeTabTransfer: jest.fn(() => Promise.resolve({ success: true })),
   getTerminalInfo: jest.fn(() =>
     Promise.resolve({ title: "projects : bash", cwd: "/home/user/projects" } as { title: string; cwd: string; sshHostId?: string }),
   ),

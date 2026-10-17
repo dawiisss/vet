@@ -9,6 +9,7 @@ import {
 } from "../renderer/src/features/terminal/splitTree";
 import { setupMockedApis } from "./rendererHelpers";
 import { jest } from "@jest/globals";
+import { getEditorDocument, setEditorDocument } from "../renderer/src/features/workspace/editorDocumentStore";
 
 describe("useTabStore", () => {
   beforeEach(() => {
@@ -76,7 +77,7 @@ describe("useTabStore", () => {
     expect(newTabs.find((t) => t.id === "tab-2")?.label).toBe("Another Tab");
   });
 
-  it("detachTab collects browser IDs correctly", async () => {
+  it("detachTab transfers browser panes separately from PTY ownership", async () => {
     const store = useTabStore.getState();
     store.setTabs([
       {
@@ -90,11 +91,16 @@ describe("useTabStore", () => {
     await store.detachTab("tab-browser");
 
     const api = window.terminalApi as any;
-    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", ["browser-123"]);
+    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", [], {
+      label: "Web Browser",
+      root: { browserId: "browser-123" },
+      focusedPath: [],
+      editorDocuments: [],
+    });
     expect(useTabStore.getState().tabs).toHaveLength(0);
   });
 
-  it("detachTab encodes URL in browser ID if present", async () => {
+  it("detachTab includes the browser URL in pane state", async () => {
     const store = useTabStore.getState();
     const browserNode = browserLeafNode("browser-123");
     browserNode.url = "https://google.com/search";
@@ -110,9 +116,12 @@ describe("useTabStore", () => {
     await store.detachTab("tab-browser");
 
     const api = window.terminalApi as any;
-    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", [
-      "browser-123:https%3A%2F%2Fgoogle.com%2Fsearch",
-    ]);
+    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", [], {
+      label: "Web Browser",
+      root: { browserId: "browser-123", url: "https://google.com/search" },
+      focusedPath: [],
+      editorDocuments: [],
+    });
   });
 
   it("detachTab queries DOM webview element for URL if node.url is missing", async () => {
@@ -135,9 +144,12 @@ describe("useTabStore", () => {
     await store.detachTab("tab-browser");
 
     const api = window.terminalApi as any;
-    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", [
-      "browser-123:https%3A%2F%2Fyoutube.com",
-    ]);
+    expect(api.detachTab).toHaveBeenCalledWith("tab-browser", [], {
+      label: "Web Browser",
+      root: { browserId: "browser-123", url: "https://youtube.com" },
+      focusedPath: [],
+      editorDocuments: [],
+    });
 
     // Cleanup mock element
     document.body.removeChild(mockWebview);
@@ -145,10 +157,15 @@ describe("useTabStore", () => {
 
   it("initializeTabs reconstructs browser leaf nodes correctly when detached", () => {
     // Mock URL search params using history.pushState
+    const transfer = encodeURIComponent(JSON.stringify({
+      label: "Web Browser",
+      root: { browserId: "browser-123", url: "https://google.com/search" },
+      focusedPath: [],
+    }));
     window.history.pushState(
       {},
       "",
-      "?detached=tab-browser&terminals=browser-123:https%3A%2F%2Fgoogle.com%2Fsearch",
+      `?detached=tab-browser&terminals=&tab=${transfer}`,
     );
 
     // Run inside isolateModules to get a fresh copy of useTabStore
@@ -170,7 +187,7 @@ describe("useTabStore", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("onReattachTab reconstructs browser leaf nodes correctly", () => {
+  it("onReattachTab reconstructs browser leaf nodes correctly", async () => {
     const store = useTabStore.getState();
     let callback: any;
     const api = window.terminalApi as any;
@@ -182,8 +199,14 @@ describe("useTabStore", () => {
     store.onReattachTab();
     expect(callback).toBeDefined();
 
-    // Trigger reattach callback with browser ID + URL
-    callback(["browser-123:https%3A%2F%2Fgoogle.com%2Fsearch"]);
+    api.getTabTransfer.mockResolvedValueOnce({
+      label: "Web Browser",
+      root: { browserId: "browser-123", url: "https://google.com/search" },
+      focusedPath: [],
+      editorDocuments: [],
+    });
+    callback("reattach-browser");
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const tabs = useTabStore.getState().tabs;
     const newTab = tabs[tabs.length - 1];
@@ -193,6 +216,67 @@ describe("useTabStore", () => {
       url: "https://google.com/search",
     };
     expect(newTab.root).toEqual(expectedNode);
+  });
+
+  it("keeps dirty editor panes until detach succeeds and restores editing on failure", async () => {
+    const store = useTabStore.getState();
+    const root = { editorId: "detach-dirty", filePath: "/tmp/dirty.txt" };
+    store.setTabs([{ id: "dirty-tab", label: "Dirty", root, focusedPath: [] }]);
+    store.setActiveTabId("dirty-tab");
+    setEditorDocument(root.editorId, root.filePath, undefined, { content: "valuable edits", isDirty: true });
+    const api = window.terminalApi as any;
+    let finish!: (result: { success: boolean }) => void;
+    api.detachTab.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const pending = store.detachTab("dirty-tab");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useTabStore.getState().tabs).toHaveLength(1);
+    expect(api.detachTab).toHaveBeenCalledWith("dirty-tab", [], expect.objectContaining({
+      editorDocuments: [{ ...root, sshHostId: undefined, content: "valuable edits", isDirty: true }],
+    }));
+    expect(getEditorDocument(root.editorId, root.filePath)?.isTransferring).toBe(true);
+    finish({ success: false });
+    await pending;
+    expect(useTabStore.getState().tabs).toHaveLength(1);
+    expect(getEditorDocument(root.editorId, root.filePath)).toMatchObject({ content: "valuable edits", isDirty: true, isTransferring: false });
+  });
+
+  it("hydrates detached documents over IPC before acknowledging them", async () => {
+    const api = window.terminalApi as any;
+    const root = { editorId: "incoming-detach", filePath: "/tmp/incoming.txt" };
+    api.getTabTransfer.mockResolvedValueOnce({
+      label: "Incoming", root, focusedPath: [],
+      editorDocuments: [{ ...root, content: "unsaved incoming", isDirty: true }],
+    });
+    api.completeTabTransfer.mockImplementationOnce(async () => {
+      expect(getEditorDocument(root.editorId, root.filePath)?.content).toBe("unsaved incoming");
+      return { success: true };
+    });
+    window.history.pushState({}, "", "?detached=incoming&transfer=opaque-id");
+    try {
+      useTabStore.getState().initializeTabs();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(api.getTabTransfer).toHaveBeenCalledWith("opaque-id");
+      expect(api.completeTabTransfer).toHaveBeenCalledWith("opaque-id");
+      expect(useTabStore.getState().tabs[0]?.root).toEqual(root);
+    } finally {
+      window.history.pushState({}, "", "/");
+    }
+  });
+
+  it("reattaches dirty editor content over stale destination cache", async () => {
+    const api = window.terminalApi as any;
+    const root = { editorId: "reattach-dirty", filePath: "/tmp/reattach.txt" };
+    setEditorDocument(root.editorId, root.filePath, undefined, { content: "old main-window text", isDirty: false });
+    api.getTabTransfer.mockResolvedValueOnce({ label: "Reattached", root, focusedPath: [], editorDocuments: [
+      { ...root, content: "edited in detached window", isDirty: true },
+    ] });
+    let callback!: (id: string) => void;
+    api.onReattachTab.mockImplementationOnce((handler: (id: string) => void) => { callback = handler; return () => {}; });
+    useTabStore.getState().onReattachTab();
+    callback("reattach-editor");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useTabStore.getState().tabs[0]?.root).toEqual(root);
+    expect(getEditorDocument(root.editorId, root.filePath)).toMatchObject({ content: "edited in detached window", isDirty: true });
   });
 
   it("initializeTabs restores saved session tabs and splits correctly", async () => {

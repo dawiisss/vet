@@ -181,7 +181,6 @@ export function useKeybindings() {
       };
 
       const fakeEvent = new KeyboardEvent("keydown", eventInit);
-      window.dispatchEvent(fakeEvent);
       document.dispatchEvent(fakeEvent);
     });
 

@@ -1,5 +1,5 @@
 import { ipcMain, app } from "electron";
-import { Client, SFTPWrapper } from "ssh2";
+import { Client, SFTPWrapper, type ConnectConfig } from "ssh2";
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import * as path from "path";
@@ -42,9 +42,9 @@ function saveKnownHosts(hosts: Record<string, string>): void {
  * rejects subsequent connections whose key differs (possible MITM).
  */
 function makeHostVerifier(host: string, port: number) {
-  return (key: { getPublicSSH: () => Buffer }): boolean => {
+  return (key: Buffer): boolean => {
     try {
-      const fingerprint = key.getPublicSSH().toString("base64");
+      const fingerprint = key.toString("base64");
       const hostKey = `${host}:${port}`;
       const known = loadKnownHosts();
       const existing = known[hostKey];
@@ -119,7 +119,7 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
     throw new Error("SSH Host profile not found");
   }
 
-  const connOpts: any = {
+  const connOpts: ConnectConfig = {
     host: hostConfig.host,
     port: hostConfig.port || 22,
     username: hostConfig.username,
@@ -149,7 +149,7 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
       throw new Error(`Failed to read private key: ${err.message}`);
     }
   } else if (hostConfig.authType === "agent") {
-    connOpts.agent = process.env.SSH_AUTH_SOCK;
+    if (process.env.SSH_AUTH_SOCK) connOpts.agent = process.env.SSH_AUTH_SOCK;
   } else if (hostConfig.authType === "auto") {
     if (process.env.SSH_AUTH_SOCK) {
       connOpts.agent = process.env.SSH_AUTH_SOCK;

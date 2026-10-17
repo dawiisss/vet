@@ -4,11 +4,12 @@
 
 import "@testing-library/jest-dom";
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { setupMockedApis, resetMockedApis, workspaceApi } from "../__tests__/rendererHelpers";
 import CommandPalette, {
   CommandAction,
 } from "../renderer/src/shared/components/CommandPalette";
+import { useTabStore } from "../renderer/src/features/terminal/useTabStore";
 
 setupMockedApis();
 
@@ -137,5 +138,33 @@ describe("CommandPalette", () => {
       fireEvent.keyDown(input, { key: "ArrowRight" });
     });
     expect(input.value).toBe("Settings: Open");
+  });
+
+  it.each(["App.tsx:42", ":42"])("searches without the line suffix and opens line 42 for %s", async (query) => {
+    useTabStore.setState({
+      tabs: [{ id: "palette-tab", label: "Shell", root: { terminalId: "pty" }, focusedPath: [] }],
+      activeTabId: "palette-tab",
+    });
+    (workspaceApi.searchFiles as jest.Mock).mockImplementation(async (_cwd: string, search: string) =>
+      search.includes(":") ? [] : [{ relativePath: "src/App.tsx", absolutePath: "/path/src/App.tsx" }]);
+    const onOpen = jest.fn();
+    window.addEventListener("vet:open-editor", onOpen);
+    try {
+      render(<CommandPalette isOpen initialMode="files" onClose={onClose} actions={[]} />);
+      const input = screen.getByRole("textbox");
+      fireEvent.change(input, { target: { value: query } });
+      await waitFor(() => expect(screen.getByText("App.tsx:42")).toBeInTheDocument());
+      expect(workspaceApi.searchFiles).toHaveBeenLastCalledWith(
+        "/home/user/projects", query.startsWith(":") ? "" : "App.tsx",
+      );
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect((onOpen.mock.calls[0][0] as CustomEvent).detail).toEqual({
+        filePath: "/path/src/App.tsx", line: 42,
+      });
+    } finally {
+      window.removeEventListener("vet:open-editor", onOpen);
+      useTabStore.setState({ tabs: [], activeTabId: null });
+    }
   });
 });

@@ -147,14 +147,14 @@ webFrame.executeJavaScript(`
           if (!pk.length && !rr.length) return resp
           if (!isTextType(resp.headers.get('content-type'))) return resp
           try {
-            return resp.text().then(function(text) {
+            return resp.clone().text().then(function(text) {
               if (pk.length) text = pruneJsonKeys(text, pk)
               if (rr.length) text = applyRules(text, rr)
               return new Response(text, { status: resp.status, statusText: resp.statusText, headers: resp.headers })
             }).catch(function(){ return resp })
           } catch { return resp }
         })
-      }).catch(function(){ return origFetch.apply(window, [input, init]) })
+      })
     }
   } catch { /* intentional ignore */ }
 
