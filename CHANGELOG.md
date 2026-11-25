@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-11-25
+
+### Security
+
+- **Webview Attachment Isolation (`will-attach-webview`)**: Added a `will-attach-webview` handler in `src/main/index.ts` to strictly pin guest preloads to `preload/browser.js`, enforce `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and `webSecurity: true`, and block non-allowlisted attachment URLs.
+- **Preload Event Boundary Hardening**: Wrapped `adblockerApi.onBlockedEvent` in `src/preload/index.ts` so Electron's raw `IpcRendererEvent` object is never exposed across `contextBridge`.
+- **Browser Preload and Adblocker IPC Hardening**: Validated `url` protocol and length in `adblocker:get-html-replace-rules`, removed the legacy unguarded `window.addEventListener("message")` bridge in `src/preload/browser.ts`, added cycle protection (`WeakSet`) to `pruneKeysDeep`, and cleared cached XHR response modifications on `XMLHttpRequest.prototype.open`.
+- **Shell Argument Quoting for SSH and Docker Commands**: Added shared `quotePosixArg` escaping for SSH aliases, app SSH profiles, and Docker container exec commands across `src/main/connections.ts` and `DockerPanel.tsx` to prevent shell metacharacter injection.
+- **Config, Session Profile, and Known-Hosts Hardening**: Switched `config:open-in-editor` to `shell.openPath`, rejected prototype-polluting keys (`__proto__`, `constructor`, `prototype`) in config maps and workspace profiles, wrote `profiles.json` atomically with `0o600` permissions via a serialized write queue, and restricted `sftp_known_hosts.json` writes to `0o600`.
+- **Dependency Vulnerability Remediation**: Upgraded `electron` to `^43.8.13` (and aligned `allowScripts`), `electron-builder` to `^26.18.1`, and `typescript-eslint` to `^8.74.0`, and pinned patched transitive overrides for `undici` (`^7.30.2`), `fast-uri` (`^3.1.9`), `vite` (`^7.3.8`), `minimatch` (`^11.0.9` for `>=7.0.0 <11.0.1`), and `glob` (`^14.0.6` for `>=9.0.0 <=14.0.1`), bringing `npm audit` from 25 advisories (3 high, 22 moderate) to 0 vulnerabilities.
+
+### Fixed
+
+- **SFTP IPC Error Handling and Validation**: Awaited inner promises in `sftp:list-dir`, `sftp:read-file-head`, `sftp:read-file`, and `sftp:write-file` so SFTP rejections are consistently caught and returned as structured `__ipcError` payloads, added a 10 MB write size limit on `sftp:write-file`, and expanded `~` private key paths using `os.homedir()` for Windows compatibility.
+- **Empty File Saves in Floating Editor**: Fixed `EditorModal` `Ctrl+S` / `Cmd+S` to use nullish coalescing (`??`) instead of `||` so clearing a file to an empty string saves properly instead of reverting to the prior buffer.
+- **System Monitor Broadcasting and Linux Disk Filtering**: Broadcasted `sysinfo:update` across all active `BrowserWindow` instances (fixing stopped telemetry after macOS window reactivation and in detached windows), filtered `/dev/loop*`, `/dev/fuse`, `/dev/ram*`, and `/dev/zram*` mounts on Linux, and unescaped `\040` spaces in `/proc/mounts` paths.
+- **Multi-Window Foreground Terminals and Detached Window Styling**: Scoped foreground terminal tracking per `BrowserWindow` in `src/main/pty.ts` (cleaning up on window close) so detached windows no longer throttle active terminals in the main window, and applied configured opacity/vibrancy to detached windows.
+- **Cross-Platform Workspace and Git Handling**: Fixed `expandHome` so relative filenames starting with `~` are not redirected to the home directory, supported Windows path separators when highlighting parent folders in `getGitStatus`, and switched `getGitBranches` to `--format=%(HEAD)%00%(refname:short)` for git worktree compatibility.
+- **UI Scrollbars and Sidebar Hook Stability**: Added `.app-scrollbar` to `UpdateModal` release notes, memoized `Sidebar` panel ordering/filtering to resolve `react-hooks/exhaustive-deps`, and removed an unused import in `GitPanel.test.tsx`.
+
+### Changed
+
+- **TypeScript Strictness Cleanup**: Eliminated ~150 `@typescript-eslint/no-explicit-any` warnings by typing Zustand store actions (`splitActions.ts`, `tabActions.ts`, `windowActions.ts`), `ThemeProvider.tsx`, `sftp.ts`, `session.ts`, and `ipcUtils.ts`.
+- **Single Source of Truth for Config Path and Production Logging**: Reused `CONFIG_FILE` from `config.ts` during startup and restricted verbose renderer `console-message` forwarding in production to warnings and errors.
+
 ## [1.5.3] - 2026-10-17
 
 ### Fixed

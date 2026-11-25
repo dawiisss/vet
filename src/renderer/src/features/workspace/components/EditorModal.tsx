@@ -19,20 +19,22 @@ const tabCompletionExtension = Prec.highest(
 
 interface EditorModalProps {
   filePath: string;
+  editorOptions?: EditorOpenOptions | undefined;
   sshHostId?: string | null | undefined;
   onClose: () => void;
 }
 
 export const EditorModal: React.FC<EditorModalProps> = ({
   filePath: rawFilePath,
+  editorOptions,
   sshHostId,
   onClose,
 }) => {
-  const safeRawPath = rawFilePath || "";
-  const isGitDiffInitial = safeRawPath.includes("#git-diff");
-  const lineMatch = safeRawPath.match(/#L(\d+)/i);
-  const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
-  const filePath = safeRawPath.split("#")[0]!;
+  const filePath = rawFilePath || "";
+  const targetLine = editorOptions?.line;
+  const targetColumn = editorOptions?.column;
+  const sshConnectionId = editorOptions?.sshConnectionId;
+  const isGitDiffInitial = editorOptions?.view === "git-diff";
 
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,6 +49,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const contentRef = useRef("");
+  const connectionIdRef = useRef<string | undefined>(undefined);
   const dirtyRef = useRef(false);
 
   const setDocumentDirty = useCallback((dirty: boolean) => {
@@ -63,6 +66,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
     setStatusMsg(null);
     setDocumentDirty(false);
     contentRef.current = "";
+    connectionIdRef.current = undefined;
 
     // Resolve language based on extension
     const ext = filePath.split(".").pop()?.toLowerCase();
@@ -85,19 +89,20 @@ export const EditorModal: React.FC<EditorModalProps> = ({
     }
 
     const readPromise = sshHostId
-      ? window.sftpApi.readFile(sshHostId, filePath)
+      ? window.sftpApi.readFile(sshHostId, filePath, sshConnectionId)
       : window.workspaceApi.readFile(filePath);
 
     readPromise
       .then((data) => {
         if (active) {
-          // If readFileHead failed with error string inside data (e.g. sftp error helper)
-          if (data.startsWith("Error: Failed to read file.")) {
+          if (typeof data === "string" && data.startsWith("Error: Failed to read file.")) {
             setStatusMsg({ text: data, type: "error" });
             setContent("");
           } else {
-            contentRef.current = data;
-            setContent(data);
+            const value = typeof data === "string" ? data : data.content;
+            connectionIdRef.current = typeof data === "string" ? undefined : data.connectionId;
+            contentRef.current = value;
+            setContent(value);
           }
           setLoading(false);
         }
@@ -113,9 +118,9 @@ export const EditorModal: React.FC<EditorModalProps> = ({
     return () => {
       active = false;
     };
-  }, [filePath, sshHostId, setDocumentDirty]);
+  }, [filePath, sshHostId, sshConnectionId, setDocumentDirty]);
 
-  const jumpToLine = (lineNum: number) => {
+  const jumpToLine = (lineNum: number, column = 1) => {
     const view = editorRef.current;
     if (!view) return;
     setTimeout(() => {
@@ -123,9 +128,10 @@ export const EditorModal: React.FC<EditorModalProps> = ({
         const lineCount = view.state?.doc?.lines || 1;
         const validLine = Math.max(1, Math.min(lineNum, lineCount));
         const lineObj = view.state.doc.line(validLine);
+        const position = Math.min(lineObj.to, lineObj.from + Math.max(0, column - 1));
         view.dispatch({
-          selection: { anchor: lineObj.from, head: lineObj.from },
-          effects: CMEditorView.scrollIntoView(lineObj.from, { y: "center" }),
+          selection: { anchor: position },
+          effects: CMEditorView.scrollIntoView(position, { y: "center" }),
         });
       } catch { /* intentional ignore */ }
     }, 100);
@@ -134,9 +140,11 @@ export const EditorModal: React.FC<EditorModalProps> = ({
   // Scroll to target line when file finishes loading or line changes
   useEffect(() => {
     if (!loading && targetLine) {
-      jumpToLine(targetLine);
+      jumpToLine(targetLine, targetColumn);
     }
-  }, [loading, targetLine, rawFilePath]);
+  }, [loading, targetLine, targetColumn, filePath]);
+
+  useEffect(() => setIsDiffMode(isGitDiffInitial), [editorOptions, isGitDiffInitial]);
 
   // Fetch Git diff content if in diff mode
   useEffect(() => {
@@ -175,7 +183,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
 
     try {
       if (sshHostId) {
-        await window.sftpApi.writeFile(sshHostId, filePath, valToSave);
+        await window.sftpApi.writeFile(sshHostId, filePath, valToSave, connectionIdRef.current);
       } else {
         await window.workspaceApi.writeFile(filePath, valToSave);
       }
@@ -471,7 +479,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
                 editorRef.current = view;
                 view.focus();
                 if (targetLine) {
-                  jumpToLine(targetLine);
+                  jumpToLine(targetLine, targetColumn);
                 }
               }}
               style={{
@@ -487,7 +495,7 @@ export const EditorModal: React.FC<EditorModalProps> = ({
                 if ((e.ctrlKey || e.metaKey) && e.key === "s") {
                   e.preventDefault();
                   // Grab current value from the editor ref if possible to avoid state lag
-                  const currentEditorValue = editorRef.current?.state?.doc?.toString() || content;
+                  const currentEditorValue = editorRef.current?.state?.doc?.toString() ?? content;
                   handleSave(currentEditorValue);
                 }
               }}

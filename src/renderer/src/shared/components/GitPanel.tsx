@@ -8,7 +8,7 @@ export default function GitPanel({
 }: {
   isActive: boolean;
   activeTerminalId?: string | null | undefined;
-  onViewFile?: ((filePath: string) => void) | undefined;
+  onViewFile?: OpenWorkspaceFile | undefined;
 }) {
   const [cwd, setCwd] = useState<string>("");
   const [gitStatus, setGitStatus] = useState<GitDetailedStatus | null>(null);
@@ -178,13 +178,12 @@ export default function GitPanel({
 
   const handleOpenDiff = (filePath: string) => {
     const fullPath = gitStatus?.repoRoot ? `${gitStatus.repoRoot}/${filePath}` : filePath;
-    const diffPath = `${fullPath}#git-diff`;
     if (onViewFile) {
-      onViewFile(diffPath);
+      onViewFile(fullPath, undefined, { view: "git-diff" });
     } else {
       window.dispatchEvent(
         new CustomEvent("vet:open-editor", {
-          detail: { filePath: diffPath, sshHostId: null },
+          detail: { filePath: fullPath, sshHostId: null, view: "git-diff" },
         }),
       );
     }

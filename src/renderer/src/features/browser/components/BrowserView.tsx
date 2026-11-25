@@ -308,7 +308,7 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   useEffect(() => {
     if (!window.adblockerApi) return;
 
-    const unsubscribe = window.adblockerApi.onBlockedEvent((_event, data) => {
+    const unsubscribe = window.adblockerApi.onBlockedEvent((data) => {
       if (webviewRef.current) {
         try {
           const wcId = webviewRef.current.getWebContentsId();

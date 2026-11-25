@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { quotePosixArg } from "../../../../../shared/utils/pathUtils";
 import Panel from "@/shared/components/Panel";
 import { useConfig } from "@/features/settings/useConfigStore";
 
@@ -80,7 +81,7 @@ export default function DockerPanel({
 
   const handleExec = (name: string) => {
     const shell = config.dockerDefaultShell || "/bin/bash";
-    onRunScript(`docker exec -it ${name} ${shell}`, "");
+    onRunScript(`docker exec -it ${quotePosixArg(name)} ${quotePosixArg(shell)}`, "");
   };
 
   const parsePortLinks = (portsStr: string) => {

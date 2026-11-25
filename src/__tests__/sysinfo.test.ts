@@ -65,7 +65,11 @@ jest.mock("fs/promises", () => ({
   readFile: jest.fn((path: string) => {
     if (path === "/proc/mounts") {
       return Promise.resolve(
-        "/dev/sda1 / ext4 rw,relatime 0 0\n/dev/sda1 /home ext4 rw,relatime 0 0\n"
+        "/dev/sda1 / ext4 rw,relatime 0 0\n" +
+          "/dev/sda1 /home ext4 rw,relatime 0 0\n" +
+          "/dev/loop0 /snap/core/1 squashfs ro 0 0\n" +
+          "/dev/fuse /run/user/1000/gvfs fuse rw 0 0\n" +
+          "/dev/sdb1 /mnt/My\\040Drive ext4 rw 0 0\n"
       );
     }
     if (path === "/sys/class/thermal/thermal_zone0/temp") {
@@ -259,6 +263,10 @@ describe("sysinfo", () => {
             cpu: 1.5,
             mem: expect.any(Number),
           }),
+          disks: [
+            expect.objectContaining({ mount: "/" }),
+            expect.objectContaining({ mount: "/mnt/My Drive" }),
+          ],
         })
       );
     });

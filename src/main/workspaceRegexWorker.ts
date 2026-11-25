@@ -13,7 +13,7 @@ interface SearchRequest {
 
 async function runSearch(request: SearchRequest) {
   const { rootPath, query, maxResults } = request;
-  const pattern = request.wholeWord ? `\\b${query}\\b` : query;
+  const pattern = request.wholeWord ? `\\b(?:${query})\\b` : query;
   const regex = new RegExp(pattern, request.caseSensitive ? "g" : "gi");
   const ignored = new Set([
     ".git", "node_modules", "dist", "out", "build", ".next", ".cache",
@@ -51,8 +51,12 @@ async function runSearch(request: SearchRequest) {
         if (stat.size > 2 * 1024 * 1024) continue;
         const handle = await fs.open(fullPath, "r");
         const sample = Buffer.alloc(Math.min(512, stat.size));
-        const { bytesRead } = await handle.read(sample, 0, sample.length, 0);
-        await handle.close();
+        let bytesRead: number;
+        try {
+          ({ bytesRead } = await handle.read(sample, 0, sample.length, 0));
+        } finally {
+          await handle.close();
+        }
         if (sample.subarray(0, bytesRead).includes(0)) continue;
         const lines = (await fs.readFile(fullPath, "utf8")).split(/\r?\n/);
         for (let lineIndex = 0; lineIndex < lines.length && matches.length < maxResults; lineIndex++) {

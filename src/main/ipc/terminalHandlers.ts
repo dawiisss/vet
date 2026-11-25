@@ -15,7 +15,7 @@ import { getConfig } from "../config";
 interface TerminalHandlersOptions {
   windowTerminals: Map<number, Set<string>>;
   getMainWindow: () => BrowserWindow | null;
-  createWindow: () => BrowserWindow;
+  createWindow: (isTransparent?: boolean) => BrowserWindow;
   loadWindow: (win: BrowserWindow, extraParams?: string) => void;
   registerForwardTarget: (terminalId: string, window: BrowserWindow) => void;
 }
@@ -42,7 +42,8 @@ function validTransfer(tab: TabTransferState): boolean {
     tab.editorDocuments.every((document) => !!document &&
       typeof document.editorId === "string" && typeof document.filePath === "string" &&
       (document.sshHostId == null || typeof document.sshHostId === "string") &&
-      typeof document.content === "string" && typeof document.isDirty === "boolean");
+      typeof document.content === "string" && typeof document.isDirty === "boolean" &&
+      (document.connectionId === undefined || typeof document.connectionId === "string"));
 }
 
 interface PendingTabTransfer {
@@ -218,7 +219,11 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
         }
       }
 
-      const detachedWin = createWindow();
+      const config = getConfig();
+      const detachedWin = createWindow(config.opacity < 1.0);
+      if (config.vibrancy && config.vibrancy !== "none" && typeof detachedWin.setVibrancy === "function") {
+        detachedWin.setVibrancy(config.vibrancy);
+      }
 
       return beginTransfer(senderWin, detachedWin, terminalIds, tab, false, (transferId) => {
         const params = new URLSearchParams();
@@ -282,11 +287,12 @@ export function registerTerminalHandlers(options: TerminalHandlersOptions) {
       }
       return await getTerminalInfo(id);
     },
-    "terminal:set-foreground": (_event, { ids }: { ids: string[] }) => {
-      // Allow setting foreground without strict single ownership check as it's an array of IDs
-      // but let's filter to only verify sender owns them if we want maximum security.
-      // Since it's only used for rendering optimization, we keep it as is.
-      setForegroundTerminals(ids);
+    "terminal:set-foreground": (event, { ids }: { ids: string[] }) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const safeIds = Array.isArray(ids)
+        ? ids.filter((id): id is string => typeof id === "string")
+        : [];
+      setForegroundTerminals(safeIds, win?.id ?? 0);
     },
   });
 

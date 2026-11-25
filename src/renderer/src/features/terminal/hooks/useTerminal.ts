@@ -1,3 +1,4 @@
+import { useUIStore } from "@/shared/stores/useUIStore";
 import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -133,18 +134,15 @@ export function useTerminal({
           const filePath = parts.slice(1).join(";");
           if (action === "edit" && filePath) {
             window.terminalApi.getTerminalInfo(terminalId).then((info) => {
+              if (!info) throw new Error("Terminal context is unavailable");
               window.dispatchEvent(
                 new CustomEvent("vet:open-editor", {
-                  detail: { filePath, sshHostId: info?.sshHostId || null },
+                  detail: { filePath, sshHostId: info?.sshHostId || null, sshConnectionId: info?.sshConnectionId },
                 })
               );
             }).catch((err) => {
               console.error("Failed to get terminal info for editor open:", err);
-              window.dispatchEvent(
-                new CustomEvent("vet:open-editor", {
-                  detail: { filePath, sshHostId: null },
-                })
-              );
+              useUIStore.getState().addToast("Could not determine which terminal owns this file", "error");
             });
           }
           return true;

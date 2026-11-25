@@ -279,7 +279,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             >
               Release Notes
             </span>
-            <div className="vet-update-notes">{updateInfo.releaseNotes}</div>
+            <div className="vet-update-notes app-scrollbar">{updateInfo.releaseNotes}</div>
           </div>
         )}
 

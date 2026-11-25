@@ -17,11 +17,14 @@ export default function WorkspacePanel({
 }: {
   isActive: boolean;
   activeTerminalId: string | null;
-  onViewFile: (filePath: string, sshHostId?: string) => void;
+  onViewFile: OpenWorkspaceFile;
 }) {
   const { config } = useConfig();
   const [cwd, setCwd] = useState<string | null>(null);
   const [sshHostId, setSshHostId] = useState<string | null>(null);
+  const [sshConnectionId, setSshConnectionId] = useState<string>();
+  const [directoryError, setDirectoryError] = useState("");
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [items, setItems] = useState<WorkspaceItem[]>([]);
   const [gitStatus, setGitStatus] = useState<Record<string, "M" | "U" | "A" | "D">>({});
   const [loading, setLoading] = useState(false);
@@ -39,6 +42,8 @@ export default function WorkspacePanel({
       setItems([]);
       setCwd(null);
       setSshHostId(null);
+      setSshConnectionId(undefined);
+      setDirectoryError("");
       return;
     }
 
@@ -52,8 +57,10 @@ export default function WorkspacePanel({
         if (!isSubscribed) return;
 
         const fetchedSshHostId = info.sshHostId || null;
-        if (fetchedSshHostId !== sshHostId) {
+        if (fetchedSshHostId !== sshHostId || info.sshConnectionId !== sshConnectionId) {
           setSshHostId(fetchedSshHostId);
+          setSshConnectionId(info.sshConnectionId);
+          setItems([]);
           // Reset CWD when switching between remote/local or different hosts
           setCwd(null);
           return;
@@ -75,16 +82,18 @@ export default function WorkspacePanel({
       isSubscribed = false;
       clearInterval(intv);
     };
-  }, [isActive, activeTerminalId, cwd, sshHostId]);
+  }, [isActive, activeTerminalId, cwd, sshHostId, sshConnectionId]);
 
   // Load files when CWD changes
   useEffect(() => {
+    let active = true;
+    setDirectoryError("");
     if (sshHostId && !cwd) {
       window.sftpApi
-        .getHomeDir(sshHostId)
-        .then((home) => setCwd(home || "/"))
-        .catch(() => setCwd("/"));
-      return;
+        .getHomeDir(sshHostId, sshConnectionId)
+        .then((home) => { if (active) setCwd(home || "/"); })
+        .catch(() => { if (active) setCwd("/"); });
+      return () => { active = false; };
     }
 
     if (!cwd) return;
@@ -96,13 +105,15 @@ export default function WorkspacePanel({
       try {
         let res;
         if (sshHostId) {
-          res = await window.sftpApi.listDir(sshHostId, cwd);
+          res = await window.sftpApi.listDir(sshHostId, cwd, sshConnectionId);
         } else {
           res = await window.workspaceApi.listDir(cwd);
         }
+        if (!active) return;
         setItems(res);
         setKeyboardIndex(0); // Reset keyboard selection to the top of list
       } catch (err: any) {
+        if (!active) return;
         console.error("Error loading directory files", err);
         if (
           sshHostId &&
@@ -112,14 +123,17 @@ export default function WorkspacePanel({
             err.message?.includes("Password required"))
         ) {
           setAuthRequired(true);
+        } else {
+          setDirectoryError(err instanceof Error ? err.message : "Could not load the directory");
         }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    loadDir();
-  }, [cwd, sshHostId]);
+    void loadDir();
+    return () => { active = false; };
+  }, [cwd, sshHostId, sshConnectionId, refreshVersion]);
 
   // Fetch Git status for the active directory
   useEffect(() => {
@@ -280,7 +294,8 @@ export default function WorkspacePanel({
       } else {
         const fullPath =
           cwd === "/" ? `/${target.name}` : `${cwd}/${target.name}`;
-        onViewFile(fullPath, sshHostId || undefined);
+        if (sshConnectionId) onViewFile(fullPath, sshHostId, { sshConnectionId });
+        else onViewFile(fullPath, sshHostId || undefined);
       }
     }
   };
@@ -291,22 +306,7 @@ export default function WorkspacePanel({
 
   const headerActions = (
     <button
-      onClick={() => {
-        if (cwd) {
-          setLoading(true);
-          if (sshHostId) {
-            window.sftpApi
-              .listDir(sshHostId, cwd)
-              .then(setItems)
-              .finally(() => setLoading(false));
-          } else {
-            window.workspaceApi
-              .listDir(cwd)
-              .then(setItems)
-              .finally(() => setLoading(false));
-          }
-        }
-      }}
+      onClick={() => setRefreshVersion((version) => version + 1)}
       style={{
         background: "none",
         border: "none",
@@ -331,7 +331,8 @@ export default function WorkspacePanel({
                     cwd === "/"
                       ? `/${contextMenu.itemName}`
                       : `${cwd}/${contextMenu.itemName}`;
-                  onViewFile(fullPath, sshHostId || undefined);
+                  if (sshConnectionId) onViewFile(fullPath, sshHostId, { sshConnectionId });
+                  else onViewFile(fullPath, sshHostId || undefined);
                 },
               },
             ]
@@ -346,7 +347,7 @@ export default function WorkspacePanel({
                     cwd === "/"
                       ? `/${contextMenu.itemName}`
                       : `${cwd}/${contextMenu.itemName}`;
-                  onViewFile(`${fullPath}#git-diff`, sshHostId || undefined);
+                  onViewFile(fullPath, sshHostId || undefined, { view: "git-diff" });
                 },
               },
             ]
@@ -431,6 +432,7 @@ export default function WorkspacePanel({
               flexDirection: "column",
             }}
           >
+            {directoryError && <div role="status" style={{ padding: 12, color: "var(--app-red)" }}>{directoryError}</div>}
             {authRequired ? (
               <div
                 style={{
@@ -575,7 +577,7 @@ export default function WorkspacePanel({
                             : `${cwd}/${item.name}`;
                           window.dispatchEvent(
                             new CustomEvent("vet:open-editor", {
-                              detail: { filePath: fullPath, sshHostId: sshHostId || null },
+                              detail: { filePath: fullPath, sshHostId: sshHostId || null, sshConnectionId },
                             })
                           );
                         }

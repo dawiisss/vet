@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useConfig } from "@/features/settings/useConfigStore";
 import ContextMenu, { ContextMenuAction } from "./ContextMenu";
 import SystemMonitorPanel from "./SystemMonitorPanel";
@@ -53,7 +53,7 @@ export default function Sidebar({
   onInjectSnippet: (snippet: string) => void;
   onViewSession: (sessionId: string) => void;
   activeTerminalId: string | null;
-  onViewFile: (filePath: string, sshHostId?: string) => void;
+  onViewFile: OpenWorkspaceFile;
   onLaunchConnection?: (id: string) => void;
   width?: number;
 }) {
@@ -203,20 +203,34 @@ export default function Sidebar({
     },
   ];
 
-  const disabledPanels = config.disabledSidebarPanels || [];
-  const panelOrder = config.sidebarPanelsOrder || SIDEBAR_PANELS.map((p) => p.key);
+  const disabledPanels = useMemo(
+    () => config.disabledSidebarPanels || [],
+    [config.disabledSidebarPanels],
+  );
+  const panelOrder = useMemo(
+    () => config.sidebarPanelsOrder || SIDEBAR_PANELS.map((p) => p.key),
+    [config.sidebarPanelsOrder],
+  );
 
-  // Sort panels according to configured order
-  const sortedPanels = [...panelConfigs].sort((a, b) => {
-    const indexA = panelOrder.indexOf(a.key);
-    const indexB = panelOrder.indexOf(b.key);
-    const posA = indexA === -1 ? 999 : indexA;
-    const posB = indexB === -1 ? 999 : indexB;
-    return posA - posB;
-  });
+  const sortedPanels = useMemo(
+    () =>
+      [...panelConfigs].sort((a, b) => {
+        const indexA = panelOrder.indexOf(a.key);
+        const indexB = panelOrder.indexOf(b.key);
+        const posA = indexA === -1 ? 999 : indexA;
+        const posB = indexB === -1 ? 999 : indexB;
+        return posA - posB;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [panelOrder, activeTerminalId, onViewFile, onRunScript, onInjectSnippet, onLaunchConnection, onViewSession],
+  );
 
-  const visiblePanels = sortedPanels.filter((p) => !disabledPanels.includes(p.key));
-  const activePanels = visiblePanels.length > 0 ? visiblePanels : [panelConfigs[0]!];
+  const activePanels = useMemo(() => {
+    const visiblePanels = sortedPanels.filter(
+      (p) => !disabledPanels.includes(p.key),
+    );
+    return visiblePanels.length > 0 ? visiblePanels : [sortedPanels[0]!];
+  }, [sortedPanels, disabledPanels]);
 
   // If activeTab is no longer among enabled panels, switch to the first enabled panel
   useEffect(() => {

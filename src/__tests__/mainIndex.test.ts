@@ -90,6 +90,7 @@ jest.mock("../main/pty", () => ({
 
 jest.mock("../main/config", () => ({
   initConfigManager: jest.fn(),
+  cleanupConfigManager: jest.fn(),
   getConfig: jest.fn(() => ({ shell: "/bin/bash", vibrancy: "none" })),
   sanitizeConfig: jest.fn((c: any) => c),
 }));
@@ -101,6 +102,7 @@ jest.mock("../main/session", () => ({
 
 jest.mock("../main/sysinfo", () => ({
   initSysInfoManager: jest.fn(),
+  cleanupSysInfo: jest.fn(),
 }));
 
 jest.mock("../main/ports", () => ({
@@ -117,6 +119,7 @@ jest.mock("../main/connections", () => ({
 
 jest.mock("../main/historyDb", () => ({
   initHistoryDb: jest.fn(),
+  cleanupHistoryDb: jest.fn(),
   searchHistory: jest.fn(() => []),
   getHistorySessions: jest.fn(() => []),
   getSessionTranscript: jest.fn(() => ""),
@@ -128,10 +131,12 @@ jest.mock("../main/historyDb", () => ({
 jest.mock("../main/adblocker", () => ({
   initAdblocker: jest.fn(() => Promise.resolve()),
   registerAdblockerIpcHandlers: jest.fn(),
+  cleanupAdblocker: jest.fn(),
 }));
 
 jest.mock("../main/sftp", () => ({
   initSftpManager: jest.fn(),
+  cleanupSftpSessions: jest.fn(),
 }));
 
 jest.mock("../main/clipboardHistory", () => ({
@@ -208,5 +213,64 @@ describe("main process index", () => {
     // initHistoryDb is deferred via setTimeout, advance timers to trigger it
     jest.advanceTimersByTime(200);
     expect(initHistoryDb).toHaveBeenCalled();
+  });
+  it("defers irreversible cleanup until Electron commits to quitting", async () => {
+    require("../main/index");
+    await new Promise((resolve) => setImmediate(resolve));
+    const { app } = require("electron");
+    const { cleanupHistoryDb } = require("../main/historyDb");
+    const { cleanupConfigManager } = require("../main/config");
+    const { cleanupSftpSessions } = require("../main/sftp");
+    const listeners = new Map(app.on.mock.calls);
+    const beforeQuit = listeners.get("before-quit") as (() => void) | undefined;
+    beforeQuit?.();
+    expect(cleanupHistoryDb).not.toHaveBeenCalled();
+    expect(cleanupConfigManager).not.toHaveBeenCalled();
+    expect(cleanupSftpSessions).not.toHaveBeenCalled();
+    const willQuit = listeners.get("will-quit") as () => void;
+    willQuit();
+    expect(cleanupHistoryDb).toHaveBeenCalledTimes(1);
+    expect(cleanupConfigManager).toHaveBeenCalledTimes(1);
+    expect(cleanupSftpSessions).toHaveBeenCalledTimes(1);
+  });
+
+  it("enforces webview isolation and preload pinning in will-attach-webview", async () => {
+    require("../main/index");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const attachCall = mockWindowInstance.webContents.on.mock.calls.find(
+      ([event]: [string]) => event === "will-attach-webview",
+    );
+    expect(attachCall).toBeDefined();
+    const handler = attachCall![1] as (
+      event: { preventDefault: jest.Mock },
+      webPreferences: Record<string, unknown>,
+      params: { src?: string },
+    ) => void;
+
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const event1 = { preventDefault: jest.fn() };
+      const prefs1: Record<string, unknown> = {
+        preload: "file:///evil/preload.js",
+        nodeIntegration: true,
+        contextIsolation: false,
+        sandbox: false,
+        webSecurity: false,
+      };
+      handler(event1, prefs1, { src: "https://example.com" });
+      expect(event1.preventDefault).not.toHaveBeenCalled();
+      expect(prefs1.preload).toBeUndefined();
+      expect(prefs1.nodeIntegration).toBe(false);
+      expect(prefs1.contextIsolation).toBe(true);
+      expect(prefs1.sandbox).toBe(true);
+      expect(prefs1.webSecurity).toBe(true);
+
+      const event2 = { preventDefault: jest.fn() };
+      handler(event2, {}, { src: "javascript:alert(1)" });
+      expect(event2.preventDefault).toHaveBeenCalledTimes(1);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

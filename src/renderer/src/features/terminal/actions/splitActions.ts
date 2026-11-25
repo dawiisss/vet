@@ -1,4 +1,5 @@
 import { SplitNode } from "../splitTree";
+import type { TabState, TabStoreGet, TabStoreSet } from "../useTabStore";
 import {
   getNode,
   insertLeaves,
@@ -17,9 +18,11 @@ import { pathsEqual, DEFAULT_BROWSER_HOMEPAGE } from "../../../../../shared/util
 import { isTabLocked, isWorkspaceLocked, confirmDiscardDocuments } from "../tabLifecycle";
 import { forgetEditorDocuments } from "../../workspace/editorDocumentStore";
 
+type WebviewElementLike = HTMLElement & { getURL?: () => string; src?: string };
+
 export async function splitTabAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   direction: "horizontal" | "vertical",
   targetTabId?: string,
   targetPath?: number[],
@@ -28,7 +31,7 @@ export async function splitTabAction(
   const tabId = targetTabId || activeTabId;
   if (!tabId || isTabLocked(tabId)) return;
 
-  const tab = get().tabs.find((t: any) => t.id === tabId);
+  const tab = get().tabs.find((t) => t.id === tabId);
   if (!tab) return;
 
   const path = targetPath || tab.focusedPath;
@@ -40,8 +43,8 @@ export async function splitTabAction(
     let currentUrl = targetNode.url;
     const origBrowserId = targetNode.browserId!;
     try {
-      const webviewEl = document.getElementById(origBrowserId) as any;
-      if (webviewEl) {
+      const webviewEl = document.getElementById(origBrowserId) as WebviewElementLike | null;
+      if (webviewEl?.getURL) {
         const url = webviewEl.getURL();
         if (url && url !== "about:blank") currentUrl = url;
       }
@@ -57,8 +60,8 @@ export async function splitTabAction(
       }
     }
 
-    set((state: any) => {
-      const currentTab = state.tabs.find((t: any) => t.id === tabId);
+    set((state) => {
+      const currentTab = state.tabs.find((t) => t.id === tabId);
       if (!currentTab) return state;
       const result = insertLeaves(currentTab.root, path, direction, [
         browserId,
@@ -92,7 +95,7 @@ export async function splitTabAction(
         }
       }
       return {
-        tabs: state.tabs.map((t: any) => {
+        tabs: state.tabs.map((t) => {
           if (t.id !== tabId) return t;
           return {
             ...t,
@@ -106,7 +109,7 @@ export async function splitTabAction(
     if (currentUrl) {
       setTimeout(() => {
         try {
-          const webviewEl = document.getElementById(origBrowserId) as any;
+          const webviewEl = document.getElementById(origBrowserId) as WebviewElementLike | null;
           if (webviewEl && typeof webviewEl.getURL === "function") {
             const nowUrl = webviewEl.getURL();
             if (nowUrl !== currentUrl) {
@@ -121,15 +124,15 @@ export async function splitTabAction(
     if (!api) return;
     try {
       const { id } = await api.create();
-      set((state: any) => {
-        const currentTab = state.tabs.find((t: any) => t.id === tabId);
+      set((state) => {
+        const currentTab = state.tabs.find((t) => t.id === tabId);
         if (!currentTab || isTabLocked(tabId) || currentTab.root !== tab.root) {
           api.destroy(id);
           return state;
         }
         const result = insertLeaves(currentTab.root, path, direction, [id]);
         return {
-          tabs: state.tabs.map((t: any) => {
+          tabs: state.tabs.map((t) => {
             if (t.id !== tabId) return t;
             return {
               ...t,
@@ -139,17 +142,18 @@ export async function splitTabAction(
           }),
         };
       });
-    } catch (err: any) {
-      useUIStore.getState().addToast(`Failed to split: ${err.message || err}`, "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      useUIStore.getState().addToast(`Failed to split: ${message}`, "error");
     }
   }
 }
 
-export async function unsplitTabAction(set: any, get: any) {
+export async function unsplitTabAction(set: TabStoreSet, get: TabStoreGet) {
   const activeTabId = get().activeTabId;
   if (!activeTabId || isTabLocked(activeTabId)) return;
   const prevTabs = get().tabs;
-  const activeTab = prevTabs.find((t: any) => t.id === activeTabId);
+  const activeTab = prevTabs.find((t) => t.id === activeTabId);
   if (!activeTab) return;
 
   const focusedNode = getNode(activeTab.root, activeTab.focusedPath);
@@ -182,7 +186,7 @@ export async function unsplitTabAction(set: any, get: any) {
     generateTabId,
   } = get();
 
-  const extractedTabs: any[] = await Promise.all(
+  const extractedTabs: TabState[] = await Promise.all(
     toExtract.map(async (node) => {
       const tabId = generateTabId();
       if (node.browserId) {
@@ -202,6 +206,7 @@ export async function unsplitTabAction(set: any, get: any) {
           node.filePath || "",
           node.sshHostId || null,
           label,
+          node.editorOptions,
         );
       } else {
         let label = baseLabel;
@@ -216,18 +221,20 @@ export async function unsplitTabAction(set: any, get: any) {
     }),
   );
 
-  set((state: any) => {
+  set((state) => {
     const next = [...state.tabs];
     const tabIdx = next.findIndex((t) => t.id === activeTabId);
-    if (tabIdx === -1 || isTabLocked(activeTabId) || next[tabIdx].root !== activeTab.root) return state;
+    const existingTab = tabIdx !== -1 ? next[tabIdx] : undefined;
+    if (!existingTab || isTabLocked(activeTabId) || existingTab.root !== activeTab.root) return state;
 
     next[tabIdx] = {
-      ...next[tabIdx],
+      ...existingTab,
       root: focusedNode.editorId
         ? {
             editorId: focusedNode.editorId,
             filePath: focusedNode.filePath,
             sshHostId: focusedNode.sshHostId,
+            editorOptions: focusedNode.editorOptions,
           }
         : focusedNode.browserId
           ? {
@@ -245,15 +252,15 @@ export async function unsplitTabAction(set: any, get: any) {
       // accounting sees them, matching every other tab-creation path.
       tabActivationOrder: [
         ...extractedTabs.map((t) => t.id),
-        ...state.tabActivationOrder.filter((id: any) => id !== activeTabId),
+        ...state.tabActivationOrder.filter((id) => id !== activeTabId),
       ],
     };
   });
 }
 
 export function closeSplitAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   tabId: string,
   terminalId: string,
 ) {
@@ -261,10 +268,10 @@ export function closeSplitAction(
   const activeTabId = get().activeTabId;
   const prevTabs = get().tabs;
 
-  const tabIdx = prevTabs.findIndex((t: any) => t.id === tabId);
+  const tabIdx = prevTabs.findIndex((t) => t.id === tabId);
   if (tabIdx === -1) return;
 
-  const tab = prevTabs[tabIdx];
+  const tab = prevTabs[tabIdx]!;
 
   const foundPath = leafPaths(tab.root).find((p) => {
     const node = getNode(tab.root, p);
@@ -298,9 +305,9 @@ export function closeSplitAction(
       tabs: next,
       activeTabId: newActiveTabId,
       tabActivationOrder: get().tabActivationOrder.filter(
-        (t: any) => t !== tabId,
+        (t) => t !== tabId,
       ),
-      hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== tabId),
+      hibernatedTabIds: get().hibernatedTabIds.filter((t) => t !== tabId),
     });
     if (newActiveTabId !== activeTabId) get().setActiveTabId(newActiveTabId);
     return;
@@ -328,14 +335,14 @@ export function closeSplitAction(
 }
 
 export async function extractToTabAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   tabId: string,
   path: number[],
 ) {
   if (isTabLocked(tabId)) return;
   const prevTabs = get().tabs;
-  const tab = prevTabs.find((t: any) => t.id === tabId);
+  const tab = prevTabs.find((t) => t.id === tabId);
   if (!tab) return;
 
   if (tab.root.direction === undefined || !tab.root.children) {
@@ -366,9 +373,9 @@ export async function extractToTabAction(
 
   if (isTabLocked(tabId)) return;
   const currentTabs = get().tabs;
-  const tIndex = currentTabs.findIndex((t: any) => t.id === tabId);
+  const tIndex = currentTabs.findIndex((t) => t.id === tabId);
   if (tIndex === -1) return;
-  const currentTab = currentTabs[tIndex];
+  const currentTab = currentTabs[tIndex]!;
   if (currentTab.root !== tab.root) return;
 
   const { root: newRoot, newPath } = removeLeaf(currentTab.root, path);
@@ -389,7 +396,7 @@ export async function extractToTabAction(
         return tab;
       })()
     : isEditor
-      ? newEditorTabState(extractedTabId, leafId, targetNode.filePath || "", targetNode.sshHostId || null, label)
+      ? newEditorTabState(extractedTabId, leafId, targetNode.filePath || "", targetNode.sshHostId || null, label, targetNode.editorOptions)
       : newTabState(extractedTabId, leafId, label);
 
   updated.splice(tIndex + 1, 0, extractedTab);
@@ -398,16 +405,16 @@ export async function extractToTabAction(
     activeTabId: extractedTabId,
     tabActivationOrder: [
       extractedTabId,
-      ...get().tabActivationOrder.filter((t: any) => t !== extractedTabId),
+      ...get().tabActivationOrder.filter((t) => t !== extractedTabId),
     ],
   });
 }
 
-export function navigateSplitAction(set: any, get: any, delta: number) {
+export function navigateSplitAction(set: TabStoreSet, get: TabStoreGet, delta: number) {
   const activeTabId = get().activeTabId;
   if (!activeTabId) return;
-  set((state: any) => ({
-    tabs: state.tabs.map((tab: any) => {
+  set((state) => ({
+    tabs: state.tabs.map((tab) => {
       if (tab.id !== activeTabId) return tab;
       const newPath = navigatePath(tab.root, tab.focusedPath, delta);
       return { ...tab, focusedPath: newPath };
@@ -416,15 +423,15 @@ export function navigateSplitAction(set: any, get: any, delta: number) {
 }
 
 export function onResizeAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  _get: TabStoreGet,
   tabId: string,
   path: number[],
   newSizes: number[],
 ) {
   if (isTabLocked(tabId)) return;
-  set((state: any) => ({
-    tabs: state.tabs.map((tab: any) => {
+  set((state) => ({
+    tabs: state.tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
       if (path.length === 0) {
         return {
@@ -442,21 +449,21 @@ export function onResizeAction(
 }
 
 export function onFocusSplitAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  _get: TabStoreGet,
   tabId: string,
   path: number[],
 ) {
-  set((state: any) => ({
-    tabs: state.tabs.map((tab: any) =>
+  set((state) => ({
+    tabs: state.tabs.map((tab) =>
       tab.id === tabId ? { ...tab, focusedPath: path } : tab,
     ),
   }));
 }
 
 export function mergeTabAsSplitAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   fromTabId: string,
   direction: "horizontal" | "vertical",
 ) {
@@ -464,10 +471,10 @@ export function mergeTabAsSplitAction(
   const prevTabs = get().tabs;
   if (!activeTabId || fromTabId === activeTabId) return;
   if (isTabLocked(activeTabId) || isTabLocked(fromTabId)) return;
-  const fromTab = prevTabs.find((t: any) => t.id === fromTabId);
+  const fromTab = prevTabs.find((t) => t.id === fromTabId);
   if (!fromTab) return;
 
-  const activeTab = prevTabs.find((t: any) => t.id === activeTabId);
+  const activeTab = prevTabs.find((t) => t.id === activeTabId);
   if (!activeTab) return;
 
   const fromNode = getNode(fromTab.root, []);
@@ -475,7 +482,7 @@ export function mergeTabAsSplitAction(
   let browserUrl = fromNode.url;
   if (!browserUrl && fromBrowserId) {
     try {
-      const wv = document.getElementById(fromBrowserId) as any;
+      const wv = document.getElementById(fromBrowserId) as WebviewElementLike | null;
       if (wv && typeof wv.getURL === "function") {
         const url = wv.getURL();
         if (url && url !== "about:blank") browserUrl = url;
@@ -484,7 +491,7 @@ export function mergeTabAsSplitAction(
   }
 
   const newTerminalIds = collectLeafIds(fromTab.root);
-  const updated = prevTabs.map((tab: any) => {
+  const updated = prevTabs.map((tab) => {
     if (tab.id !== activeTabId) return tab;
 
     const result = insertLeaves(
@@ -532,46 +539,47 @@ export function mergeTabAsSplitAction(
     };
   });
   set({
-    tabs: updated.filter((t: any) => t.id !== fromTabId),
+    tabs: updated.filter((t) => t.id !== fromTabId),
     tabActivationOrder: get().tabActivationOrder.filter(
-      (t: any) => t !== fromTabId,
+      (t) => t !== fromTabId,
     ),
-    hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== fromTabId),
+    hibernatedTabIds: get().hibernatedTabIds.filter((t) => t !== fromTabId),
   });
 }
 
 export function openEditorInSplitAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   filePath: string,
   sshHostId: string | null,
+  editorOptions: EditorOpenOptions = {},
 ) {
   const activeTabId = get().activeTabId;
   if (isWorkspaceLocked() || (activeTabId && isTabLocked(activeTabId))) return;
   const tab = activeTabId
-    ? get().tabs.find((t: any) => t.id === activeTabId)
+    ? get().tabs.find((t) => t.id === activeTabId)
     : null;
 
   if (!activeTabId || !tab) {
-    openEditorInNewTabAction(set, get, filePath, sshHostId);
+    openEditorInNewTabAction(set, get, filePath, sshHostId, editorOptions);
     return;
   }
 
   const path = tab.focusedPath;
   const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-  set((state: any) => {
-    const currentTab = state.tabs.find((t: any) => t.id === activeTabId);
+  set((state) => {
+    const currentTab = state.tabs.find((t) => t.id === activeTabId);
     if (!currentTab) return state;
 
-    const cleanTarget = filePath.split("#")[0]!;
     const allPaths = leafPaths(currentTab.root);
     const existingPath = allPaths.find((p) => {
       const n = getNode(currentTab.root, p);
       return (
         n.editorId !== undefined &&
-        n.filePath &&
-        n.filePath.split("#")[0] === cleanTarget
+        n.filePath === filePath &&
+        (n.sshHostId ?? null) === sshHostId &&
+        n.editorOptions?.sshConnectionId === editorOptions.sshConnectionId
       );
     });
 
@@ -581,9 +589,10 @@ export function openEditorInSplitAction(
         ...node,
         filePath,
         sshHostId,
+        editorOptions,
       });
       return {
-        tabs: state.tabs.map((t: any) => {
+        tabs: state.tabs.map((t) => {
           if (t.id !== activeTabId) return t;
           return {
             ...t,
@@ -610,11 +619,12 @@ export function openEditorInSplitAction(
         ...node,
         filePath,
         sshHostId,
+        editorOptions,
       });
     }
 
     return {
-      tabs: state.tabs.map((t: any) => {
+      tabs: state.tabs.map((t) => {
         if (t.id !== activeTabId) return t;
         return {
           ...t,
@@ -627,17 +637,17 @@ export function openEditorInSplitAction(
 }
 
 export function openEditorInNewTabAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   filePath: string,
   sshHostId: string | null,
+  editorOptions: EditorOpenOptions = {},
 ) {
   if (isWorkspaceLocked()) return;
   const editorId = `editor-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const tabId = get().generateTabId();
-  set((state: any) => {
-    const cleanTarget = filePath.split("#")[0]!;
-    const filename = cleanTarget.split("/").pop() || "Untitled";
+  set((state) => {
+    const filename = filePath.split("/").pop() || "Untitled";
     const label = `Edit: ${filename}`;
     const editorTab = get().newEditorTabState(
       tabId,
@@ -645,13 +655,14 @@ export function openEditorInNewTabAction(
       filePath,
       sshHostId,
       label,
+      editorOptions,
     );
     return {
       tabs: [...state.tabs, editorTab],
       activeTabId: tabId,
       tabActivationOrder: [
         tabId,
-        ...state.tabActivationOrder.filter((t: any) => t !== tabId),
+        ...state.tabActivationOrder.filter((t) => t !== tabId),
       ],
     };
   });

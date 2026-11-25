@@ -45,8 +45,9 @@ export interface DragState {
   zone: DropZone;
 }
 
-interface TabStore {
+export interface TabStore {
   tabs: TabState[];
+  tabsReady: boolean;
   activeTabId: string | null;
   isDetached: boolean;
   detachedTabId: string | null;
@@ -62,7 +63,7 @@ interface TabStore {
   generateTabId: () => string;
   newTabState: (tabId: string, terminalId: string, label?: string) => TabState;
   newBrowserTabState: (tabId: string, browserId: string, label?: string) => TabState;
-  newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string) => TabState;
+  newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string, editorOptions?: EditorOpenOptions) => TabState;
   getTabCounter: () => number;
 
   // UI state setters
@@ -77,7 +78,7 @@ interface TabStore {
 
   // Logical Actions
   initializeTabs: () => void;
-  loadProfileState: (state: any) => Promise<boolean>;
+  loadProfileState: (state: unknown) => Promise<boolean>;
   onReattachTab: () => () => void;
   pollTabLabels: () => () => void;
   newTab: (profileId?: string, sshHostId?: string) => Promise<void>;
@@ -103,18 +104,24 @@ interface TabStore {
   onFocusSplit: (tabId: string, path: number[]) => void;
   renameTab: (tabId: string, newLabel: string) => void;
   updateBrowserUrl: (browserId: string, url: string) => void;
-  openEditorInSplit: (filePath: string, sshHostId: string | null) => void;
-  openEditorInNewTab: (filePath: string, sshHostId: string | null) => void;
+  openEditorInSplit: (filePath: string, sshHostId: string | null, editorOptions?: EditorOpenOptions) => void;
+  openEditorInNewTab: (filePath: string, sshHostId: string | null, editorOptions?: EditorOpenOptions) => void;
   handleRunScript: (cmd: string, cwd: string) => Promise<void>;
   handleInjectSnippet: (snippet: string) => void;
   reorderTabs: (draggedTabId: string, targetTabId: string) => void;
 }
+
+export type TabStoreSet = (
+  partial: Partial<TabStore> | ((state: TabStore) => Partial<TabStore> | TabStore),
+) => void;
+export type TabStoreGet = () => TabStore;
 
 export const useTabStore = create<TabStore>((set, get) => {
   const initializedRef = { current: false };
 
   return {
     tabs: [],
+    tabsReady: false,
     activeTabId: null,
     isDetached: false,
     detachedTabId: null,
@@ -144,13 +151,14 @@ export const useTabStore = create<TabStore>((set, get) => {
       root: browserLeafNode(browserId),
       focusedPath: [],
     }),
-    newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string) => ({
+    newEditorTabState: (tabId: string, editorId: string, filePath: string, sshHostId: string | null, label?: string, editorOptions?: EditorOpenOptions) => ({
       id: tabId,
       label: label || `Edit: ${filePath.split("/").pop() || "Untitled"}`,
       root: {
         editorId,
         filePath,
         sshHostId,
+        editorOptions: editorOptions ?? {},
       },
       focusedPath: [],
     }),
@@ -197,8 +205,8 @@ export const useTabStore = create<TabStore>((set, get) => {
     onFocusSplit: (tabId, path) => onFocusSplitAction(set, get, tabId, path),
     renameTab: (tabId, newLabel) => renameTabAction(set, get, tabId, newLabel),
     updateBrowserUrl: (browserId, url) => updateBrowserUrlAction(set, get, browserId, url),
-    openEditorInSplit: (filePath, sshHostId) => openEditorInSplitAction(set, get, filePath, sshHostId),
-    openEditorInNewTab: (filePath, sshHostId) => openEditorInNewTabAction(set, get, filePath, sshHostId),
+    openEditorInSplit: (filePath, sshHostId, editorOptions) => openEditorInSplitAction(set, get, filePath, sshHostId, editorOptions),
+    openEditorInNewTab: (filePath, sshHostId, editorOptions) => openEditorInNewTabAction(set, get, filePath, sshHostId, editorOptions),
     handleRunScript: (cmd, cwd) => handleRunScriptAction(set, get, cmd, cwd),
     handleInjectSnippet: (snippet) => handleInjectSnippetAction(set, get, snippet),
     reorderTabs: (draggedTabId, targetTabId) => reorderTabsAction(set, get, draggedTabId, targetTabId),

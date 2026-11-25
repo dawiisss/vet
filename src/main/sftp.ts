@@ -4,19 +4,31 @@ import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import * as path from "path";
 import os from "os";
-import { getConfig } from "./config";
+import { createHash, randomUUID } from "node:crypto";
+import { getConfig, onConfigChanged } from "./config";
 import { sortDirectoryItems } from "../shared/utils/pathUtils";
 import { isTrustedSender } from "./ipc/ipcUtils";
 
 interface SftpSession {
-  client: Client;
   sftp: SFTPWrapper;
   homeDir: string;
 }
 
-const sftpSessions = new Map<string, SftpSession>();
-const sftpPromises = new Map<string, Promise<SftpSession>>();
+interface SftpRevision {
+  fingerprint: string;
+  connectionId: string;
+  verifiedHostKey?: string;
+  controller: AbortController;
+  session?: Promise<SftpSession>;
+}
+
+type SftpHostConfig = Omit<SshHost, "name" | "authType"> & { authType: SshHost["authType"] | "auto" };
+
+const revisions = new Map<string, SftpRevision>();
 const tempPasswords = new Map<string, string>();
+let unsubscribeConfig: (() => void) | undefined;
+
+const connectionChanged = () => new Error("SSH connection settings changed. Reconnect the SSH terminal or close and reopen the remote file.");
 
 function knownHostsFilePath(): string {
   return path.join(app.getPath("userData"), "sftp_known_hosts.json");
@@ -33,7 +45,9 @@ function loadKnownHosts(): Record<string, string> {
 function saveKnownHosts(hosts: Record<string, string>): void {
   try {
     fsSync.mkdirSync(path.dirname(knownHostsFilePath()), { recursive: true });
-    fsSync.writeFileSync(knownHostsFilePath(), JSON.stringify(hosts, null, 2));
+    fsSync.writeFileSync(knownHostsFilePath(), JSON.stringify(hosts, null, 2), {
+      mode: 0o600,
+    });
   } catch { /* intentional ignore */ }
 }
 
@@ -65,68 +79,114 @@ function makeHostVerifier(host: string, port: number) {
   };
 }
 
-async function getSftpSession(sshHostId: string): Promise<SftpSession> {
-  const existing = sftpSessions.get(sshHostId);
-  if (existing) return existing;
+function resolveSftpHost(sshHostId: string): SftpHostConfig {
+  const hosts: SshHost[] = getConfig().sshHosts ?? [];
+  const configured = hosts.find((host) => host.id === sshHostId);
+  if (configured) return configured;
+  if (!sshHostId.startsWith("auto-")) throw new Error("SSH Host profile not found");
 
-  const inFlight = sftpPromises.get(sshHostId);
-  if (inFlight) return inFlight;
+  const target = sshHostId.slice(5);
+  const at = target.lastIndexOf("@");
+  const host = target.slice(at + 1);
+  const username = at === -1 ? process.env.USER || "root" : target.slice(0, at);
+  return hosts.find((entry) => entry.host === host && (at === -1 || entry.username === username)) ??
+    { id: sshHostId, host, username, port: 22, authType: "auto" };
+}
 
-  const promise = createSftpSession(sshHostId);
-  sftpPromises.set(sshHostId, promise);
-  try {
-    const session = await promise;
-    return session;
-  } finally {
-    sftpPromises.delete(sshHostId);
+function connectionFingerprint(host: SftpHostConfig): string {
+  const identity = [host.id, host.host, host.port || 22, host.username, host.authType,
+    host.password, host.privateKeyPath, host.passphrase];
+  return createHash("sha256").update(JSON.stringify(identity)).digest("hex");
+}
+
+function invalidateRevision(sshHostId: string, revision: SftpRevision): void {
+  revisions.delete(sshHostId);
+  tempPasswords.delete(sshHostId);
+  revision.controller.abort(connectionChanged());
+}
+
+function invalidateChangedSessions(): void {
+  for (const [id, revision] of revisions) {
+    try {
+      if (revision.fingerprint === connectionFingerprint(resolveSftpHost(id))) continue;
+    } catch {
+      /* The profile was deleted. */
+    }
+    invalidateRevision(id, revision);
   }
 }
 
-async function createSftpSession(sshHostId: string): Promise<SftpSession> {
-  const config = getConfig();
-  let hostConfig = config.sshHosts?.find((h: any) => h.id === sshHostId);
+function getSftpRevision(sshHostId: string, hostConfig: SftpHostConfig, expectedConnectionId?: string): SftpRevision {
+  const fingerprint = connectionFingerprint(hostConfig);
+  let revision = revisions.get(sshHostId);
+  if (revision && revision.fingerprint !== fingerprint) {
+    invalidateRevision(sshHostId, revision);
+    revision = undefined;
+  }
+  if (expectedConnectionId !== undefined && expectedConnectionId !== revision?.connectionId) {
+    throw connectionChanged();
+  }
+  if (!revision) {
+    revision = { fingerprint, connectionId: randomUUID(), controller: new AbortController() };
+    revisions.set(sshHostId, revision);
+  }
+  return revision;
+}
 
-  if (!hostConfig && sshHostId.startsWith("auto-")) {
-    const target = sshHostId.substring(5);
-    let user = process.env.USER || "root";
-    let host = target;
-    if (target.includes("@")) {
-      const parts = target.split("@");
-      user = parts[0]!;
-      host = parts[1]!;
-    }
+export function getSftpConnectionId(sshHostId: string): string {
+  return getSftpRevision(sshHostId, resolveSftpHost(sshHostId)).connectionId;
+}
 
-    // Workaround 1: Profile matching
-    const matchingProfile = config.sshHosts?.find(
-      (h: any) =>
-        h.host === host && (!target.includes("@") || h.username === user),
-    );
-    if (matchingProfile) {
-      hostConfig = matchingProfile;
-    } else {
-      // Workaround 2: Dynamic config with Agent or Temp Password
-      hostConfig = {
-        id: sshHostId,
-        host,
-        username: user,
-        authType: tempPasswords.has(sshHostId) ? "password" : "auto",
-        password: tempPasswords.get(sshHostId),
-      };
-    }
+async function getSftpSession(sshHostId: string, expectedConnectionId?: string) {
+  let hostConfig: SftpHostConfig;
+  try {
+    hostConfig = resolveSftpHost(sshHostId);
+  } catch (error) {
+    if (expectedConnectionId !== undefined) throw connectionChanged();
+    throw error;
+  }
+  const current = getSftpRevision(sshHostId, hostConfig, expectedConnectionId);
+  if (!current.session) {
+    const password = hostConfig.authType === "auto" ? tempPasswords.get(sshHostId) : undefined;
+    const credentials: SftpHostConfig = password ? { ...hostConfig, authType: "password", password } : hostConfig;
+    const promise = createSftpSession(credentials, current, () => {
+      if (current.session === promise) delete current.session;
+    }).finally(() => {
+      if (password && tempPasswords.get(sshHostId) === password) tempPasswords.delete(sshHostId);
+    });
+    current.session = promise;
   }
 
-  if (!hostConfig) {
-    throw new Error("SSH Host profile not found");
+  const pending = current.session;
+  try {
+    const session = await pending;
+    current.controller.signal.throwIfAborted();
+    return { ...session, connectionId: current.connectionId, signal: current.controller.signal };
+  } catch (error) {
+    if (current.session === pending) delete current.session;
+    throw error;
   }
+}
 
+async function createSftpSession(
+  hostConfig: SftpHostConfig,
+  revision: SftpRevision,
+  onDisconnected: () => void,
+): Promise<SftpSession> {
+  const signal = revision.controller.signal;
+  const verifyHost = makeHostVerifier(hostConfig.host, hostConfig.port || 22);
   const connOpts: ConnectConfig = {
     host: hostConfig.host,
     port: hostConfig.port || 22,
     username: hostConfig.username,
-    hostVerifier: makeHostVerifier(
-      hostConfig.host,
-      hostConfig.port || 22,
-    ),
+    hostVerifier: (key: Buffer) => {
+      if (signal.aborted) return false;
+      const fingerprint = key.toString("base64");
+      if (revision.verifiedHostKey && revision.verifiedHostKey !== fingerprint) return false;
+      if (!verifyHost(key)) return false;
+      revision.verifiedHostKey = fingerprint;
+      return true;
+    },
   };
 
   if (hostConfig.authType === "password") {
@@ -137,16 +197,18 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
     if (!hostConfig.privateKeyPath)
       throw new Error("Private key path required");
     let keyPath = hostConfig.privateKeyPath;
-    if (keyPath.startsWith("~") && process.env.HOME) {
-      keyPath = keyPath.replace(/^~/, process.env.HOME);
+    const homeDir = process.env.HOME || os.homedir();
+    if (keyPath === "~" || keyPath.startsWith("~/") || keyPath.startsWith("~\\")) {
+      keyPath = path.join(homeDir, keyPath.slice(1));
     }
     try {
       connOpts.privateKey = await fs.readFile(keyPath, "utf8");
       if (hostConfig.passphrase) {
         connOpts.passphrase = hostConfig.passphrase;
       }
-    } catch (err: any) {
-      throw new Error(`Failed to read private key: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to read private key: ${message}`);
     }
   } else if (hostConfig.authType === "agent") {
     if (process.env.SSH_AUTH_SOCK) connOpts.agent = process.env.SSH_AUTH_SOCK;
@@ -167,81 +229,67 @@ async function createSftpSession(sshHostId: string): Promise<SftpSession> {
     }
   }
 
+  signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const client = new Client();
-    let settled = false;
+    let closed = false;
 
-    const safeResolve = (session: SftpSession) => {
-      if (settled) return;
-      settled = true;
-      resolve(session);
+    const abort = () => {
+      closed = true;
+      reject(signal.reason);
+      try {
+        client.end();
+      } catch {
+        /* The connection may already be closed. */
+      }
+    };
+    const disconnect = (error: Error) => {
+      closed = true;
+      signal.removeEventListener("abort", abort);
+      onDisconnected();
+      reject(error);
     };
 
-    const safeReject = (err: Error) => {
-      if (settled) return;
-      settled = true;
-      reject(err);
-    };
-
-    const cleanupTempPassword = () => {
-      tempPasswords.delete(sshHostId);
-    };
-
-    const setupEviction = () => {
-      client.on("close", () => sftpSessions.delete(sshHostId));
-      client.on("end", () => sftpSessions.delete(sshHostId));
-      client.on("error", () => sftpSessions.delete(sshHostId));
-    };
-
+    signal.addEventListener("abort", abort, { once: true });
     client.on("ready", () => {
+      if (closed) return;
       client.sftp((err, sftp) => {
+        if (closed) return;
         if (err) {
-          cleanupTempPassword();
+          disconnect(err);
           client.end();
-          return safeReject(err);
+          return;
         }
 
-        // Get home dir via sftp.realpath
-        const onRealpath = (err: any, absPath?: string) => {
-          cleanupTempPassword();
-          const homeDir = !err && absPath ? absPath.trim() || "/" : "/";
-          const session = { client, sftp, homeDir };
-          sftpSessions.set(sshHostId, session);
-          setupEviction();
-          safeResolve(session);
+        const onRealpath = (error: Error | undefined, absPath?: string) => {
+          if (closed) return;
+          const homeDir = !error && absPath ? absPath.trim() || "/" : "/";
+          resolve({ sftp, homeDir });
         };
 
-        if (typeof sftp.realpath === "function") {
-          sftp.realpath(".", onRealpath);
-        } else {
-          onRealpath(null, "/");
-        }
+        if (typeof sftp.realpath === "function") sftp.realpath(".", onRealpath);
+        else onRealpath(undefined, "/");
       });
     });
-    client.on("error", (err) => {
-      cleanupTempPassword();
-      sftpSessions.delete(sshHostId);
-      safeReject(err);
-    });
-    client.on("close", () => {
-      cleanupTempPassword();
-      sftpSessions.delete(sshHostId);
-      if (!settled) {
-        safeReject(new Error("SSH connection closed before session was established"));
-      }
-    });
+    client.on("error", disconnect);
+    client.on("end", () => disconnect(new Error("SSH connection ended")));
+    client.on("close", () => disconnect(new Error("SSH connection closed")));
 
     try {
       client.connect(connOpts);
-    } catch (err: any) {
-      cleanupTempPassword();
-      sftpSessions.delete(sshHostId);
-      safeReject(err);
+    } catch (error) {
+      disconnect(error instanceof Error ? error : new Error(String(error)));
     }
   });
 }
 
+function remotePath(filePath: string, homeDir: string): string {
+  if (filePath === "~") return homeDir;
+  return filePath.startsWith("~/") ? homeDir.replace(/\/$/, "") + filePath.slice(1) : filePath;
+}
+
 export function initSftpManager() {
+  unsubscribeConfig = onConfigChanged(invalidateChangedSessions);
   ipcMain.handle(
     "sftp:set-temp-password",
     (event, sshHostId: string, password: string) => {
@@ -252,21 +300,18 @@ export function initSftpManager() {
         if (tempPasswords.get(sshHostId) === password) {
           tempPasswords.delete(sshHostId);
         }
-      }, 60000);
+      }, 60000).unref();
     },
   );
 
   ipcMain.handle(
     "sftp:list-dir",
-    async (event, sshHostId: string, dirPath: string) => {
+    async (event, sshHostId: string, dirPath: string, connectionId?: string) => {
       if (!isTrustedSender(event)) return [];
       try {
-        const session = await getSftpSession(sshHostId);
-        return new Promise((resolve, reject) => {
-          let targetPath = dirPath;
-          if (targetPath === "~" || targetPath.startsWith("~/")) {
-            targetPath = targetPath.replace(/^~/, session.homeDir);
-          }
+        const session = await getSftpSession(sshHostId, connectionId);
+        return await new Promise((resolve, reject) => {
+          const targetPath = remotePath(dirPath, session.homeDir);
           session.sftp.readdir(targetPath, (err, list) => {
             if (err) {
               if (err.message === "No such file") return resolve([]);
@@ -283,8 +328,8 @@ export function initSftpManager() {
             resolve(sortDirectoryItems(items));
           });
         });
-      } catch (err: any) {
-        return { __ipcError: true, message: err.message };
+      } catch (err: unknown) {
+        return { __ipcError: true, message: err instanceof Error ? err.message : String(err) };
       }
     },
   );
@@ -295,13 +340,8 @@ export function initSftpManager() {
       if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
       try {
         const session = await getSftpSession(sshHostId);
-        return new Promise((resolve, reject) => {
-          const hashIdx = filePath.indexOf("#");
-          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-          let targetPath = cleanPath;
-          if (targetPath === "~" || targetPath.startsWith("~/")) {
-            targetPath = targetPath.replace(/^~/, session.homeDir);
-          }
+        return await new Promise((resolve, reject) => {
+          const targetPath = remotePath(filePath, session.homeDir);
 
           session.sftp.open(targetPath, "r", (err, handle) => {
             if (err) return reject(err);
@@ -321,25 +361,20 @@ export function initSftpManager() {
             );
           });
         });
-      } catch (err: any) {
-        return { __ipcError: true, message: err.message };
+      } catch (err: unknown) {
+        return { __ipcError: true, message: err instanceof Error ? err.message : String(err) };
       }
     },
   );
 
   ipcMain.handle(
     "sftp:read-file",
-    async (event, sshHostId: string, filePath: string) => {
+    async (event, sshHostId: string, filePath: string, connectionId?: string) => {
       if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
       try {
-        const session = await getSftpSession(sshHostId);
-        return new Promise((resolve, reject) => {
-          const hashIdx = filePath.indexOf("#");
-          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-          let targetPath = cleanPath;
-          if (targetPath === "~" || targetPath.startsWith("~/")) {
-            targetPath = targetPath.replace(/^~/, session.homeDir);
-          }
+        const session = await getSftpSession(sshHostId, connectionId);
+        return await new Promise((resolve, reject) => {
+          const targetPath = remotePath(filePath, session.homeDir);
 
           session.sftp.stat(targetPath, (err, stats) => {
             if (err) return reject(err);
@@ -352,59 +387,70 @@ export function initSftpManager() {
 
             session.sftp.readFile(targetPath, "utf8", (err, content) => {
               if (err) return reject(err);
-              resolve(typeof content === "string" ? content : content.toString("utf8"));
+              if (session.signal.aborted) return reject(session.signal.reason);
+              resolve({
+                content: typeof content === "string" ? content : content.toString("utf8"),
+                connectionId: session.connectionId,
+              });
             });
           });
         });
-      } catch (err: any) {
-        return { __ipcError: true, message: err.message };
+      } catch (err: unknown) {
+        return { __ipcError: true, message: err instanceof Error ? err.message : String(err) };
       }
     },
   );
 
   ipcMain.handle(
     "sftp:write-file",
-    async (event, sshHostId: string, filePath: string, content: string) => {
+    async (event, sshHostId: string, filePath: string, content: string, connectionId?: string) => {
       if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
+      if (typeof content !== "string" || content.length > 10 * 1024 * 1024) {
+        return { __ipcError: true, message: "Invalid content or exceeds 10 MB limit" };
+      }
       try {
-        const session = await getSftpSession(sshHostId);
-        return new Promise((resolve, reject) => {
-          const hashIdx = filePath.indexOf("#");
-          const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-          let targetPath = cleanPath;
-          if (targetPath === "~" || targetPath.startsWith("~/")) {
-            targetPath = targetPath.replace(/^~/, session.homeDir);
-          }
+        if (typeof connectionId !== "string") throw connectionChanged();
+        const session = await getSftpSession(sshHostId, connectionId);
+        return await new Promise((resolve, reject) => {
+          const targetPath = remotePath(filePath, session.homeDir);
 
           session.sftp.writeFile(targetPath, content, "utf8", (err) => {
             if (err) return reject(err);
             resolve(true);
           });
         });
-      } catch (err: any) {
-        return { __ipcError: true, message: err.message };
+      } catch (err: unknown) {
+        return { __ipcError: true, message: err instanceof Error ? err.message : String(err) };
       }
     },
   );
 
-  ipcMain.handle("sftp:get-home", async (event, sshHostId: string) => {
+  ipcMain.handle("sftp:file-exists", async (event, sshHostId: string, filePath: string) => {
+    if (!isTrustedSender(event)) throw new Error("Access denied");
+    const session = await getSftpSession(sshHostId);
+    return new Promise<boolean>((resolve, reject) => {
+      session.sftp.lstat(remotePath(filePath, session.homeDir), (error) => {
+        if (!error) resolve(true);
+        else if ("code" in error && error.code === 2) resolve(false); // SSH_FX_NO_SUCH_FILE
+        else reject(error);
+      });
+    });
+  });
+
+  ipcMain.handle("sftp:get-home", async (event, sshHostId: string, connectionId?: string) => {
     if (!isTrustedSender(event)) return { __ipcError: true, message: "Access denied" };
     try {
-      const session = await getSftpSession(sshHostId);
+      const session = await getSftpSession(sshHostId, connectionId);
       return session.homeDir;
-    } catch (err: any) {
-      return { __ipcError: true, message: err.message };
+    } catch (err: unknown) {
+      return { __ipcError: true, message: err instanceof Error ? err.message : String(err) };
     }
   });
 }
 
 export function cleanupSftpSessions() {
-  for (const [id, session] of sftpSessions.entries()) {
-    try {
-      session.client.end();
-    } catch (err) {
-      console.error(`Failed to close SFTP session for ${id}:`, err);
-    }
-  }
-  sftpSessions.clear();
+  unsubscribeConfig?.();
+  unsubscribeConfig = undefined;
+  for (const [id, revision] of revisions) invalidateRevision(id, revision);
+  tempPasswords.clear();
 }

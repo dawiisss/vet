@@ -61,11 +61,16 @@ async function getMounts(): Promise<MountInfo[]> {
         const parts = line.split(/\s+/);
         if (parts.length >= 2) {
           const device = parts[0];
-          const mount = parts[1];
-          if (device && mount && device.startsWith("/dev/")) {
+          const rawMount = parts[1];
+          if (
+            device &&
+            rawMount &&
+            device.startsWith("/dev/") &&
+            !/^\/dev\/(loop|fuse|ram|zram)/.test(device)
+          ) {
             if (!seenDevices.has(device)) {
               seenDevices.add(device);
-              mounts.push({ device, mount });
+              mounts.push({ device, mount: rawMount.replace(/\\040/g, " ") });
             }
           }
         }
@@ -413,24 +418,33 @@ function scheduleNext(mainWindow: BrowserWindow) {
       );
       const appResources = { cpu: totalCpu, mem: totalMem };
 
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("sysinfo:update", {
-          cpu: cpuLoad,
-          mem: {
-            total: os.totalmem(),
-            used: os.totalmem() - os.freemem(),
-          },
-          disk: diskInfo,
-          disks: disksList,
-          uptime,
-          load,
-          temp,
-          network: networkInfo,
-          battery: newBattery,
-          graphics: newGraphics,
-          diskIo: diskIoInfo,
-          appResources,
-        });
+      const payload = {
+        cpu: cpuLoad,
+        mem: {
+          total: os.totalmem(),
+          used: os.totalmem() - os.freemem(),
+        },
+        disk: diskInfo,
+        disks: disksList,
+        uptime,
+        load,
+        temp,
+        network: networkInfo,
+        battery: newBattery,
+        graphics: newGraphics,
+        diskIo: diskIoInfo,
+        appResources,
+      };
+
+      const allWindows =
+        typeof BrowserWindow.getAllWindows === "function"
+          ? BrowserWindow.getAllWindows()
+          : [];
+      const targets = allWindows.length > 0 ? allWindows : [mainWindow];
+      for (const win of targets) {
+        if (win && !win.isDestroyed()) {
+          win.webContents.send("sysinfo:update", payload);
+        }
       }
     } catch (err) {
       console.error("Failed to get sysinfo", err);

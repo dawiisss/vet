@@ -26,7 +26,7 @@ beforeEach(() => {
     writeFile: jest.fn(async () => undefined),
   } as unknown as WorkspaceApi;
   window.sftpApi = {
-    readFile: jest.fn(async () => "remote content"),
+    readFile: jest.fn(async () => ({ content: "remote content", connectionId: "revision-1" })),
     writeFile: jest.fn(async () => undefined),
   } as unknown as SftpApi;
   jest.spyOn(window, "confirm").mockReturnValue(false);
@@ -112,4 +112,26 @@ test("dirty modal and tab editors share a single window-close confirmation", asy
   (window.confirm as jest.Mock).mockReturnValueOnce(true);
   expect(closeWindow().defaultPrevented).toBe(false);
   expect(window.confirm).toHaveBeenCalledTimes(1);
+});
+
+test("a remote modal saves against the connection used to open its literal path", async () => {
+  await act(async () => {
+    render(<EditorModal filePath="/remote/notes#draft.txt" sshHostId="remote-host"
+      editorOptions={{ sshConnectionId: "terminal-revision" }} onClose={jest.fn()} />);
+  });
+  expect(window.sftpApi.readFile).toHaveBeenCalledWith("remote-host", "/remote/notes#draft.txt", "terminal-revision");
+  fireEvent.change(screen.getByTestId("modal-editor"), { target: { value: "new content" } });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+  expect(window.sftpApi.writeFile).toHaveBeenCalledWith("remote-host", "/remote/notes#draft.txt", "new content", "revision-1");
+});
+
+test("Ctrl+S saves an emptied file instead of reverting to prior content", async () => {
+  (window.workspaceApi.readFile as jest.Mock).mockResolvedValueOnce("non-empty initial");
+  await act(async () => { render(<EditorModal filePath="/tmp/empty.txt" onClose={jest.fn()} />); });
+  const editor = screen.getByTestId("modal-editor");
+  fireEvent.change(editor, { target: { value: "" } });
+  await act(async () => {
+    fireEvent.keyDown(editor, { key: "s", ctrlKey: true });
+  });
+  expect(window.workspaceApi.writeFile).toHaveBeenCalledWith("/tmp/empty.txt", "");
 });

@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import { waitFor } from "@testing-library/react";
-import { setupMockedApis, resetMockedApis } from "./rendererHelpers";
+import { setupMockedApis, resetMockedApis, workspaceApi } from "./rendererHelpers";
 import { useTabStore, type TabState } from "../renderer/src/features/terminal/useTabStore";
 import { getEditorDocument, setEditorDocument, saveEditorDocument } from "../renderer/src/features/workspace/editorDocumentStore";
 import { hasPendingTabOperation, registerWindowCloseGuard } from "../renderer/src/features/terminal/tabLifecycle";
@@ -237,4 +237,45 @@ test("closing during a save does not resurrect the discarded document when the w
   saved.resolve();
   await pending;
   expect(getEditorDocument(tab.root.editorId!, tab.root.filePath!)).toBeUndefined();
+});
+
+test("a partial profile restore cleans up staged PTYs and preserves the original layout", async () => {
+  const tab = { id: "live", label: "Live", root: { terminalId: "live-pty" }, focusedPath: [] };
+  install([tab]);
+  const create = window.terminalApi.create as jest.Mock;
+  create.mockResolvedValueOnce({ id: "staged-pty" });
+  create.mockRejectedValueOnce(new Error("spawn failed"));
+  const profile = { tabs: [
+    { id: "first", label: "First", root: { terminalId: "first-pty" } },
+    { id: "second", label: "Second", root: { terminalId: "second-pty" } },
+  ] };
+  await expect(useTabStore.getState().loadProfileState(profile)).rejects.toThrow("spawn failed");
+  expect(useTabStore.getState().tabs).toEqual([tab]);
+  expect(window.terminalApi.destroy).toHaveBeenCalledTimes(1);
+  expect(window.terminalApi.destroy).toHaveBeenCalledWith("staged-pty");
+});
+
+test.each([true, false])("legacy line jump respects the exact path when it exists (%s)", async (exists) => {
+  workspaceApi.fileExists.mockResolvedValueOnce(exists);
+  const legacy = { editorId: "old", filePath: "/tmp/test#L12:3" };
+  const profile = { tabs: [{ id: "saved", label: "Saved", root: legacy }] };
+  await expect(useTabStore.getState().loadProfileState(profile)).resolves.toBe(true);
+  expect(workspaceApi.fileExists).toHaveBeenCalledWith(legacy.filePath);
+  expect(useTabStore.getState().tabs[0]!.root).toMatchObject(exists
+    ? { filePath: legacy.filePath, editorOptions: {} }
+    : { filePath: "/tmp/test", editorOptions: { line: 12, column: 3 } });
+});
+
+test("a terminal opened concurrently with a workspace restore uses the new tab counter", async () => {
+  const info = deferred<TerminalInfo>();
+  (window.terminalApi.getTerminalInfo as jest.Mock).mockReturnValueOnce(info.promise);
+  const opening = useTabStore.getState().newTab();
+  await waitFor(() => expect(window.terminalApi.getTerminalInfo).toHaveBeenCalledTimes(1));
+
+  const savedTab = { id: "tab-1", label: "Browser", root: { browserId: "saved-browser" } };
+  await expect(useTabStore.getState().loadProfileState({ tabs: [savedTab] })).resolves.toBe(true);
+  info.resolve({ title: "New terminal", cwd: "/tmp" });
+  await opening;
+
+  expect(useTabStore.getState().tabs.map(({ id }) => id)).toEqual(["tab-1", "tab-2"]);
 });

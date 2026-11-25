@@ -196,7 +196,10 @@ export default function ModalManager() {
               label: profileName,
               type: "command",
               onExecute: () => {
-                loadProfileState(profiles[profileName]);
+                void loadProfileState(profiles[profileName]).catch((error: unknown) => {
+                  const message = error instanceof Error ? error.message : String(error);
+                  useUIStore.getState().addToast(`Failed to load workspace: ${message}`, "error");
+                });
               }
             }))
           };

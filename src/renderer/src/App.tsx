@@ -70,25 +70,22 @@ function App() {
 
   const terminalAreaRef = useRef<HTMLDivElement>(null);
   const hasTriggeredIntro = useRef(false);
-  const [editingFile, setEditingFile] = useState<{ filePath: string; sshHostId?: string | null } | null>(null);
+  const [editingFile, setEditingFile] = useState<{ filePath: string; sshHostId: string | null; options: EditorOpenOptions } | null>(null);
 
   // Open editor obeying the user's config.editorMode ('split' | 'tab' | 'modal')
   const handleOpenFile = useCallback(
-    (filePath: string, sshHostId?: string | null, line?: number) => {
-      let targetFilePath = filePath;
-      if (line && !targetFilePath.includes("#L")) {
-        targetFilePath = `${targetFilePath}#L${line}`;
-      }
+    (filePath: string, sshHostId?: string | null, options: EditorOpenOptions = {}) => {
       const mode = config.editorMode || "split";
       if (mode === "tab") {
-        openEditorInNewTab(targetFilePath, sshHostId || null);
+        openEditorInNewTab(filePath, sshHostId || null, options);
       } else if (mode === "modal") {
         setEditingFile({
-          filePath: targetFilePath,
+          filePath,
           sshHostId: sshHostId || null,
+          options,
         });
       } else {
-        openEditorInSplit(targetFilePath, sshHostId || null);
+        openEditorInSplit(filePath, sshHostId || null, options);
       }
     },
     [config.editorMode, openEditorInSplit, openEditorInNewTab],
@@ -100,13 +97,16 @@ function App() {
       const customEvent = e as CustomEvent<{
         filePath: string;
         line?: number;
+        col?: number;
+        view?: EditorOpenOptions['view'];
         sshHostId?: string | null;
+        sshConnectionId?: string;
       }>;
       if (customEvent.detail && customEvent.detail.filePath) {
         handleOpenFile(
           customEvent.detail.filePath,
           customEvent.detail.sshHostId,
-          customEvent.detail.line,
+          { line: customEvent.detail.line, column: customEvent.detail.col, view: customEvent.detail.view, sshConnectionId: customEvent.detail.sshConnectionId },
         );
       }
     };
@@ -382,7 +382,7 @@ function App() {
                 setViewingHistorySessionId(sessionId)
               }
               activeTerminalId={activeTerminalId}
-              onViewFile={(filePath, sshHostId) => handleOpenFile(filePath, sshHostId)}
+              onViewFile={handleOpenFile}
               onLaunchConnection={(id) => newTab(undefined, id)}
               width={config.sidebarWidth || 250}
             />
@@ -501,7 +501,7 @@ function App() {
                 setViewingHistorySessionId(sessionId)
               }
               activeTerminalId={activeTerminalId}
-              onViewFile={(filePath, sshHostId) => handleOpenFile(filePath, sshHostId)}
+              onViewFile={handleOpenFile}
               onLaunchConnection={(id) => newTab(undefined, id)}
               width={config.sidebarWidth || 250}
             />
@@ -529,6 +529,7 @@ function App() {
       {editingFile && (
         <EditorModal
           filePath={editingFile.filePath}
+          editorOptions={editingFile.options}
           sshHostId={editingFile.sshHostId}
           onClose={() => setEditingFile(null)}
         />

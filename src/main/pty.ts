@@ -8,6 +8,7 @@ import { platform, homedir } from "os";
 import { getConfig } from "./config";
 import * as historyDb from "./historyDb";
 import { createSshPty } from "./sshPty";
+import { getSftpConnectionId } from "./sftp";
 
 const execFileAsync = promisify(execFile);
 
@@ -22,10 +23,11 @@ const terminals: Map<string, PtyProcess> = new Map();
 const forwardTargets: Map<string, (event: string, ...args: unknown[]) => void> =
   new Map();
 const terminalHistories: Map<string, string> = new Map();
-const terminalSshHosts: Map<string, string> = new Map();
+const terminalSshHosts = new Map<string, { id: string; connectionId: string }>();
 const outputBuffers: Map<string, string> = new Map();
 const outputTimeouts: Map<string, NodeJS.Timeout> = new Map();
 const foregroundTerminalIds: Set<string> = new Set();
+const windowForegroundTerminals: Map<number, Set<string>> = new Map();
 const terminalHistoryOrder: string[] = [];
 const MAX_BACKGROUND_TERMINAL_HISTORIES = 4;
 
@@ -121,11 +123,14 @@ export function getHistory(id: string): {
   }
 }
 
-export function setForegroundTerminals(ids: string[]): void {
-  const newSet = new Set(ids);
+function recomputeForegroundTerminals(): void {
+  const nextUnion = new Set<string>();
+  for (const set of windowForegroundTerminals.values()) {
+    for (const id of set) nextUnion.add(id);
+  }
 
   for (const id of foregroundTerminalIds) {
-    if (!newSet.has(id)) {
+    if (!nextUnion.has(id)) {
       const idx = terminalHistoryOrder.indexOf(id);
       if (idx !== -1) {
         terminalHistoryOrder.splice(idx, 1);
@@ -134,7 +139,7 @@ export function setForegroundTerminals(ids: string[]): void {
     }
   }
 
-  for (const id of ids) {
+  for (const id of nextUnion) {
     const idx = terminalHistoryOrder.indexOf(id);
     if (idx !== -1) {
       terminalHistoryOrder.splice(idx, 1);
@@ -147,9 +152,19 @@ export function setForegroundTerminals(ids: string[]): void {
   }
 
   foregroundTerminalIds.clear();
-  for (const id of ids) {
+  for (const id of nextUnion) {
     foregroundTerminalIds.add(id);
   }
+}
+
+export function setForegroundTerminals(ids: string[], windowId = 0): void {
+  windowForegroundTerminals.set(windowId, new Set(ids));
+  recomputeForegroundTerminals();
+}
+
+export function clearForegroundTerminalsForWindow(windowId: number): void {
+  if (!windowForegroundTerminals.delete(windowId)) return;
+  recomputeForegroundTerminals();
 }
 
 export function createTerminal(options: {
@@ -160,9 +175,6 @@ export function createTerminal(options: {
   rows?: number;
 }): string {
   const id = randomUUID();
-  if (options.sshHostId) {
-    terminalSshHosts.set(id, options.sshHostId);
-  }
   const config = getConfig();
 
   let pty: ReturnType<typeof spawn>;
@@ -174,19 +186,22 @@ export function createTerminal(options: {
     Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
 
-  let sshHost: any = null;
+  let sshHost: SshHost | undefined;
   if (options.sshHostId) {
     sshHost = (config.sshHosts || []).find(
-      (h: any) => h.id === options.sshHostId,
+      (host: SshHost) => host.id === options.sshHostId,
     );
   }
 
   try {
     if (sshHost) {
+      const connectionId = getSftpConnectionId(sshHost.id);
       connectionType = "ssh";
       connectionTarget = `${sshHost.username}@${sshHost.host}`;
       pty = createSshPty(sshHost, cleanEnv, options.cols, options.rows);
+      terminalSshHosts.set(id, { id: sshHost.id, connectionId });
     } else {
+      if (options.sshHostId) throw new Error("SSH Host profile not found");
       let shell = config.shell || process.env["SHELL"] || "/bin/bash";
       let args: string[] = [];
       let env = { ...process.env } as Record<string, string>;
@@ -434,6 +449,9 @@ export function destroyTerminal(id: string): void {
       terminalHistories.delete(id);
       terminalSshHosts.delete(id);
       foregroundTerminalIds.delete(id);
+      for (const set of windowForegroundTerminals.values()) {
+        set.delete(id);
+      }
       const orderIdx = terminalHistoryOrder.indexOf(id);
       if (orderIdx !== -1) {
         terminalHistoryOrder.splice(orderIdx, 1);
@@ -444,9 +462,10 @@ export function destroyTerminal(id: string): void {
 
 export async function getTerminalInfo(
   id: string,
-): Promise<{ title: string; cwd: string; sshHostId?: string | undefined }> {
+): Promise<TerminalInfo> {
   const terminal = terminals.get(id);
-  const sshHostId = terminalSshHosts.get(id);
+  const sshHost = terminalSshHosts.get(id);
+  const sshHostId = sshHost?.id;
   if (!terminal) return { title: "Terminal", cwd: "", sshHostId };
 
   let cwd = terminal.lastCwd || terminal.initialCwd || "";
@@ -546,6 +565,7 @@ export async function getTerminalInfo(
     title: `${folder} : ${finalProcName}`,
     cwd: resolvedCwd,
     sshHostId: effectiveSshHostId,
+    sshConnectionId: sshHost?.connectionId,
   };
 }
 

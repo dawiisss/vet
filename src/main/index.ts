@@ -4,7 +4,11 @@ import { readFileSync, existsSync } from "fs";
 import JSON5 from "json5";
 import { electronApp, is } from "@electron-toolkit/utils";
 import { autoUpdater } from "electron-updater";
-import { setForwardTarget, destroyTerminal } from "./pty";
+import {
+  setForwardTarget,
+  destroyTerminal,
+  clearForegroundTerminalsForWindow,
+} from "./pty";
 import { registerWindowHandlers } from "./ipc/windowHandlers";
 import { registerHistoryHandlers } from "./ipc/historyHandlers";
 import { registerTerminalHandlers } from "./ipc/terminalHandlers";
@@ -76,6 +80,7 @@ function createWindow(isTransparent = false): BrowserWindow {
   });
 
   win.on("closed", () => {
+    clearForegroundTerminalsForWindow(win.id);
     const terminals = windowTerminals.get(win.id);
     if (terminals) {
       for (const tId of terminals) {
@@ -98,6 +103,7 @@ function createWindow(isTransparent = false): BrowserWindow {
   });
 
   win.webContents.on("console-message", (_event, level, message) => {
+    if (!is.dev && level < 2) return;
     const prefix = ["VERB", "INFO", "WARN", "ERR"][level] ?? "LOG";
     console.log(`[renderer ${prefix}] ${message}`);
   });
@@ -155,6 +161,42 @@ function createWindow(isTransparent = false): BrowserWindow {
         `[security] Blocked unauthorized navigation to invalid URL: ${url}`,
       );
       event.preventDefault();
+    }
+  });
+
+  // Security: Enforce strict isolation and pin preload before any guest webview attaches.
+  const allowedBrowserPreload = `file://${join(__dirname, "../preload/browser.js")}`;
+  win.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    if (
+      webPreferences.preload &&
+      webPreferences.preload !== allowedBrowserPreload
+    ) {
+      console.warn(
+        `[security] Stripped unauthorized webview preload: ${webPreferences.preload}`,
+      );
+      delete webPreferences.preload;
+    }
+
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    webPreferences.webSecurity = true;
+
+    if (params.src && params.src !== "about:blank") {
+      try {
+        const parsed = new URL(params.src);
+        if (!["http:", "https:", "file:"].includes(parsed.protocol)) {
+          console.warn(
+            `[security] Blocked webview attachment with unsafe URL: ${params.src}`,
+          );
+          event.preventDefault();
+        }
+      } catch {
+        console.warn(
+          `[security] Blocked webview attachment with invalid URL: ${params.src}`,
+        );
+        event.preventDefault();
+      }
     }
   });
 
@@ -249,7 +291,12 @@ function registerIpcHandlers(): void {
   registerUpdaterHandlers(() => mainWindow);
 }
 
-import { initConfigManager, getConfig, cleanupConfigManager } from "./config";
+import {
+  initConfigManager,
+  getConfig,
+  cleanupConfigManager,
+  CONFIG_FILE,
+} from "./config";
 import { initSessionManager } from "./session";
 import { initSysInfoManager, cleanupSysInfo } from "./sysinfo";
 import { initPortsManager } from "./ports";
@@ -278,7 +325,8 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
 
   let isTransparent = false;
-  const configPath = join(app.getPath("home"), ".config", "vet", "config.json5");
+  const configPath =
+    CONFIG_FILE || join(app.getPath("home"), ".config", "vet", "config.json5");
   try {
     if (existsSync(configPath)) {
       const parsed = JSON5.parse(readFileSync(configPath, "utf-8"));
@@ -296,7 +344,7 @@ app.whenReady().then(async () => {
     mainWindow.setVibrancy(config.vibrancy);
   }
 
-  initSessionManager();
+  initSessionManager((sender) => mainWindow?.webContents === sender);
   initClipboardHistoryManager();
   initSysInfoManager(mainWindow);
   initPortsManager();
@@ -340,7 +388,7 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
+app.on("will-quit", () => {
   try {
     historyDb.cleanupHistoryDb();
   } catch (err) {

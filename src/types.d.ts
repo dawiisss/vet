@@ -82,6 +82,13 @@ interface Config {
   vibrancy?: string;
 }
 
+interface TerminalInfo {
+  title: string;
+  cwd: string;
+  sshHostId?: string | undefined;
+  sshConnectionId?: string | undefined;
+}
+
 interface TerminalApi {
   create: (opts?: {
     cwd?: string | undefined;
@@ -111,7 +118,7 @@ interface TerminalApi {
   onReattachTab: (callback: (transferId: string) => void) => () => void;
   getTerminalInfo: (
     id: string,
-  ) => Promise<{ title: string; cwd: string; sshHostId?: string }>;
+  ) => Promise<TerminalInfo>;
   setForeground: (ids: string[]) => Promise<void>;
   saveSession: (state: any) => Promise<void>;
   getSession: () => Promise<any>;
@@ -219,16 +226,31 @@ interface GitDetailedStatus {
   untracked: Array<{ path: string }>;
 }
 
+interface EditorOpenOptions {
+  line?: number | undefined;
+  column?: number | undefined;
+  view?: "text" | "git-diff" | undefined;
+  sshConnectionId?: string | undefined;
+}
+
+type OpenWorkspaceFile = (filePath: string, sshHostId?: string | null, options?: EditorOpenOptions) => void;
+
 interface TabTransferNode {
   terminalId?: string | undefined;
   browserId?: string | undefined;
   editorId?: string | undefined;
   filePath?: string | undefined;
+  editorOptions?: EditorOpenOptions | undefined;
   sshHostId?: string | null | undefined;
   url?: string | undefined;
   direction?: "horizontal" | "vertical" | undefined;
   children?: TabTransferNode[] | undefined;
   sizes?: number[] | undefined;
+}
+
+interface WorkspaceSnapshot {
+  tabs: Array<{ id: string; label: string; root: TabTransferNode; focusedPath?: number[] | undefined }>;
+  activeTabId?: string | null | undefined;
 }
 
 interface TabTransferState {
@@ -244,6 +266,7 @@ interface EditorDocumentSnapshot {
   sshHostId?: string | null | undefined;
   content: string;
   isDirty: boolean;
+  connectionId?: string | undefined;
 }
 
 interface GitCommitInfo {
@@ -279,6 +302,11 @@ interface FileContentSearchOptions {
   filePattern?: string | undefined;
 }
 
+type WorkspaceSearchResult =
+  | { status: "success"; matches: FileContentMatch[] }
+  | { status: "cancelled" }
+  | { status: "error"; code: "invalid-query" | "timeout" | "failed"; message: string };
+
 interface WorkspaceApi {
   getScripts: (cwd: string) => Promise<WorkspaceScriptsResult | null>;
   listDir: (dirPath: string) => Promise<WorkspaceItem[]>;
@@ -290,8 +318,10 @@ interface WorkspaceApi {
     dirPath: string,
     query: string,
     options?: FileContentSearchOptions | undefined,
-  ) => Promise<FileContentMatch[]>;
+  ) => Promise<WorkspaceSearchResult>;
+  cancelSearch: () => Promise<void>;
   revealPath: (itemPath: string) => Promise<void>;
+  fileExists: (filePath: string) => Promise<boolean>;
   readFileHead: (filePath: string) => Promise<string>;
   readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<void>;
@@ -309,13 +339,19 @@ interface WorkspaceApi {
   getGitDiff: (cwd: string, filePath: string) => Promise<string>;
 }
 
+interface RemoteEditorFile {
+  content: string;
+  connectionId: string;
+}
+
 interface SftpApi {
   setTempPassword: (sshHostId: string, password: string) => Promise<void>;
-  listDir: (sshHostId: string, dirPath: string) => Promise<WorkspaceItem[]>;
+  listDir: (sshHostId: string, dirPath: string, connectionId?: string) => Promise<WorkspaceItem[]>;
   readFileHead: (sshHostId: string, filePath: string) => Promise<string>;
-  readFile: (sshHostId: string, filePath: string) => Promise<string>;
-  writeFile: (sshHostId: string, filePath: string, content: string) => Promise<void>;
-  getHomeDir: (sshHostId: string) => Promise<string>;
+  readFile: (sshHostId: string, filePath: string, connectionId?: string) => Promise<RemoteEditorFile>;
+  writeFile: (sshHostId: string, filePath: string, content: string, connectionId: string | undefined) => Promise<void>;
+  fileExists: (sshHostId: string, filePath: string) => Promise<boolean>;
+  getHomeDir: (sshHostId: string, connectionId?: string) => Promise<string>;
 }
 
 interface UpdateInfo {
@@ -406,10 +442,11 @@ interface Window {
     }>;
     getAppPreloadPath: () => Promise<string>;
     onBlockedEvent: (
-      callback: (
-        event: any,
-        data: { webContentsId: number; url: string; count: number },
-      ) => void,
+      callback: (data: {
+        webContentsId: number;
+        url: string;
+        count: number;
+      }) => void,
     ) => () => void;
   };
 }

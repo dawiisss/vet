@@ -57,7 +57,7 @@ const terminalApi: TerminalApi = {
   getTabTransfer: (transferId) => invoke<TabTransferState | null>("terminal:get-tab-transfer")({ transferId }),
   completeTabTransfer: (transferId) => invoke<{ success: boolean }>("terminal:complete-tab-transfer")({ transferId }),
   getTerminalInfo: (id) =>
-    invoke<{ title: string; cwd: string; sshHostId?: string }>("terminal:get-info")({ id }),
+    invoke<TerminalInfo>("terminal:get-info")({ id }),
   setForeground: (ids) => invoke<void>("terminal:set-foreground")({ ids }),
   onData: registerHandler(dataHandlers),
   onExit: registerHandler(exitHandlers),
@@ -145,7 +145,9 @@ const workspaceApi = {
     query: string,
     options?: FileContentSearchOptions | undefined,
   ) =>
-    invoke<FileContentMatch[]>("workspace:search-file-contents")(dirPath, query, options),
+    invoke<WorkspaceSearchResult>("workspace:search-file-contents")(dirPath, query, options),
+  cancelSearch: () => invoke<void>("workspace:cancel-search")(),
+  fileExists: (filePath: string) => invoke<boolean>("workspace:file-exists")(filePath),
   revealPath: (itemPath: string) => invoke<void>("workspace:reveal-path")(itemPath),
   readFileHead: (filePath: string) =>
     unwrap(invoke<string>("workspace:read-file-head")(filePath)),
@@ -206,16 +208,17 @@ const unwrap = async <T>(promise: Promise<T>): Promise<T> => {
 const sftpApi: SftpApi = {
   setTempPassword: (sshHostId: string, password: string) =>
     invoke<void>("sftp:set-temp-password")(sshHostId, password),
-  listDir: (sshHostId: string, dirPath: string) =>
-    unwrap(invoke<WorkspaceItem[]>("sftp:list-dir")(sshHostId, dirPath)),
+  listDir: (sshHostId, dirPath, connectionId) =>
+    unwrap(invoke<WorkspaceItem[]>("sftp:list-dir")(sshHostId, dirPath, connectionId)),
   readFileHead: (sshHostId: string, filePath: string) =>
     unwrap(invoke<string>("sftp:read-file-head")(sshHostId, filePath)),
-  readFile: (sshHostId: string, filePath: string) =>
-    unwrap(invoke<string>("sftp:read-file")(sshHostId, filePath)),
-  writeFile: (sshHostId: string, filePath: string, content: string) =>
-    unwrap(invoke<void>("sftp:write-file")(sshHostId, filePath, content)),
-  getHomeDir: (sshHostId: string) =>
-    unwrap(invoke<string>("sftp:get-home")(sshHostId)),
+  readFile: (sshHostId, filePath, connectionId) =>
+    unwrap(invoke<RemoteEditorFile>("sftp:read-file")(sshHostId, filePath, connectionId)),
+  writeFile: (sshHostId, filePath, content, connectionId) =>
+    unwrap(invoke<void>("sftp:write-file")(sshHostId, filePath, content, connectionId)),
+  fileExists: (sshHostId: string, filePath: string) => invoke<boolean>("sftp:file-exists")(sshHostId, filePath),
+  getHomeDir: (sshHostId, connectionId) =>
+    unwrap(invoke<string>("sftp:get-home")(sshHostId, connectionId)),
 };
 
 const historyApi: HistoryApi = {
@@ -262,14 +265,19 @@ const adblockerApi = {
   clearStats: (webContentsId: number) =>
     invoke<number>("adblocker:clear-stats")(webContentsId),
   onBlockedEvent: (
-    callback: (
-      event: unknown,
-      data: { webContentsId: number; url: string; count: number },
-    ) => void,
+    callback: (data: {
+      webContentsId: number;
+      url: string;
+      count: number;
+    }) => void,
   ) => {
-    ipcRenderer.on("adblocker:blocked-event", callback);
+    const handler = (
+      _event: unknown,
+      data: { webContentsId: number; url: string; count: number },
+    ) => callback(data);
+    ipcRenderer.on("adblocker:blocked-event", handler);
     return () => {
-      ipcRenderer.removeListener("adblocker:blocked-event", callback);
+      ipcRenderer.removeListener("adblocker:blocked-event", handler);
     };
   },
   getHtmlReplaceRules: (url: string) =>

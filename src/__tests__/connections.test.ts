@@ -128,6 +128,33 @@ Host realserver
       const myserverResults = result.filter((h: any) => h.name === "myserver");
       expect(myserverResults).toHaveLength(1);
     });
+
+    it("quotes SSH host names containing shell metacharacters", async () => {
+      const config = require("../main/config");
+      config.getConfig.mockReturnValue({
+        sshParseGlobal: true,
+        sshHosts: [
+          {
+            id: "h1",
+            name: "Tricky",
+            host: "10.0.0.1;id",
+            username: "user",
+            port: 2222,
+          },
+        ],
+        dockerDefaultShell: "/bin/bash",
+      });
+      const fs = require("fs/promises");
+      fs.readFile.mockResolvedValue("Host prod;whoami\n  HostName 1.2.3.4");
+
+      const result = await sshHandler({ sender: {} });
+      expect(result.find((h: any) => h.name === "prod;whoami")?.command).toBe(
+        "ssh 'prod;whoami'",
+      );
+      expect(result.find((h: any) => h.name === "Tricky")?.command).toBe(
+        "ssh -p 2222 'user@10.0.0.1;id'",
+      );
+    });
   });
 
   describe("Docker containers handler", () => {

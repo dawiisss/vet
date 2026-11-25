@@ -1,7 +1,9 @@
-import { SplitNode } from "../splitTree";
-import type { TabState, useTabStore } from "../useTabStore";
+import type { SplitNode } from "../splitTree";
+import { isWorkspaceSnapshot } from "../../../../../shared/utils/workspaceSnapshot";
+import type { TabState, TabStore, TabStoreGet, TabStoreSet } from "../useTabStore";
 import {
   leafNode,
+  leafPaths,
   getNode,
   collectTerminalIds,
   leafCount,
@@ -29,32 +31,32 @@ async function receiveTabTransfer(transferId: string, install: (transfer: TabTra
   }
 }
 
-export function setActiveTabIdAction(set: any, get: any, id: string | null) {
+export function setActiveTabIdAction(set: TabStoreSet, get: TabStoreGet, id: string | null) {
   if (!id) {
     set({ activeTabId: null });
     return;
   }
-  set((state: any) => {
-    let config: any = undefined;
+  set((state) => {
+    let config: Config | undefined;
     try {
       config = useConfigStore.getState().config;
     } catch (e) {
       console.warn("Failed to get config from useConfigStore:", e);
     }
     const maxActive = config?.maxActiveTerminals ?? 4;
-    const order = state.tabActivationOrder.filter((t: any) => t !== id);
+    const order = state.tabActivationOrder.filter((t) => t !== id);
     order.unshift(id);
 
-    let hibernated = state.hibernatedTabIds.filter((t: any) => t !== id);
+    let hibernated = state.hibernatedTabIds.filter((t) => t !== id);
 
     if (maxActive > 0) {
       const nonHibernatedCount = state.tabs.length - hibernated.length;
       let excess = nonHibernatedCount - maxActive;
       let i = order.length - 1;
       while (excess > 0 && i >= 0) {
-        const candidateId = order[i];
+        const candidateId = order[i]!;
         if (candidateId !== id && !hibernated.includes(candidateId)) {
-          const tab = state.tabs.find((t: any) => t.id === candidateId);
+          const tab = state.tabs.find((t) => t.id === candidateId);
           const terminalIds = tab ? collectTerminalIds(tab.root) : [];
           if (terminalIds.length > 0) {
             terminalIds.forEach((termId) => {
@@ -75,7 +77,7 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
     };
   });
 
-  const activeTab = get().tabs.find((t: any) => t.id === id);
+  const activeTab = get().tabs.find((t) => t.id === id);
   if (activeTab) {
     const termIds = collectTerminalIds(activeTab.root);
     try {
@@ -87,7 +89,11 @@ export function setActiveTabIdAction(set: any, get: any, id: string | null) {
   }
 }
 
-export function initializeTabsAction(set: any, get: any, initializedRef: any) {
+export function initializeTabsAction(
+  set: (state: Partial<TabStore>) => void,
+  get: () => TabStore,
+  initializedRef: { current: boolean },
+) {
   if (initializedRef.current) return;
   initializedRef.current = true;
 
@@ -144,276 +150,176 @@ export function initializeTabsAction(set: any, get: any, initializedRef: any) {
     return;
   }
 
-  // Helper to recursively recreate terminal sessions for leaf nodes
-  async function recreateTerminalNodes(node: any): Promise<any> {
-    if (node.terminalId) {
-      try {
-        const { id: newId } = await api.create();
-        return { terminalId: newId };
-      } catch (err) {
-        console.error("Failed to recreate terminal node", err);
-        throw err;
+  const releaseWorkspace = lockWorkspaceReplacement();
+  void (async () => {
+    try {
+      const saved: unknown = await api.getSession();
+      if (isWorkspaceSnapshot(saved) && saved.tabs.length > 0) {
+        set({ ...await restoreWorkspace(api, saved), tabsReady: true });
+        return;
       }
-    } else if (node.browserId) {
-      return { browserId: node.browserId, url: node.url };
-    } else if (node.editorId) {
-      return {
-        editorId: node.editorId,
-        filePath: node.filePath,
-        sshHostId: node.sshHostId,
-      };
-    } else if (node.children) {
-      const newChildren = await Promise.all(
-        node.children.map((child: any) => recreateTerminalNodes(child))
-      );
-      return {
-        direction: node.direction,
-        children: newChildren,
-        sizes: node.sizes,
-      };
+    } catch (error) {
+      console.warn("Failed to restore previous workspace:", error);
     }
-    return node;
-  }
 
-  api.getSession()
-    .then(async (session: any) => {
-      if (session && session.tabs && session.tabs.length > 0) {
-        try {
-          const restoredTabs = await Promise.all(
-            session.tabs.map(async (tab: any) => {
-              const restoredRoot = await recreateTerminalNodes(tab.root);
-              return {
-                id: tab.id,
-                label: tab.label,
-                root: restoredRoot,
-                focusedPath: tab.focusedPath || [],
-              };
-            })
-          );
-          
-          const restoredActiveId = session.activeTabId && restoredTabs.some(t => t.id === session.activeTabId)
-            ? session.activeTabId
-            : restoredTabs[0].id;
-
-          // Find max tab ID number and shell counter to avoid collision on new tab creation
-          let maxTabNum = 0;
-          let maxShellNum = 0;
-          for (const tab of restoredTabs) {
-            const tabMatch = tab.id.match(/^tab-(\d+)$/);
-            if (tabMatch) {
-              const num = parseInt(tabMatch[1], 10);
-              if (num > maxTabNum) maxTabNum = num;
-            }
-            const labelMatch = tab.label.match(/^shell (\d+)$/);
-            if (labelMatch) {
-              const num = parseInt(labelMatch[1], 10);
-              if (num > maxShellNum) maxShellNum = num;
-            }
-          }
-
-          set({
-            tabs: restoredTabs,
-            activeTabId: restoredActiveId,
-            tabActivationOrder: restoredTabs.map(t => t.id),
-            nextTabId: maxTabNum + 1,
-            tabCounter: maxShellNum + 1,
-          });
-          return;
-        } catch (err) {
-          console.error("Error restoring session, falling back to default tab", err);
-        }
+    try {
+      const { id } = await api.create();
+      if (!id) throw new Error("Terminal creation returned no ID");
+      const tabId = get().generateTabId();
+      let label: string | undefined;
+      try {
+        const info = await api.getTerminalInfo(id);
+        label = info?.title;
+      } catch (error) {
+        console.warn("Failed to get initial terminal info:", error);
       }
-
-      // Default fallback if no session exists
-      api
-        .create()
-        .then(async ({ id }) => {
-          const tabId = get().generateTabId();
-          let label: string | undefined;
-          try {
-            const info = await api.getTerminalInfo(id);
-            if (info.title) label = info.title;
-          } catch (e) {
-            console.warn(`Failed to get terminal info for ${id}:`, e);
-          }
-          set({
-            tabs: [get().newTabState(tabId, id, label)],
-            activeTabId: tabId,
-            tabActivationOrder: [tabId],
-          });
-        })
-        .catch((err: any) => {
-          useUIStore.getState().addToast(`Failed to create terminal: ${err.message || err}`, "error");
-        });
-    })
-    .catch((err: any) => {
-      console.warn("Failed to get session from database:", err);
-      // Fallback
-      api
-        .create()
-        .then(async ({ id }) => {
-          const tabId = get().generateTabId();
-          let label: string | undefined;
-          try {
-            const info = await api.getTerminalInfo(id);
-            if (info.title) label = info.title;
-          } catch (e) {
-            console.warn(`Failed to get terminal info for fallback ${id}:`, e);
-          }
-          set({
-            tabs: [get().newTabState(tabId, id, label)],
-            activeTabId: tabId,
-            tabActivationOrder: [tabId],
-          });
-        });
-    });
+      set({
+        tabs: [get().newTabState(tabId, id, label)],
+        activeTabId: tabId,
+        tabActivationOrder: [tabId],
+        tabsReady: true,
+      });
+    } catch (error) {
+      useUIStore.getState().addToast(`Failed to create terminal: ${error instanceof Error ? error.message : String(error)}`, "error");
+    }
+  })().finally(() => releaseWorkspace?.());
 }
 
-export async function loadProfileStateAction(set: any, get: any, profileState: any): Promise<boolean> {
-  if (!window.terminalApi || !profileState?.tabs?.length) return false;
+async function restoreEditor(node: SplitNode, newEditorIds: boolean): Promise<SplitNode> {
+  const editorId = newEditorIds ? `editor-${globalThis.crypto.randomUUID()}` : node.editorId;
+  const filePath = node.filePath!;
+  const sshHostId = node.sshHostId;
+  if (node.editorOptions) {
+    const editorOptions = { ...node.editorOptions };
+    delete editorOptions.sshConnectionId; // Connection IDs belong to the previous runtime.
+    return { editorId, filePath, sshHostId, editorOptions };
+  }
+
+  const suffix = /#(git-diff|L(\d+)(?::(\d+))?)$/i.exec(filePath);
+  if (suffix?.index) {
+    // Old layouts encoded view options in the path. Only fall back if the
+    // literal path is confirmed missing. An inaccessible file is ambiguous.
+    try {
+      const exists = sshHostId
+        ? await window.sftpApi.fileExists(sshHostId, filePath)
+        : await window.workspaceApi.fileExists(filePath);
+      if (!exists) {
+        const editorOptions: EditorOpenOptions = suffix[2]
+          ? { line: Number(suffix[2]), column: suffix[3] ? Number(suffix[3]) : undefined }
+          : { view: "git-diff" };
+        return { editorId, filePath: filePath.slice(0, suffix.index), sshHostId, editorOptions };
+      }
+    } catch {
+      // Leave the legacy marker pending so a later restore can resolve it.
+      return { ...node, editorId };
+    }
+  }
+  return { editorId, filePath, sshHostId, editorOptions: {} };
+}
+
+async function restoreWorkspace(api: TerminalApi, snapshot: WorkspaceSnapshot, newEditorIds = false) {
+  const createdIds: string[] = [];
+
+  const restoreNode = async (node: SplitNode): Promise<SplitNode> => {
+    if (node.terminalId) {
+      const { id } = await api.create();
+      if (!id) throw new Error("Terminal creation returned no ID");
+      createdIds.push(id);
+      return leafNode(id);
+    }
+    if (node.editorId) return restoreEditor(node, newEditorIds);
+    if (node.browserId) return { browserId: node.browserId, url: node.url };
+
+    const children: SplitNode[] = [];
+    for (const child of node.children!) children.push(await restoreNode(child));
+    return { direction: node.direction, sizes: node.sizes, children };
+  };
+
+  const tabs: TabState[] = [];
+  // Wait for all pane creation attempts before releasing any staged PTYs.
+  const restored = await Promise.allSettled(snapshot.tabs.map(async (tab) => {
+    const root = await restoreNode(tab.root);
+    const paths = leafPaths(root);
+    const focusedPath = paths.find((path) =>
+      path.length === tab.focusedPath?.length && path.every((part, index) => tab.focusedPath?.[index] === part),
+    ) ?? paths[0] ?? [];
+    return { id: tab.id, label: tab.label, root, focusedPath };
+  }));
+  for (const tab of restored) {
+    if (tab.status === "rejected") {
+      await destroyWorkspaceTerminals(api, createdIds);
+      throw tab.reason;
+    }
+    tabs.push(tab.value);
+  }
+
+  const activeTabId = tabs.find((tab) => tab.id === snapshot.activeTabId)?.id ?? tabs[0]?.id ?? null;
+  let nextTabId = 1;
+  let tabCounter = 1;
+  for (const tab of tabs) {
+    nextTabId = Math.max(nextTabId, Number(/^tab-(\d+)$/.exec(tab.id)?.[1] ?? 0) + 1);
+    tabCounter = Math.max(tabCounter, Number(/^shell (\d+)$/.exec(tab.label)?.[1] ?? 0) + 1);
+  }
+  return { tabs, activeTabId, tabActivationOrder: tabs.map((tab) => tab.id), hibernatedTabIds: [], nextTabId, tabCounter };
+}
+
+async function destroyWorkspaceTerminals(api: TerminalApi, ids: string[]): Promise<void> {
+  await Promise.allSettled(ids.map(async (id) => {
+    destroyTerminalCache(id);
+    await api.destroy(id);
+  }));
+}
+
+export async function loadProfileStateAction(
+  set: (state: Partial<TabStore>) => void,
+  get: () => TabStore,
+  profileState: unknown,
+): Promise<boolean> {
+  const api = window.terminalApi;
+  if (!api) return false;
+  if (!isWorkspaceSnapshot(profileState) || profileState.tabs.length === 0) {
+    throw new Error("Saved workspace layout is invalid or empty");
+  }
   const releaseWorkspace = lockWorkspaceReplacement();
   if (!releaseWorkspace) return false;
   let releaseDocuments: (() => void) | undefined;
-  const roots = get().tabs.map((tab: { root: SplitNode }) => tab.root);
+  const roots = get().tabs.map((tab) => tab.root);
   try {
     if (!confirmDiscardDocuments(roots)) return false;
     const prepared = await prepareEditorTransfer({ children: roots });
     releaseDocuments = prepared.release;
-    const loaded = await replaceProfileState(set, get, profileState);
-    if (loaded) roots.forEach(forgetEditorDocuments);
-    return loaded;
+    const next = await restoreWorkspace(api, profileState, true);
+    set(next);
+    roots.forEach(forgetEditorDocuments);
+    await destroyWorkspaceTerminals(api, roots.flatMap(collectTerminalIds));
+    return true;
   } finally {
     releaseDocuments?.();
     releaseWorkspace();
   }
 }
 
-async function replaceProfileState(
-  set: typeof useTabStore.setState,
-  get: typeof useTabStore.getState,
-  profileState: { tabs: TabState[]; activeTabId?: string | null | undefined },
-): Promise<boolean> {
-  const api = window.terminalApi;
-  if (!api) return false;
 
-  const prevTabs = get().tabs;
-  for (const tab of prevTabs) {
-    collectTerminalIds(tab.root).forEach((id) => {
-      api.destroy(id);
-      destroyTerminalCache(id);
-    });
-  }
-
-  async function recreateTerminalNodes(node: any): Promise<any> {
-    if (node.terminalId) {
-      try {
-        const { id: newId } = await api.create();
-        return { terminalId: newId };
-      } catch (err) {
-        console.error("Failed to recreate terminal node", err);
-        throw err;
-      }
-    } else if (node.browserId) {
-      return { browserId: node.browserId, url: node.url };
-    } else if (node.editorId) {
-      return {
-        editorId: `editor-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        filePath: node.filePath,
-        sshHostId: node.sshHostId,
-      };
-    } else if (node.children) {
-      const newChildren = await Promise.all(
-        node.children.map((child: any) => recreateTerminalNodes(child))
-      );
-      return {
-        direction: node.direction,
-        children: newChildren,
-        sizes: node.sizes,
-      };
-    }
-    return node;
-  }
-
-  if (profileState && profileState.tabs && profileState.tabs.length > 0) {
-    try {
-      const restoredTabs = await Promise.all(
-        profileState.tabs.map(async (tab: any) => {
-          const restoredRoot = await recreateTerminalNodes(tab.root);
-          return {
-            id: tab.id,
-            label: tab.label,
-            root: restoredRoot,
-            focusedPath: tab.focusedPath || [],
-          };
-        })
-      );
-      
-      const restoredActiveId = profileState.activeTabId && restoredTabs.some(t => t.id === profileState.activeTabId)
-        ? profileState.activeTabId
-        : restoredTabs[0]!.id;
-
-      let maxTabNum = 0;
-      let maxShellNum = 0;
-      for (const tab of restoredTabs) {
-        const tabMatch = tab.id.match(/^tab-(\d+)$/);
-        if (tabMatch) {
-          const num = parseInt(tabMatch[1], 10);
-          if (num > maxTabNum) maxTabNum = num;
-        }
-        const labelMatch = tab.label.match(/^shell (\d+)$/);
-        if (labelMatch) {
-          const num = parseInt(labelMatch[1], 10);
-          if (num > maxShellNum) maxShellNum = num;
-        }
-      }
-
-      set({
-        tabs: restoredTabs,
-        activeTabId: restoredActiveId,
-        tabActivationOrder: restoredTabs.map((t: any) => t.id),
-        nextTabId: maxTabNum + 1,
-        tabCounter: maxShellNum + 1,
-      });
-      return true;
-    } catch (err) {
-      console.error("Error restoring profile, falling back", err);
-      try {
-        const { id } = await api.create();
-        const tabId = get().generateTabId();
-        set({
-          tabs: [get().newTabState(tabId, id, "shell 1")],
-          activeTabId: tabId,
-          tabActivationOrder: [tabId],
-        });
-        return true;
-      } catch (fallbackErr) {
-        console.error("Failed to create fallback terminal after profile error", fallbackErr);
-      }
-    }
-  }
-  return false;
-}
-
-
-export function onReattachTabAction(set: any, get: any) {
+export function onReattachTabAction(set: TabStoreSet, get: TabStoreGet) {
   const api = window.terminalApi;
   if (!api) return () => {};
 
   return api.onReattachTab((transferId) => {
     void receiveTabTransfer(transferId, (transfer) => {
       const tabId = get().generateTabId();
-      set((state: any) => ({
+      set((state) => ({
         tabs: [...state.tabs, { id: tabId, label: transfer.label, root: transfer.root, focusedPath: transfer.focusedPath }],
         activeTabId: tabId,
         tabActivationOrder: [tabId, ...state.tabActivationOrder],
       }));
-    }).catch((error) => {
-      useUIStore.getState().addToast(`Failed to receive tab: ${error.message || error}`, "error");
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      useUIStore.getState().addToast(`Failed to receive tab: ${message}`, "error");
     });
   });
 }
 
-export function pollTabLabelsAction(set: any, get: any) {
+export function pollTabLabelsAction(set: TabStoreSet, get: TabStoreGet) {
   const api = window.terminalApi;
   if (!api) return () => {};
 
@@ -459,8 +365,8 @@ export function pollTabLabelsAction(set: any, get: any) {
     }
 
     if (active && changed) {
-      set((state: any) => ({
-        tabs: state.tabs.map((t: any) => {
+      set((state) => ({
+        tabs: state.tabs.map((t) => {
           const newLabel = updates.get(t.id);
           return newLabel ? { ...t, label: newLabel } : t;
         }),
@@ -478,8 +384,8 @@ export function pollTabLabelsAction(set: any, get: any) {
 }
 
 export async function newTabAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   profileId?: string,
   sshHostId?: string,
 ) {
@@ -488,7 +394,6 @@ export async function newTabAction(
   if (!api) return;
   try {
     const { id } = await api.create({ profileId, sshHostId });
-    const tabId = get().generateTabId();
     let label: string | undefined;
     try {
       const info = await api.getTerminalInfo(id);
@@ -500,21 +405,23 @@ export async function newTabAction(
       api.destroy(id);
       return;
     }
-    set((state: any) => ({
+    const tabId = get().generateTabId();
+    set((state) => ({
       tabs: [...state.tabs, get().newTabState(tabId, id, label)],
       activeTabId: tabId,
       tabActivationOrder: [tabId, ...state.tabActivationOrder],
     }));
-  } catch (err: any) {
-    useUIStore.getState().addToast(`Failed to create terminal: ${err.message || err}`, "error");
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    useUIStore.getState().addToast(`Failed to create terminal: ${message}`, "error");
   }
 }
 
-export function newBrowserTabAction(set: any, get: any, url?: string) {
+export function newBrowserTabAction(set: TabStoreSet, get: TabStoreGet, url?: string) {
   if (isWorkspaceLocked()) return;
   const browserId = `browser-${Date.now()}`;
   const tabId = get().generateTabId();
-  set((state: any) => {
+  set((state) => {
     const browserTab = get().newBrowserTabState(tabId, browserId);
     if (url) {
       browserTab.root = { ...browserTab.root, url };
@@ -527,13 +434,13 @@ export function newBrowserTabAction(set: any, get: any, url?: string) {
   });
 }
 
-export function closeTabAction(set: any, get: any, tabId: string) {
+export function closeTabAction(set: TabStoreSet, get: TabStoreGet, tabId: string) {
   if (isTabLocked(tabId)) return;
   const api = window.terminalApi;
   if (!api) return;
   const activeTabId = get().activeTabId;
   const prevTabs = get().tabs;
-  const tab = prevTabs.find((t: any) => t.id === tabId);
+  const tab = prevTabs.find((t) => t.id === tabId);
   if (tab && !confirmDiscardDocuments([tab.root])) return;
   if (tab) {
     collectTerminalIds(tab.root).forEach((id) => {
@@ -542,35 +449,35 @@ export function closeTabAction(set: any, get: any, tabId: string) {
     });
     forgetEditorDocuments(tab.root);
   }
-  const next = prevTabs.filter((t: any) => t.id !== tabId);
+  const next = prevTabs.filter((t) => t.id !== tabId);
   let newActiveTabId = activeTabId;
   if (tabId === activeTabId) {
-    const idx = prevTabs.findIndex((t: any) => t.id === tabId);
+    const idx = prevTabs.findIndex((t) => t.id === tabId);
     const newActive = next[Math.min(idx, next.length - 1)];
     newActiveTabId = newActive ? newActive.id : null;
   }
   set({
     tabs: next,
     activeTabId: newActiveTabId,
-    tabActivationOrder: get().tabActivationOrder.filter((t: any) => t !== tabId),
-    hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== tabId),
+    tabActivationOrder: get().tabActivationOrder.filter((t) => t !== tabId),
+    hibernatedTabIds: get().hibernatedTabIds.filter((t) => t !== tabId),
   });
   // Automatic selection must wake the next tab just like clicking its tab.
   if (newActiveTabId !== activeTabId) get().setActiveTabId(newActiveTabId);
 }
 
-export function renameTabAction(set: any, get: any, tabId: string, newLabel: string) {
+export function renameTabAction(set: TabStoreSet, _get: TabStoreGet, tabId: string, newLabel: string) {
   if (isTabLocked(tabId)) return;
-  set((state: any) => ({
-    tabs: state.tabs.map((t: any) =>
+  set((state) => ({
+    tabs: state.tabs.map((t) =>
       t.id === tabId ? { ...t, label: newLabel } : t,
     ),
   }));
 }
 
-export function updateBrowserUrlAction(set: any, get: any, browserId: string, url: string) {
-  set((state: any) => ({
-    tabs: state.tabs.map((tab: any) => {
+export function updateBrowserUrlAction(set: TabStoreSet, _get: TabStoreGet, browserId: string, url: string) {
+  set((state) => ({
+    tabs: state.tabs.map((tab) => {
       if (isTabLocked(tab.id)) return tab;
       const updateUrl = (node: SplitNode): SplitNode => {
         if (node.browserId === browserId) {
@@ -586,7 +493,7 @@ export function updateBrowserUrlAction(set: any, get: any, browserId: string, ur
   }));
 }
 
-export async function handleRunScriptAction(set: any, get: any, cmd: string, cwd: string) {
+export async function handleRunScriptAction(set: TabStoreSet, get: TabStoreGet, cmd: string, cwd: string) {
   const api = window.terminalApi;
   if (!api) return;
   const activeTabId = get().activeTabId;
@@ -594,17 +501,17 @@ export async function handleRunScriptAction(set: any, get: any, cmd: string, cwd
   const prevTabs = get().tabs;
   try {
     const { id } = await api.create({ cwd });
-    const activeTab = prevTabs.find((t: any) => t.id === activeTabId);
+    const activeTab = prevTabs.find((t) => t.id === activeTabId);
     const { newTabState, generateTabId } = get();
     const { insertLeaves } = await import("../splitTree");
     if (isWorkspaceLocked() || (activeTabId && (isTabLocked(activeTabId) ||
-        get().tabs.find((tab: { id: string }) => tab.id === activeTabId)?.root !== activeTab?.root))) {
+        get().tabs.find((tab) => tab.id === activeTabId)?.root !== activeTab?.root))) {
       api.destroy(id);
       return;
     }
     if (activeTab) {
-      set((state: any) => ({
-        tabs: state.tabs.map((t: any) => {
+      set((state) => ({
+        tabs: state.tabs.map((t) => {
           if (t.id !== activeTabId) return t;
           const result = insertLeaves(t.root, t.focusedPath, "horizontal", [
             id,
@@ -618,7 +525,7 @@ export async function handleRunScriptAction(set: any, get: any, cmd: string, cwd
       }));
     } else {
       const tabId = generateTabId();
-      set((state: any) => ({
+      set((state) => ({
         tabs: [...state.tabs, newTabState(tabId, id, "Script")],
         activeTabId: tabId,
         tabActivationOrder: [tabId, ...state.tabActivationOrder],
@@ -627,16 +534,17 @@ export async function handleRunScriptAction(set: any, get: any, cmd: string, cwd
     setTimeout(() => {
       api.write(id, cmd + "\r");
     }, 100);
-  } catch (e: any) {
-    useUIStore.getState().addToast(`Failed to run script: ${e.message || e}`, "error");
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    useUIStore.getState().addToast(`Failed to run script: ${message}`, "error");
   }
 }
 
-export function handleInjectSnippetAction(set: any, get: any, snippet: string) {
+export function handleInjectSnippetAction(_set: TabStoreSet, get: TabStoreGet, snippet: string) {
   const api = window.terminalApi;
   const activeTabId = get().activeTabId;
   if (!api || !activeTabId) return;
-  const activeTab = get().tabs.find((t: any) => t.id === activeTabId);
+  const activeTab = get().tabs.find((t) => t.id === activeTabId);
   if (!activeTab) return;
   const node = getNode(activeTab.root, activeTab.focusedPath);
   if (node && node.terminalId) {
@@ -645,14 +553,14 @@ export function handleInjectSnippetAction(set: any, get: any, snippet: string) {
 }
 
 export function reorderTabsAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  _get: TabStoreGet,
   draggedTabId: string,
   targetTabId: string,
 ) {
   if (draggedTabId === targetTabId) return;
 
-  set((state: any) => {
+  set((state) => {
     const currentTabs = [...state.tabs];
     const fromIndex = currentTabs.findIndex((t) => t.id === draggedTabId);
     const toIndex = currentTabs.findIndex((t) => t.id === targetTabId);
@@ -660,6 +568,7 @@ export function reorderTabsAction(
     if (fromIndex === -1 || toIndex === -1) return state;
 
     const [movedTab] = currentTabs.splice(fromIndex, 1);
+    if (!movedTab) return state;
     currentTabs.splice(toIndex, 0, movedTab);
 
     return {

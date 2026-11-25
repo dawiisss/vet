@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dawiisss/vet?color=blue&logo=github)](https://github.com/dawiisss/vet/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg?logo=node.js&logoColor=white)](https://nodejs.org)
-[![Electron Version](https://img.shields.io/badge/electron-%5E43.7.10-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
+[![Electron Version](https://img.shields.io/badge/electron-%5E43.8.13-blue?logo=electron&logoColor=white)](https://www.electronjs.org)
 [![React Version](https://img.shields.io/badge/react-%5E19.0.0-61dafb?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript Version](https://img.shields.io/badge/typescript-%5E5.7.0-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Adblock Engine](https://img.shields.io/badge/adblocker-ghostery-brightgreen.svg?logo=ghostery)](https://github.com/ghostery/adblocker)
@@ -49,7 +49,7 @@ Windows build is provided, but no support will be provided for it at the moment.
 * **Command Palette Autocomplete and Line Navigation**: Fast fuzzy file/command search with `Ctrl+Shift+P`, featuring `Right Arrow` prefilling and instant line-number jumping (`filename:line`) across all editor modes.
 * **Tiling Code Editor and Git Diff Viewer**: Built-in CodeMirror 6 text editor supporting 50+ languages, Tab-key autocompletion, local/remote saving, adjustable layout modes (split pane tiling, new tab, modal), and a line-numbered Git diff viewer. Unsaved buffers and dirty state survive layout changes and tab transfers, and closing a dirty editor prompts before discarding changes.
 * **Visual Source Control and Git Management**: Dedicated sidebar panel for checking out branches, staging/unstaging changes, inspecting diffs, reviewing commit graphs, and composing commits with `Ctrl+Enter`. File operations support paths with whitespace and Unicode, including renamed files.
-* **Workspace-Wide Global Text Search**: Find in Files panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regex (`.*`) modes, expandable match groups, and direct `#L<line>:<col>` navigation. Command Palette file search follows the active terminal's workspace and supports `filename:line` navigation; timed-out regular expression searches can be stopped.
+* **Workspace-Wide Global Text Search**: Find in Files panel with Case Sensitive (`Aa`), Whole Word (`\b`), and Regex (`.*`) modes, expandable match groups, and direct navigation to the matching line and column. Command Palette file search follows the active terminal's workspace and supports `filename:line` navigation; superseded searches are canceled automatically.
 * **Docker Container and Image Management**: Live container monitor with start/stop/restart/remove actions, real-time log tailing, container terminal exec, and clickable exposed ports.
 * **Multi-Ecosystem Script and Task Discovery**: Automatically parses and indexes tasks across NPM, Cargo, Make, Python, Docker Compose, Deno, and Taskfile with instant filtering and search.
 * **Customizable and Reorderable Sidebar**: Drag-and-drop panel reordering, right-click move and show/hide controls, and persistent configuration saving.
@@ -130,15 +130,15 @@ Download distribution-specific binaries from the GitHub releases page:
 
 * **Debian / Ubuntu (`.deb`)**:
   ```bash
-  sudo apt install ./dist/vet_1.5.3_amd64.deb
+  sudo apt install ./dist/vet_1.5.4_amd64.deb
   ```
 * **RedHat / Fedora (`.rpm`)**:
   ```bash
-  sudo dnf install ./dist/vet-1.5.3.x86_64.rpm
+  sudo dnf install ./dist/vet-1.5.4.x86_64.rpm
   ```
 * **Arch Linux (`.pacman`)**:
   ```bash
-  sudo pacman -U ./dist/vet-1.5.3.pacman
+  sudo pacman -U ./dist/vet-1.5.4.pacman
   ```
 * **Arch Linux via AUR (`vet-bin`)**:
   ```bash
@@ -148,8 +148,8 @@ Download distribution-specific binaries from the GitHub releases page:
   ```
 * **Portable AppImage (`.AppImage`)**:
   ```bash
-  chmod +x dist/Vet-1.5.3.AppImage
-  ./dist/Vet-1.5.3.AppImage
+  chmod +x dist/Vet-1.5.4.AppImage
+  ./dist/Vet-1.5.4.AppImage
   ```
 
 Running `install.sh` again checks the installed package type and updates it in

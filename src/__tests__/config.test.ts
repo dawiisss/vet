@@ -1,15 +1,32 @@
 jest.mock("electron", () => ({
   app: { getPath: jest.fn(() => "/mock/home/.config/vet") },
-  BrowserWindow: {},
-  shell: { openExternal: jest.fn() },
+  BrowserWindow: { fromWebContents: jest.fn(() => ({})) },
+  shell: { openExternal: jest.fn(), openPath: jest.fn() },
   ipcMain: { handle: jest.fn() },
+  safeStorage: {
+    isEncryptionAvailable: jest.fn(),
+    getSelectedStorageBackend: jest.fn(),
+    encryptString: jest.fn(),
+    decryptString: jest.fn(),
+  },
 }));
 
 jest.mock("chokidar", () => ({
   watch: jest.fn(() => ({ on: jest.fn() })),
 }));
 
-import { sanitizeConfig } from "../main/config";
+jest.mock("fs/promises", () => ({
+  mkdir: jest.fn(),
+  readFile: jest.fn(),
+  writeFile: jest.fn(),
+  rename: jest.fn(),
+  rm: jest.fn(async () => undefined),
+}));
+
+import { sanitizeConfig, initConfigManager, getConfig } from "../main/config";
+import { ipcMain, safeStorage } from "electron";
+import * as fs from "fs/promises";
+import JSON5 from "json5";
 
 describe("sanitizeConfig", () => {
   it("populates missing customThemes", () => {
@@ -132,5 +149,64 @@ describe("sanitizeConfig", () => {
   it("replaces invalid tabBarPosition with top", () => {
     const result = sanitizeConfig({ tabBarPosition: "bottom" });
     expect(result.tabBarPosition).toBe("top");
+  });
+});
+
+describe("SSH credential persistence", () => {
+  const host = { id: "test-host", name: "Example", host: "example.invalid", username: "tester", authType: "password" };
+  const ciphertext = "encrypted:c3RvcmVk";
+  const handler = (channel: string) =>
+    (ipcMain.handle as jest.Mock).mock.calls.find(([name]) => name === `config:${channel}`)![1];
+  const save = (data: unknown) => handler("set")({ sender: {} }, data);
+  const init = () => initConfigManager({
+    isDestroyed: () => false, webContents: { send: jest.fn() },
+  } as unknown as Electron.BrowserWindow);
+
+  const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(process, "platform", { ...platformDescriptor, value: "linux" });
+    (safeStorage.isEncryptionAvailable as jest.Mock).mockReturnValue(true);
+    (safeStorage.getSelectedStorageBackend as jest.Mock).mockReturnValue("gnome_libsecret");
+    (safeStorage.encryptString as jest.Mock).mockReturnValue(Buffer.from("stored"));
+    (safeStorage.decryptString as jest.Mock).mockReset();
+    (fs.readFile as jest.Mock).mockResolvedValue(JSON5.stringify({ sshHosts: [host] }));
+  });
+
+  afterEach(() => { Object.defineProperty(process, "platform", platformDescriptor); });
+
+  it.each(["unavailable", "basic_text", "encrypt failure"])("rejects a new credential with %s without saving it", async (mode) => {
+    if (mode === "unavailable") (safeStorage.isEncryptionAvailable as jest.Mock).mockReturnValue(false);
+    if (mode === "basic_text") (safeStorage.getSelectedStorageBackend as jest.Mock).mockReturnValue("basic_text");
+    if (mode === "encrypt failure") (safeStorage.encryptString as jest.Mock).mockImplementationOnce(() => { throw new Error("locked"); });
+    await init();
+    await expect(save({ sshHosts: [{ ...host, password: "secret" }] })).rejects.toThrow("working system keyring");
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(getConfig().sshHosts[0].password).toBeUndefined();
+  });
+
+  it("stores encrypted credentials and redacts them from renderer reads", async () => {
+    await init();
+    await save({ sshHosts: [{ ...host, password: "secret" }] });
+    expect(getConfig().sshHosts[0].password).toBe("secret");
+    const saved = JSON5.parse((fs.writeFile as jest.Mock).mock.calls[0]![1]);
+    expect(saved.sshHosts[0].password).toBe(ciphertext);
+    expect(handler("get")({ sender: {} }).sshHosts[0].password).toBe("__redacted__");
+  });
+
+  it("retains a locked credential through unrelated saves and redacted profile edits", async () => {
+    const locked = "encrypted:bG9ja2Vk";
+    (fs.readFile as jest.Mock).mockResolvedValue(JSON5.stringify({ sshHosts: [{ ...host, password: locked }] }));
+    (safeStorage.decryptString as jest.Mock).mockImplementation(() => { throw new Error("locked"); });
+    await init();
+    expect(getConfig().sshHosts[0].password).toBeUndefined();
+    expect(handler("get")({ sender: {} }).sshHosts[0].password).toBe("__redacted__");
+    await save({ fontSize: 20 });
+    await save({ sshHosts: [{ ...host, name: "Renamed", password: "__redacted__" }] });
+    for (const [, written] of (fs.writeFile as jest.Mock).mock.calls) {
+      expect(JSON5.parse(written).sshHosts[0].password).toBe(locked);
+    }
+    expect(safeStorage.encryptString).not.toHaveBeenCalled();
   });
 });

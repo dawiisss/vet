@@ -138,8 +138,16 @@ export function registerAdblockerIpcHandlers(
   });
 
   ipcMain.handle("adblocker:get-html-replace-rules", async (_, url: string) => {
+    if (
+      typeof url !== "string" ||
+      url.length === 0 ||
+      url.length > 8192 ||
+      !/^https?:\/\//i.test(url)
+    ) {
+      return { pruneKeys: [], replaceRules: [] };
+    }
     await ensureAdblocker();
-    if (!blocker) return [];
+    if (!blocker) return { pruneKeys: [], replaceRules: [] };
     try {
       const request = fromElectronDetails({
         id: 0,

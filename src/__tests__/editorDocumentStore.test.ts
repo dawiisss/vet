@@ -21,8 +21,8 @@ test("overlapping saves share the pending write and preserve later edits", async
 test("a transfer waits for pending saves and snapshots the newest remote buffer", async () => {
   let finish!: () => void;
   const write = jest.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
-  const node = { editorId: "remote", filePath: "/remote/test.ts#L4", sshHostId: "server" };
-  setEditorDocument(node.editorId, node.filePath, node.sshHostId, { content: "first", isDirty: true });
+  const node = { editorId: "remote", filePath: "/remote/test#draft.ts", sshHostId: "server" };
+  setEditorDocument(node.editorId, node.filePath, node.sshHostId, { content: "first", isDirty: true, connectionId: "revision-1" });
   const save = saveEditorDocument(node.editorId, node.filePath, node.sshHostId, write);
   await Promise.resolve();
   setEditorDocument(node.editorId, node.filePath, node.sshHostId, { content: "newest", isDirty: true });
@@ -35,7 +35,7 @@ test("a transfer waits for pending saves and snapshots the newest remote buffer"
   await save;
   const transfer = await preparing;
   expect(transfer.editorDocuments).toEqual([{
-    editorId: "remote", filePath: "/remote/test.ts", sshHostId: "server", content: "newest", isDirty: true,
+    ...node, content: "newest", isDirty: true, connectionId: "revision-1",
   }]);
   transfer.release();
   expect(getEditorDocument(node.editorId, node.filePath, node.sshHostId)?.isTransferring).toBe(false);

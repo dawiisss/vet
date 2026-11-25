@@ -7,6 +7,7 @@ import os from "os";
 import { getConfig } from "./config";
 import { isValidShell } from "./pty";
 import { isTrustedSender } from "./ipc/ipcUtils";
+import { quotePosixArg } from "../shared/utils/pathUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,7 +50,7 @@ export function initConnectionsManager() {
                 }
                 hosts.push({
                   name,
-                  command: `ssh ${name}`,
+                  command: `ssh ${quotePosixArg(name)}`,
                   source: "ssh_global",
                 });
               }
@@ -61,7 +62,15 @@ export function initConnectionsManager() {
       if (config.sshHosts && Array.isArray(config.sshHosts)) {
         for (const h of config.sshHosts) {
           if (h.name && h.host && h.username) {
-            const command = `ssh ${h.port ? `-p ${h.port} ` : ""}${h.username}@${h.host}`;
+            const safePort =
+              typeof h.port === "number" &&
+              Number.isInteger(h.port) &&
+              h.port > 0 &&
+              h.port <= 65535
+                ? `-p ${h.port} `
+                : "";
+            const target = quotePosixArg(`${h.username}@${h.host}`);
+            const command = `ssh ${safePort}${target}`;
             hosts.push({ id: h.id, name: h.name, command, source: "ssh_app" });
           }
         }
@@ -97,7 +106,7 @@ export function initConnectionsManager() {
 
         return lines.map((name) => ({
           name,
-          command: `docker exec -it ${name} ${shell}`,
+          command: `docker exec -it ${quotePosixArg(name)} ${quotePosixArg(shell)}`,
           source: "docker",
         }));
       } catch {

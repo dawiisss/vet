@@ -12,16 +12,6 @@ const adblockerApi = {
 
 contextBridge.exposeInMainWorld("adblockerApi", adblockerApi);
 
-// Bridge mouse events from the webview's main world to the host renderer
-// so tab drag-and-drop works over browser panes.
-window.addEventListener("message", (e) => {
-  try {
-    if (e.data && e.data.__vetMouse) {
-      ipcRenderer.sendToHost("vet-mouse", e.data.__vetMouse, e.data);
-    }
-  } catch { /* intentional ignore */ }
-});
-
 // Inject XHR/fetch interceptor into main world before any page scripts execute.
 // webFrame.executeJavaScript runs synchronously in the main world; this preload
 // runs before HTML parsing, so the interceptor is in place before inline <script> tags.
@@ -103,15 +93,18 @@ webFrame.executeJavaScript(`
     try { var o = JSON.parse(text); pruneKeysDeep(o, keys); return JSON.stringify(o) } catch { return text }
   }
 
-  function pruneKeysDeep(obj, keys) {
+  function pruneKeysDeep(obj, keys, visited) {
     if (!obj || typeof obj !== 'object') return
+    if (!visited) visited = new WeakSet()
+    if (visited.has(obj)) return
+    visited.add(obj)
     for (var i = 0; i < keys.length; i++) {
       if (keys[i] in obj) { obj[keys[i]] = [] }
     }
     if (Array.isArray(obj)) {
-      for (var j = 0; j < obj.length; j++) pruneKeysDeep(obj[j], keys)
+      for (var j = 0; j < obj.length; j++) pruneKeysDeep(obj[j], keys, visited)
     } else {
-      for (var k in obj) { if (obj.hasOwnProperty(k)) pruneKeysDeep(obj[k], keys) }
+      for (var k in obj) { if (Object.prototype.hasOwnProperty.call(obj, k)) pruneKeysDeep(obj[k], keys, visited) }
     }
   }
 
@@ -166,6 +159,7 @@ webFrame.executeJavaScript(`
     OrigXHR.prototype.open = function(method, url) {
       try { this._abUrl = (typeof url === 'string') ? url : String(url) } catch { this._abUrl = '' }
       this._abRules = null
+      this._abMod = undefined
       try { return origOpen.apply(this, arguments) } catch { /* intentional ignore */ }
     }
     OrigXHR.prototype.send = function() {
