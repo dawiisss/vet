@@ -5,7 +5,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { jest } from "@jest/globals";
 import GitPanel from "../renderer/src/shared/components/GitPanel";
 import { setupMockedApis, resetMockedApis, workspaceApi } from "./rendererHelpers";
 

@@ -1,17 +1,19 @@
 import { SplitNode } from "../splitTree";
-import type { TabState } from "../useTabStore";
+import type { TabStoreGet, TabStoreSet } from "../useTabStore";
 import { leafPaths, getNode } from "../splitTree";
 import { destroyTerminalCache } from "../hooks/useTerminal";
 import { useUIStore } from "@/shared/stores/useUIStore";
 import { collectTerminalIds } from "../splitTree";
-import { prepareEditorTransfer } from "../../workspace/editorDocumentStore";
+import { forgetEditorDocuments, prepareEditorTransfer } from "../../workspace/editorDocumentStore";
 import { lockTabTransfer } from "../tabLifecycle";
+
+type WebviewElementLike = HTMLElement & { getURL?: () => string };
 
 function tabTransferData(tab: { label: string; root: SplitNode; focusedPath: number[] }, editorDocuments: EditorDocumentSnapshot[]): TabTransferState {
   const clone: SplitNode = JSON.parse(JSON.stringify(tab.root));
   const updateBrowserUrls = (node: SplitNode): void => {
     if (node.browserId) {
-      const webviewEl = document.getElementById(node.browserId) as { getURL?: () => string } | null;
+      const webviewEl = document.getElementById(node.browserId) as WebviewElementLike | null;
       try {
         if (webviewEl?.getURL) node.url = webviewEl.getURL();
       } catch { /* Use the last URL known to the tab store. */ }
@@ -27,7 +29,7 @@ export function collectLeafIdsWithBrowserUrls(root: SplitNode): string[] {
   return leafNodes
     .map((node) => {
       if (node.browserId) {
-        const webviewEl = document.getElementById(node.browserId) as any;
+        const webviewEl = document.getElementById(node.browserId) as WebviewElementLike | null;
         let activeUrl = node.url || "";
         if (webviewEl && typeof webviewEl.getURL === "function") {
           try {
@@ -46,14 +48,14 @@ export function collectLeafIdsWithBrowserUrls(root: SplitNode): string[] {
 }
 
 export async function detachTabAction(
-  set: any,
-  get: any,
+  set: TabStoreSet,
+  get: TabStoreGet,
   tabId: string,
 ) {
   const api = window.terminalApi;
   if (!api) return;
   const prevTabs = get().tabs;
-  const tab = prevTabs.find((t: any) => t.id === tabId);
+  const tab = prevTabs.find((t) => t.id === tabId);
   if (!tab) return;
   const releaseTab = lockTabTransfer(tabId);
   if (!releaseTab) return;
@@ -69,11 +71,11 @@ export async function detachTabAction(
     });
 
     const currentTabs = get().tabs;
-    const next = currentTabs.filter((t: any) => t.id !== tabId);
+    const next = currentTabs.filter((t) => t.id !== tabId);
     const activeTabId = get().activeTabId;
     let newActiveTabId = activeTabId;
     if (tabId === newActiveTabId) {
-      const idx = currentTabs.findIndex((t: any) => t.id === tabId);
+      const idx = currentTabs.findIndex((t) => t.id === tabId);
       const newActive = next[Math.min(idx, next.length - 1)];
       newActiveTabId = newActive ? newActive.id : null;
     }
@@ -81,20 +83,22 @@ export async function detachTabAction(
       tabs: next,
       activeTabId: newActiveTabId,
       tabActivationOrder: get().tabActivationOrder.filter(
-        (t: any) => t !== tabId,
+        (t) => t !== tabId,
       ),
-      hibernatedTabIds: get().hibernatedTabIds.filter((t: any) => t !== tabId),
+      hibernatedTabIds: get().hibernatedTabIds.filter((t) => t !== tabId),
     });
     if (newActiveTabId !== activeTabId) get().setActiveTabId(newActiveTabId);
-  } catch (err: any) {
-    useUIStore.getState().addToast(`Failed to detach tab: ${err.message || err}`, "error");
+    forgetEditorDocuments(tab.root);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    useUIStore.getState().addToast(`Failed to detach tab: ${message}`, "error");
   } finally {
     release?.();
     releaseTab();
   }
 }
 
-export async function reattachMeAction(set: any, get: any) {
+export async function reattachMeAction(set: TabStoreSet, get: TabStoreGet) {
   const detachedTabId = get().detachedTabId;
   if (!detachedTabId) return;
   const tab = get().tabs[0];
@@ -113,7 +117,7 @@ export async function reattachMeAction(set: any, get: any) {
     if (!result.success) throw new Error("Could not reattach this tab");
     terminalIds.forEach(destroyTerminalCache);
     const activeTabId = get().activeTabId;
-    set((state: { tabs: TabState[]; tabActivationOrder: string[]; hibernatedTabIds: string[]; activeTabId: string | null }) => {
+    set((state) => {
       const tabs = state.tabs.filter((entry) => entry.id !== tab.id);
       return {
         tabs,
@@ -123,9 +127,11 @@ export async function reattachMeAction(set: any, get: any) {
       };
     });
     if (get().activeTabId !== activeTabId) get().setActiveTabId(get().activeTabId);
+    forgetEditorDocuments(tab.root);
     succeeded = true;
-  } catch (err: any) {
-    useUIStore.getState().addToast(`Failed to reattach: ${err.message || err}`, "error");
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    useUIStore.getState().addToast(`Failed to reattach: ${message}`, "error");
   } finally {
     release?.();
     releaseTab();

@@ -86,6 +86,7 @@ function SplitPane({
         <EditorView
           editorId={node.editorId}
           filePath={node.filePath!}
+          editorOptions={node.editorOptions}
           sshHostId={node.sshHostId}
           isActive={isActive}
           isFocused={focused}

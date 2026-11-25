@@ -15,6 +15,16 @@ jest.mock("fs/promises", () => ({
   open: jest.fn(),
 }));
 
+jest.mock("node:worker_threads", () => {
+  const { EventEmitter } = jest.requireActual("node:events");
+  class MockWorker extends EventEmitter {
+    terminate = jest.fn(async () => 0);
+  }
+  return { Worker: jest.fn(() => new MockWorker()) };
+});
+
+import { EventEmitter } from "node:events";
+import { Worker } from "node:worker_threads";
 import { initWorkspaceManager } from "../main/workspace";
 import { ipcMain } from "electron";
 
@@ -229,6 +239,41 @@ describe("workspace", () => {
         "workspace:search-file-contents",
         expect.any(Function),
       );
+    });
+
+    const handler = (channel: string) =>
+      (ipcMain.handle as jest.Mock).mock.calls.find(([name]) => name === `workspace:${channel}`)![1];
+
+    it("cancels the previous regex worker when a new search starts", async () => {
+      const sender = new EventEmitter();
+      const search = handler("search-file-contents");
+      const previous = search({ sender }, "/repo", "first", { isRegex: true });
+      const current = search({ sender }, "/repo", "second", { isRegex: true });
+      const [first, second] = (Worker as unknown as jest.Mock).mock.results;
+      expect(first!.value.terminate).toHaveBeenCalledTimes(1);
+      expect(second!.value.terminate).not.toHaveBeenCalled();
+      await expect(previous).resolves.toEqual({ status: "cancelled" });
+      second!.value.emit("message", { matches: [] });
+      await expect(current).resolves.toEqual({ status: "success", matches: [] });
+      expect(sender.listenerCount("destroyed")).toBe(0);
+    });
+
+    it("reports regex syntax errors and worker timeouts distinctly", async () => {
+      jest.useFakeTimers();
+      try {
+        const sender = new EventEmitter();
+        const search = handler("search-file-contents");
+        await expect(search({ sender }, "/repo", "[", { isRegex: true })).resolves.toMatchObject({
+          status: "error", code: "invalid-query",
+        });
+        expect(Worker).not.toHaveBeenCalled();
+        const timeout = search({ sender }, "/repo", "valid", { isRegex: true });
+        jest.advanceTimersByTime(5000);
+        await expect(timeout).resolves.toMatchObject({ status: "error", code: "timeout" });
+        expect((Worker as unknown as jest.Mock).mock.results[0]!.value.terminate).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

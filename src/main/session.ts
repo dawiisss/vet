@@ -3,15 +3,59 @@ import { join } from "path";
 import { promises as fs } from "fs";
 import { isTrustedSender } from "./ipc/ipcUtils";
 import { homedir } from "os";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "fs";
+import { randomUUID } from "node:crypto";
+import { isWorkspaceSnapshot } from "../shared/utils/workspaceSnapshot";
 
 const CONFIG_DIR = join(homedir(), ".config", "vet");
 const SESSION_FILE = join(CONFIG_DIR, "session.json");
 const PROFILES_FILE = join(CONFIG_DIR, "profiles.json");
+const RESERVED_PROFILE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
-let sessionState: any = null;
+function isValidProfileName(name: unknown): name is string {
+  return (
+    typeof name === "string" &&
+    name.length > 0 &&
+    name.length <= 256 &&
+    !RESERVED_PROFILE_KEYS.has(name)
+  );
+}
 
-export function initSessionManager() {
+let profileWriteQueue: Promise<void> = Promise.resolve();
+
+function enqueueProfileWrite(task: () => Promise<void>): Promise<void> {
+  const next = profileWriteQueue.then(task, task);
+  profileWriteQueue = next.catch(() => { /* keep queue healthy */ });
+  return next;
+}
+
+async function writeProfilesAtomic(profiles: Record<string, unknown>): Promise<void> {
+  const tempProfilesFile = `${PROFILES_FILE}.${randomUUID()}.tmp`;
+  await fs.writeFile(tempProfilesFile, JSON.stringify(profiles, null, 2), {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  await fs.rename(tempProfilesFile, PROFILES_FILE);
+}
+
+export function initSessionManager(isMainSender: (sender: Electron.WebContents) => boolean) {
+  let pendingSnapshot: string | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const tempFile = `${SESSION_FILE}.${randomUUID()}.tmp`;
+
+  const flushSession = () => {
+    clearTimeout(timer);
+    timer = undefined;
+    if (pendingSnapshot === undefined) return;
+
+    try {
+      writeFileSync(tempFile, pendingSnapshot, { encoding: "utf-8", mode: 0o600 });
+      renameSync(tempFile, SESSION_FILE);
+      pendingSnapshot = undefined;
+    } catch (error) {
+      console.error("Failed to write workspace session:", error);
+    }
+  };
   if (!existsSync(CONFIG_DIR)) {
     try {
       mkdirSync(CONFIG_DIR, { recursive: true });
@@ -20,9 +64,11 @@ export function initSessionManager() {
     }
   }
 
-  ipcMain.handle("session:save", async (event, state: any) => {
-    if (!isTrustedSender(event)) return;
-    sessionState = state;
+  ipcMain.handle("session:save", (event, state: unknown) => {
+    if (!isMainSender(event.sender) || !isWorkspaceSnapshot(state)) return;
+    pendingSnapshot = JSON.stringify(state);
+    clearTimeout(timer);
+    timer = setTimeout(flushSession, 250);
   });
 
   ipcMain.handle("session:get", async (event) => {
@@ -30,11 +76,13 @@ export function initSessionManager() {
     return await getSessionData();
   });
 
-  ipcMain.handle("session:save-profile", async (event, name: string, state: any) => {
-    if (!isTrustedSender(event)) return;
-    const profiles = await getProfilesData();
-    profiles[name] = state;
-    await fs.writeFile(PROFILES_FILE, JSON.stringify(profiles, null, 2), "utf-8");
+  ipcMain.handle("session:save-profile", async (event, name: string, state: unknown) => {
+    if (!isTrustedSender(event) || !isValidProfileName(name)) return;
+    await enqueueProfileWrite(async () => {
+      const profiles = await getProfilesData();
+      profiles[name] = state;
+      await writeProfilesAtomic(profiles);
+    });
   });
 
   ipcMain.handle("session:get-profiles", async (event) => {
@@ -43,26 +91,20 @@ export function initSessionManager() {
   });
 
   ipcMain.handle("session:delete-profile", async (event, name: string) => {
-    if (!isTrustedSender(event)) return;
-    const profiles = await getProfilesData();
-    if (profiles[name]) {
-      delete profiles[name];
-      await fs.writeFile(PROFILES_FILE, JSON.stringify(profiles, null, 2), "utf-8");
-    }
+    if (!isTrustedSender(event) || !isValidProfileName(name)) return;
+    await enqueueProfileWrite(async () => {
+      const profiles = await getProfilesData();
+      if (Object.prototype.hasOwnProperty.call(profiles, name)) {
+        delete profiles[name];
+        await writeProfilesAtomic(profiles);
+      }
+    });
   });
 
-  app.on("before-quit", () => {
-    if (sessionState) {
-      try {
-        writeFileSync(SESSION_FILE, JSON.stringify(sessionState));
-      } catch (err) {
-        console.error("Failed to save session on quit", err);
-      }
-    }
-  });
+  app.on("will-quit", flushSession);
 }
 
-export async function getSessionData(): Promise<any | null> {
+export async function getSessionData(): Promise<unknown | null> {
   try {
     const content = await fs.readFile(SESSION_FILE, "utf-8");
     return JSON.parse(content);
@@ -71,10 +113,20 @@ export async function getSessionData(): Promise<any | null> {
   }
 }
 
-async function getProfilesData(): Promise<Record<string, any>> {
+async function getProfilesData(): Promise<Record<string, unknown>> {
   try {
     const content = await fs.readFile(PROFILES_FILE, "utf-8");
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const clean: Record<string, unknown> = Object.create(null);
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!RESERVED_PROFILE_KEYS.has(k)) {
+        clean[k] = v;
+      }
+    }
+    return clean;
   } catch {
     return {};
   }

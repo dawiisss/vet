@@ -12,7 +12,15 @@ export function isTrustedSender(event?: {
     return false;
   }
   if (!event || !event.sender) {
-    return BrowserWindow.fromWebContents(undefined as any) !== null;
+    try {
+      return (
+        BrowserWindow.fromWebContents(
+          undefined as unknown as Electron.WebContents,
+        ) !== null
+      );
+    } catch {
+      return false;
+    }
   }
   return BrowserWindow.fromWebContents(event.sender) !== null;
 }
@@ -24,7 +32,8 @@ export function isTrustedSender(event?: {
 export function registerHandlers(
   handlers: Record<
     string,
-    (event: Electron.IpcMainInvokeEvent, ...args: any[]) => any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown
   >,
 ): void {
   for (const [channel, handler] of Object.entries(handlers)) {
@@ -35,7 +44,7 @@ export function registerHandlers(
       }
       try {
         return await handler(event, ...args);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error in IPC handler for "${channel}":`, err);
         throw err;
       }

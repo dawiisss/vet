@@ -1,43 +1,57 @@
 import { app, BrowserWindow, shell, ipcMain, safeStorage } from "electron";
 import * as path from "path";
+import { randomUUID } from "node:crypto";
 import * as fs from "fs/promises";
 import chokidar, { FSWatcher } from "chokidar";
 import JSON5 from "json5";
 import { DEFAULT_BROWSER_HOMEPAGE } from "../shared/utils/pathUtils";
 import { isTrustedSender } from "./ipc/ipcUtils";
 
-function encryptField(value: string): string {
-  if (!value) return value;
-  if (value.startsWith("encrypted:")) return value;
-  if (!safeStorage || !safeStorage.isEncryptionAvailable()) return value;
-  try {
-    const encrypted = safeStorage.encryptString(value);
-    return "encrypted:" + encrypted.toString("base64");
-  } catch (err) {
-    console.error("Failed to encrypt config field:", err);
-    return value;
-  }
+const credentialFields = ["password", "passphrase"] as const;
+type CredentialField = typeof credentialFields[number];
+type CredentialRecord = Partial<Record<CredentialField, { ciphertext: string; value?: string | undefined }>>;
+type StoredCredentials = Map<string, CredentialRecord>;
+
+let storedCredentials: StoredCredentials = new Map();
+const configListeners = new Set<() => void>();
+
+export function onConfigChanged(listener: () => void): () => void {
+  configListeners.add(listener);
+  return () => { configListeners.delete(listener); };
 }
 
-function decryptField(value: string): string {
-  if (!value) return value;
-  if (!value.startsWith("encrypted:")) return value;
-  if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
-    console.warn("Encryption not available, cannot decrypt field");
-    return "";
-  }
+function hasSecureStorage(): boolean {
+  return !!safeStorage?.isEncryptionAvailable() &&
+    (process.platform !== "linux" || safeStorage.getSelectedStorageBackend() !== "basic_text");
+}
+
+function encryptField(value: string): string {
   try {
-    const base64Data = value.substring("encrypted:".length);
-    const encryptedBuffer = Buffer.from(base64Data, "base64");
-    return safeStorage.decryptString(encryptedBuffer);
-  } catch (err) {
-    console.error("Failed to decrypt config field:", err);
-    return "";
+    if (hasSecureStorage()) {
+      return "encrypted:" + safeStorage.encryptString(value).toString("base64");
+    }
+  } catch {
+    /* Report storage errors without including the credential. */
   }
+  throw new Error("SSH credentials require a working system keyring. Unlock or enable your keyring and try again.");
+}
+
+function decryptField(ciphertext: string): string | undefined {
+  try {
+    // Legacy values may have been saved with Electron's Linux fallback.
+    // Allow reading those values so they can be replaced or removed.
+    if (safeStorage?.isEncryptionAvailable()) {
+      const buffer = Buffer.from(ciphertext.slice("encrypted:".length), "base64");
+      return safeStorage.decryptString(buffer);
+    }
+  } catch {
+    /* Preserve the ciphertext when a keyring is temporarily unavailable. */
+  }
+  return undefined;
 }
 
 const CONFIG_DIR = path.join(app.getPath("home"), ".config", "vet");
-const CONFIG_FILE = path.join(CONFIG_DIR, "config.json5");
+export const CONFIG_FILE = path.join(CONFIG_DIR, "config.json5");
 
 const DEFAULT_CONFIG: any = {
   shell: process.env.SHELL || "/bin/bash",
@@ -353,6 +367,14 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
     console.error("Failed to create config dir", e);
   }
 
+  // Serialize user saves and file watcher reads so each sees a complete revision.
+  let configQueue: Promise<unknown> = Promise.resolve();
+  const enqueueConfig = <T>(operation: () => Promise<T>): Promise<T> => {
+    const result = configQueue.then(operation);
+    configQueue = result.catch(() => undefined);
+    return result;
+  };
+
   // Load or create config
   await loadConfig();
 
@@ -366,6 +388,7 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
   });
 
   function broadcastConfig(config: any): void {
+    for (const listener of configListeners) listener();
     const sanitized = sanitizeConfigForRenderer(config);
     const windows = typeof BrowserWindow.getAllWindows === "function" ? BrowserWindow.getAllWindows() : [mainWindow];
     for (const win of windows) {
@@ -387,7 +410,7 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
 
   watcher.on("change", async () => {
     try {
-      const success = await loadConfig();
+      const success = await enqueueConfig(loadConfig);
       if (success) {
         broadcastConfig(currentConfig);
       } else {
@@ -442,52 +465,61 @@ export async function initConfigManager(mainWindow: BrowserWindow) {
         .filter((p: any) => typeof p === "string")
         .slice(0, 32);
     }
+    const reservedKeys = new Set(["__proto__", "constructor", "prototype"]);
     if (
       partialConfig.keybindings &&
-      typeof partialConfig.keybindings === "object"
+      typeof partialConfig.keybindings === "object" &&
+      !Array.isArray(partialConfig.keybindings)
     ) {
       partialConfig.keybindings = Object.fromEntries(
         Object.entries(partialConfig.keybindings)
-          .filter(([k, v]) => typeof k === "string" && typeof v === "string")
+          .filter(
+            ([k, v]) =>
+              typeof k === "string" &&
+              typeof v === "string" &&
+              !reservedKeys.has(k),
+          )
           .slice(0, 64),
       );
     }
     if (
       partialConfig.customThemes &&
-      typeof partialConfig.customThemes === "object"
+      typeof partialConfig.customThemes === "object" &&
+      !Array.isArray(partialConfig.customThemes)
     ) {
       partialConfig.customThemes = Object.fromEntries(
-        Object.entries(partialConfig.customThemes).slice(0, 32),
+        Object.entries(partialConfig.customThemes)
+          .filter(([k]) => !reservedKeys.has(k))
+          .slice(0, 32),
       );
     }
 
-    const mergedHosts = partialConfig.sshHosts;
-    if (mergedHosts && Array.isArray(mergedHosts)) {
-      for (const h of mergedHosts) {
-        if (h.password === "__redacted__" || h.passphrase === "__redacted__") {
-          const existing = currentConfig.sshHosts?.find((eh: any) => eh.id === h.id);
-          if (existing) {
-            if (h.password === "__redacted__") {
-              h.password = existing.password;
+    return enqueueConfig(async () => {
+      const mergedHosts = partialConfig.sshHosts;
+      if (Array.isArray(mergedHosts)) {
+        partialConfig.sshHosts = mergedHosts.map((host: SshHost) => {
+          const nextHost = { ...host };
+          const existing = currentConfig.sshHosts?.find((entry: SshHost) => entry.id === host.id);
+          for (const field of credentialFields) {
+            if (nextHost[field] === "__redacted__") {
+              const value = existing?.[field];
+              if (typeof value === "string") nextHost[field] = value;
+              else delete nextHost[field];
             }
-            if (h.passphrase === "__redacted__") {
-              h.passphrase = existing.passphrase;
-            }
-          } else {
-            if (h.password === "__redacted__") delete h.password;
-            if (h.passphrase === "__redacted__") delete h.passphrase;
           }
-        }
+          return nextHost;
+        });
       }
-    }
-    currentConfig = sanitizeConfig({ ...currentConfig, ...partialConfig });
-    await saveConfig();
-    broadcastConfig(currentConfig);
+      const nextConfig = sanitizeConfig({ ...currentConfig, ...partialConfig });
+      await saveConfig(nextConfig);
+      currentConfig = nextConfig;
+      broadcastConfig(currentConfig);
+    });
   });
 
   ipcMain.handle("config:open-in-editor", async (event) => {
     if (!isTrustedSender(event)) return;
-    await shell.openExternal(`file://${CONFIG_FILE}`);
+    await shell.openPath(CONFIG_FILE);
   });
 }
 
@@ -497,74 +529,85 @@ async function loadConfig(): Promise<boolean> {
     const parsed = JSON5.parse(raw);
     const sanitized = sanitizeConfig({ ...DEFAULT_CONFIG, ...parsed });
 
-    // Decrypt passwords and passphrases in the loaded config
-    if (sanitized.sshHosts && Array.isArray(sanitized.sshHosts)) {
-      for (const h of sanitized.sshHosts) {
-        if (h.password) {
-          h.password = decryptField(h.password);
-        }
-        if (h.passphrase) {
-          h.passphrase = decryptField(h.passphrase);
-        }
+    const loadedCredentials: StoredCredentials = new Map();
+    for (const host of sanitized.sshHosts as SshHost[]) {
+      for (const field of credentialFields) {
+        const ciphertext = host[field];
+        if (typeof ciphertext !== "string" || !ciphertext.startsWith("encrypted:")) continue;
+        const previous = storedCredentials.get(host.id)?.[field];
+        const value = decryptField(ciphertext) ?? (previous?.ciphertext === ciphertext ? previous.value : undefined);
+        const record = loadedCredentials.get(host.id) ?? {};
+        record[field] = { ciphertext, value };
+        loadedCredentials.set(host.id, record);
+        if (value === undefined) delete host[field];
+        else host[field] = value;
       }
     }
 
+    storedCredentials = loadedCredentials;
     currentConfig = sanitized;
     lastConfigError = null;
     return true;
-  } catch (e: any) {
-    if (e.code === "ENOENT") {
-      // File doesn't exist, create it
-      await saveConfig();
-      lastConfigError = null;
-      return true;
+  } catch (error: unknown) {
+    let cause = error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      try {
+        await saveConfig(currentConfig);
+        lastConfigError = null;
+        return true;
+      } catch (writeError) {
+        cause = writeError;
+      }
     }
-    console.error("Failed to parse config file:", e);
-    lastConfigError = e instanceof Error ? e.message : String(e);
+    console.error("Failed to load config file:", cause);
+    lastConfigError = cause instanceof Error ? cause.message : String(cause);
     return false;
   }
 }
 
-async function saveConfig(): Promise<void> {
-  try {
-    // Clone config to encrypt passwords for saving without modifying the in-memory config
-    const configToSave = structuredClone(currentConfig);
-    if (configToSave.sshHosts && Array.isArray(configToSave.sshHosts)) {
-      for (const h of configToSave.sshHosts) {
-        if (h.password) {
-          h.password = encryptField(h.password);
-        }
-        if (h.passphrase) {
-          h.passphrase = encryptField(h.passphrase);
-        }
+async function saveConfig(config: typeof currentConfig): Promise<void> {
+  const configToSave = structuredClone(config);
+  const nextCredentials: StoredCredentials = new Map();
+  for (const host of configToSave.sshHosts as SshHost[]) {
+    const previous = storedCredentials.get(host.id);
+    const record: CredentialRecord = {};
+    for (const field of credentialFields) {
+      const value = host[field];
+      const existing = previous?.[field];
+      if (existing && value === existing.value) {
+        record[field] = existing;
+      } else if (value) {
+        record[field] = { value, ciphertext: encryptField(value) };
       }
+      const ciphertext = record[field]?.ciphertext;
+      if (ciphertext) host[field] = ciphertext;
     }
-    const content = JSON5.stringify(configToSave, null, 2);
-    await fs.writeFile(CONFIG_FILE, content, "utf-8");
-  } catch (e) {
-    console.error("Failed to save config file:", e);
+    nextCredentials.set(host.id, record);
   }
+
+  const content = JSON5.stringify(configToSave, null, 2);
+  const temporary = `${CONFIG_FILE}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporary, content, { encoding: "utf-8", mode: 0o600, flag: "wx" });
+    await fs.rename(temporary, CONFIG_FILE);
+  } catch (error) {
+    await fs.rm(temporary, { force: true }).catch(() => { /* Keep the original save error. */ });
+    throw error;
+  }
+  storedCredentials = nextCredentials;
 }
 
 export function sanitizeConfigForRenderer(conf: any): any {
   if (!conf) return conf;
-  try {
-    const sanitized = structuredClone(conf);
-    if (sanitized.sshHosts && Array.isArray(sanitized.sshHosts)) {
-      for (const h of sanitized.sshHosts) {
-        if (h.password) {
-          h.password = "__redacted__";
-        }
-        if (h.passphrase) {
-          h.passphrase = "__redacted__";
-        }
+  const sanitized = structuredClone(conf);
+  if (Array.isArray(sanitized.sshHosts)) {
+    for (const host of sanitized.sshHosts as SshHost[]) {
+      for (const field of credentialFields) {
+        if (host[field] || storedCredentials.get(host.id)?.[field]) host[field] = "__redacted__";
       }
     }
-    return sanitized;
-  } catch (err) {
-    console.error("Failed to sanitize config for renderer:", err);
-    return conf;
   }
+  return sanitized;
 }
 
 export function getConfig() {

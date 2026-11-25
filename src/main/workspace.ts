@@ -13,6 +13,12 @@ const execFileAsync = promisify(execFile);
 const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
 const MAX_PATH_LENGTH = 4096;
 
+class WorkspaceSearchError extends Error {
+  constructor(readonly code: "invalid-query" | "timeout", message: string) {
+    super(message);
+  }
+}
+
 function searchRegexInWorker(request: {
   rootPath: string;
   query: string;
@@ -20,32 +26,34 @@ function searchRegexInWorker(request: {
   wholeWord?: boolean | undefined;
   maxResults: number;
   filePattern?: string | undefined;
-}): Promise<Array<{
-  filePath: string;
-  relativePath: string;
-  line: number;
-  column: number;
-  lineContent: string;
-  matchLength: number;
-}>> {
+}, signal: AbortSignal): Promise<FileContentMatch[]> {
+  signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.join(__dirname, "workspaceRegexWorker.js"), {
       workerData: request,
     });
-    const timeout = setTimeout(() => {
-      void worker.terminate();
-      reject(new Error("Regular expression search exceeded its time limit"));
-    }, 5000);
-    worker.once("message", (result: { matches?: unknown; error?: string }) => {
+    let settled = false;
+    const finish = (error?: Error, matches: FileContentMatch[] = []) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
+      signal.removeEventListener("abort", onAbort);
       void worker.terminate();
-      if (result.error) reject(new Error(result.error));
-      else resolve((result.matches || []) as Awaited<ReturnType<typeof searchRegexInWorker>>);
+      if (error) reject(error);
+      else resolve(matches);
+    };
+    const onAbort = () => finish(signal.reason);
+    const timeout = setTimeout(() => finish(
+      new WorkspaceSearchError("timeout", "Regular expression search exceeded its time limit"),
+    ), 5000);
+
+    signal.addEventListener("abort", onAbort, { once: true });
+    worker.once("message", (result: { matches?: FileContentMatch[]; error?: string }) => {
+      if (result.error) finish(new Error(result.error));
+      else finish(undefined, result.matches);
     });
-    worker.once("error", (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
+    worker.once("error", finish);
+    worker.once("exit", (code) => finish(new Error(`Search worker exited with code ${code}`)));
   });
 }
 
@@ -88,15 +96,11 @@ function fuzzyPathMatch(value: string, query: string): boolean {
 }
 
 function expandHome(inputPath: string): string {
-  if (inputPath === "~" || inputPath.startsWith("~/")) {
-    return path.join(os.homedir(), inputPath.slice(1));
+  if (inputPath === "~") {
+    return os.homedir();
   }
-  if (inputPath.startsWith("~")) {
-    const sep = inputPath.indexOf("/");
-    if (sep === -1) {
-      return path.join(os.homedir(), inputPath.slice(1));
-    }
-    return path.join(os.homedir(), inputPath.slice(sep));
+  if (inputPath.startsWith("~/") || inputPath.startsWith("~\\")) {
+    return path.join(os.homedir(), inputPath.slice(2));
   }
   return inputPath;
 }
@@ -410,154 +414,129 @@ class WorkspaceService {
   async searchFileContents(
     dirPath: string,
     query: string,
-    options: {
-      caseSensitive?: boolean;
-      isRegex?: boolean;
-      wholeWord?: boolean;
-      maxResults?: number;
-      filePattern?: string;
-    } = {},
-  ) {
-    try {
-      if (!query || query.trim() === "") return [];
+    options: FileContentSearchOptions,
+    signal: AbortSignal,
+  ): Promise<FileContentMatch[]> {
+    if (!query.trim()) return [];
 
-      const targetDir = dirPath ? expandHome(dirPath) : process.cwd();
-      const rootPath = path.resolve(targetDir);
-      logSensitivePathAccess(rootPath);
-
-      const maxResults = options.maxResults || 200;
-      if (options.isRegex) {
-        try {
-          // Compile here for prompt syntax errors; actual matching runs in a killable worker.
-          new RegExp(options.wholeWord ? `\\b${query}\\b` : query, options.caseSensitive ? "g" : "gi");
-          return await searchRegexInWorker({
-            rootPath,
-            query,
-            caseSensitive: options.caseSensitive,
-            wholeWord: options.wholeWord,
-            maxResults,
-            filePattern: options.filePattern,
-          });
-        } catch (error) {
-          if (error instanceof SyntaxError) return [];
-          console.warn("Regex search worker failed:", error);
-          return [];
-        }
-      }
-      const matches: Array<{
-        filePath: string;
-        relativePath: string;
-        line: number;
-        column: number;
-        lineContent: string;
-        matchLength: number;
-      }> = [];
-
-      let searchRegex: RegExp;
+    const rootPath = path.resolve(dirPath ? expandHome(dirPath) : process.cwd());
+    logSensitivePathAccess(rootPath);
+    const maxResults = Math.max(1, Math.min(1000, Math.floor(Number(options.maxResults) || 200)));
+    const flags = options.caseSensitive ? "g" : "gi";
+    if (options.isRegex) {
       try {
-        let patternStr = options.isRegex
-          ? query
-          : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        if (options.wholeWord) {
-          patternStr = `\\b${patternStr}\\b`;
-        }
-        searchRegex = new RegExp(patternStr, options.caseSensitive ? "g" : "gi");
+        new RegExp(options.wholeWord ? `\\b(?:${query})\\b` : query, flags);
       } catch {
-        return [];
+        throw new WorkspaceSearchError("invalid-query", "Invalid regular expression");
+      }
+      return searchRegexInWorker({
+        rootPath,
+        query,
+        caseSensitive: options.caseSensitive,
+        wholeWord: options.wholeWord,
+        maxResults,
+        filePattern: options.filePattern,
+      }, signal);
+    }
+
+    const matches: FileContentMatch[] = [];
+
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const searchRegex = new RegExp(options.wholeWord ? `\\b${escaped}\\b` : escaped, flags);
+
+    const IGNORE_DIRS = new Set([
+      ".git",
+      "node_modules",
+      "dist",
+      "out",
+      "build",
+      ".next",
+      ".cache",
+      "coverage",
+      ".gemini",
+      ".agents",
+    ]);
+
+    const walk = async (currentDir: string, depth: number) => {
+      if (signal.aborted || depth > 8 || matches.length >= maxResults) return;
+
+      let entries;
+      try {
+        entries = await fs.readdir(currentDir, { withFileTypes: true });
+      } catch {
+        return;
       }
 
-      const IGNORE_DIRS = new Set([
-        ".git",
-        "node_modules",
-        "dist",
-        "out",
-        "build",
-        ".next",
-        ".cache",
-        "coverage",
-        ".gemini",
-        ".agents",
-      ]);
+      for (const entry of entries) {
+        if (signal.aborted || matches.length >= maxResults) break;
 
-      const walk = async (currentDir: string, depth: number) => {
-        if (depth > 8 || matches.length >= maxResults) return;
+        const fullPath = path.join(currentDir, entry.name);
+        const relPath = path.relative(rootPath, fullPath);
 
-        let entries;
-        try {
-          entries = await fs.readdir(currentDir, { withFileTypes: true });
-        } catch {
-          return;
-        }
-
-        for (const entry of entries) {
-          if (matches.length >= maxResults) break;
-
-          const fullPath = path.join(currentDir, entry.name);
-          const relPath = path.relative(rootPath, fullPath);
-
-          if (entry.isDirectory()) {
-            if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
-              await walk(fullPath, depth + 1);
-            }
-          } else if (entry.isFile()) {
-            if (options.filePattern && options.filePattern.trim()) {
-              const pat = options.filePattern.trim().toLowerCase();
-              if (!entry.name.toLowerCase().includes(pat) && !relPath.toLowerCase().includes(pat)) {
-                continue;
-              }
-            }
-
-            try {
-              const stat = await fs.stat(fullPath);
-              if (stat.size > 2 * 1024 * 1024) continue; // Skip files > 2MB
-
-              // Quick binary check: read first 512 bytes
-              const handle = await fs.open(fullPath, "r");
-              const sampleBuf = Buffer.alloc(Math.min(512, stat.size));
-              const { bytesRead } = await handle.read(sampleBuf, 0, sampleBuf.length, 0);
-              await handle.close();
-
-              let isBinary = false;
-              for (let b = 0; b < bytesRead; b++) {
-                if (sampleBuf[b] === 0) {
-                  isBinary = true;
-                  break;
-                }
-              }
-              if (isBinary) continue;
-
-              const content = await fs.readFile(fullPath, "utf-8");
-              const lines = content.split(/\r?\n/);
-
-              for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-                if (matches.length >= maxResults) break;
-                const lineStr = lines[lineIdx]!;
-                searchRegex.lastIndex = 0;
-
-                let m;
-                while ((m = searchRegex.exec(lineStr)) !== null) {
-                  matches.push({
-                    filePath: fullPath,
-                    relativePath: relPath,
-                    line: lineIdx + 1,
-                    column: m.index + 1,
-                    lineContent: lineStr.slice(0, 300),
-                    matchLength: m[0].length,
-                  });
-                  if (matches.length >= maxResults || m[0].length === 0) break;
-                }
-              }
-            } catch { /* intentional ignore */ }
+        if (entry.isDirectory()) {
+          if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
+            await walk(fullPath, depth + 1);
           }
-        }
-      };
+        } else if (entry.isFile()) {
+          if (options.filePattern && options.filePattern.trim()) {
+            const pat = options.filePattern.trim().toLowerCase();
+            if (!entry.name.toLowerCase().includes(pat) && !relPath.toLowerCase().includes(pat)) {
+              continue;
+            }
+          }
 
-      await walk(rootPath, 0);
-      return matches;
-    } catch (err) {
-      console.error(`Failed to search file contents in directory: ${dirPath}`, err);
-      return [];
-    }
+          try {
+            const stat = await fs.stat(fullPath);
+            if (stat.size > 2 * 1024 * 1024) continue; // Skip files > 2MB
+
+            // Quick binary check: read first 512 bytes
+            const handle = await fs.open(fullPath, "r");
+            const sampleBuf = Buffer.alloc(Math.min(512, stat.size));
+            let bytesRead: number;
+            try {
+              ({ bytesRead } = await handle.read(sampleBuf, 0, sampleBuf.length, 0));
+            } finally {
+              await handle.close();
+            }
+
+            let isBinary = false;
+            for (let b = 0; b < bytesRead; b++) {
+              if (sampleBuf[b] === 0) {
+                isBinary = true;
+                break;
+              }
+            }
+            if (isBinary) continue;
+
+            const content = await fs.readFile(fullPath, "utf-8");
+            const lines = content.split(/\r?\n/);
+
+            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+              if (matches.length >= maxResults) break;
+              const lineStr = lines[lineIdx]!;
+              searchRegex.lastIndex = 0;
+
+              let m;
+              while ((m = searchRegex.exec(lineStr)) !== null) {
+                matches.push({
+                  filePath: fullPath,
+                  relativePath: relPath,
+                  line: lineIdx + 1,
+                  column: m.index + 1,
+                  lineContent: lineStr.slice(0, 300),
+                  matchLength: m[0].length,
+                });
+                if (matches.length >= maxResults || m[0].length === 0) break;
+              }
+            }
+          } catch { /* intentional ignore */ }
+        }
+      }
+    };
+
+    await walk(rootPath, 0);
+    signal.throwIfAborted();
+    return matches;
   }
 
   revealPath(itemPath: string) {
@@ -574,9 +553,7 @@ class WorkspaceService {
 
   async readFileHead(filePath: string) {
     try {
-      const hashIdx = filePath.indexOf('#');
-      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-      const targetPath = path.resolve(expandHome(cleanPath));
+      const targetPath = path.resolve(expandHome(filePath));
 
       logSensitivePathAccess(targetPath);
 
@@ -601,9 +578,7 @@ class WorkspaceService {
 
   async readFile(filePath: string) {
     try {
-      const hashIdx = filePath.indexOf('#');
-      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-      const targetPath = path.resolve(expandHome(cleanPath));
+      const targetPath = path.resolve(expandHome(filePath));
 
       logSensitivePathAccess(targetPath);
 
@@ -621,9 +596,7 @@ class WorkspaceService {
 
   async writeFile(filePath: string, content: string) {
     try {
-      const hashIdx = filePath.indexOf('#');
-      const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-      const targetPath = path.resolve(expandHome(cleanPath));
+      const targetPath = path.resolve(expandHome(filePath));
 
       logSensitivePathAccess(targetPath);
 
@@ -666,8 +639,8 @@ class WorkspaceService {
 
         statusMap[relPath] = status;
 
-        if (relPath.includes("/")) {
-          const topFolder = relPath.split("/")[0]!;
+        if (relPath.includes("/") || relPath.includes("\\")) {
+          const topFolder = relPath.split(/[/\\]/)[0]!;
           if (!statusMap[topFolder]) {
             statusMap[topFolder] = status;
           }
@@ -744,10 +717,10 @@ class WorkspaceService {
   async gitStage(cwd: string, files: string[] = []) {
     try {
       const targetDir = await this.getGitRoot(cwd);
-      if (!files || files.length === 0 || files.includes(".")) {
+      if (!files || files.length === 0) {
         await execFileAsync("git", ["add", "-A"], { cwd: targetDir });
       } else {
-        await execFileAsync("git", ["add", "--", ...files], { cwd: targetDir });
+        await execFileAsync("git", ["--literal-pathspecs", "add", "--", ...files], { cwd: targetDir });
       }
       return { success: true };
     } catch (err: unknown) {
@@ -759,7 +732,7 @@ class WorkspaceService {
   async gitUnstage(cwd: string, files: string[] = []) {
     try {
       const targetDir = await this.getGitRoot(cwd);
-      if (!files || files.length === 0 || files.includes(".")) {
+      if (!files || files.length === 0) {
         try {
           await execFileAsync("git", ["restore", "--staged", "."], { cwd: targetDir });
         } catch {
@@ -777,9 +750,9 @@ class WorkspaceService {
           }
         }
         try {
-          await execFileAsync("git", ["restore", "--staged", "--", ...paths], { cwd: targetDir });
+          await execFileAsync("git", ["--literal-pathspecs", "restore", "--staged", "--", ...paths], { cwd: targetDir });
         } catch {
-          await execFileAsync("git", ["reset", "HEAD", "--", ...paths], { cwd: targetDir });
+          await execFileAsync("git", ["--literal-pathspecs", "reset", "HEAD", "--", ...paths], { cwd: targetDir });
         }
       }
       return { success: true };
@@ -793,15 +766,14 @@ class WorkspaceService {
     try {
       const targetDir = await this.getGitRoot(cwd);
       if (!files || files.length === 0) return { success: true };
-      try {
-        await execFileAsync("git", ["restore", "--", ...files], { cwd: targetDir });
-      } catch {
-        await execFileAsync("git", ["checkout", "--", ...files], { cwd: targetDir });
+      const { stdout } = await execFileAsync(
+        "git", ["--literal-pathspecs", "ls-files", "-z", "--", ...files], { cwd: targetDir },
+      );
+      const tracked = new Set(stdout.split("\0").filter(Boolean));
+      if (files.some((file) => !tracked.has(file))) {
+        return { success: false, error: "Select individual tracked files to discard" };
       }
-      // Also clean untracked if any
-      try {
-        await execFileAsync("git", ["clean", "-f", "--", ...files], { cwd: targetDir });
-      } catch { /* intentional ignore */ }
+      await execFileAsync("git", ["--literal-pathspecs", "restore", "--", ...files], { cwd: targetDir });
       return { success: true };
     } catch (err: unknown) {
       const e = err as { stderr?: string; message?: string };
@@ -858,17 +830,32 @@ class WorkspaceService {
   async getGitBranches(cwd: string) {
     try {
       const targetDir = path.resolve(expandHome(cwd));
-      const { stdout } = await execFileAsync("git", ["branch", "--list", "--no-color"], { cwd: targetDir });
+      const { stdout } = await execFileAsync(
+        "git",
+        ["branch", "--format=%(HEAD)%00%(refname:short)"],
+        { cwd: targetDir },
+      );
       let current = "";
       const branches: string[] = [];
       for (const line of stdout.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        if (trimmed.startsWith("* ")) {
-          current = trimmed.substring(2);
-          branches.push(current);
+        if (!line.trim()) continue;
+        const sep = line.indexOf("\x00");
+        if (sep !== -1) {
+          const headFlag = line.slice(0, sep).trim();
+          const name = line.slice(sep + 1).trim();
+          if (!name) continue;
+          if (headFlag === "*") current = name;
+          branches.push(name);
         } else {
-          branches.push(trimmed);
+          const trimmed = line.trim();
+          if (trimmed.startsWith("* ")) {
+            current = trimmed.substring(2);
+            branches.push(current);
+          } else if (trimmed.startsWith("+ ")) {
+            branches.push(trimmed.substring(2));
+          } else {
+            branches.push(trimmed);
+          }
         }
       }
       return { current, all: branches };
@@ -925,11 +912,11 @@ class WorkspaceService {
       const targetDir = path.resolve(expandHome(cwd));
       const relPath = path.isAbsolute(filePath) ? path.relative(targetDir, filePath) : filePath;
       try {
-        const { stdout } = await execFileAsync("git", ["diff", "HEAD", "--", relPath], { cwd: targetDir });
+        const { stdout } = await execFileAsync("git", ["--literal-pathspecs", "diff", "HEAD", "--", relPath], { cwd: targetDir });
         if (stdout.trim()) return stdout;
       } catch { /* intentional ignore */ }
 
-      const { stdout: diffUntracked } = await execFileAsync("git", ["diff", "--", relPath], { cwd: targetDir });
+      const { stdout: diffUntracked } = await execFileAsync("git", ["--literal-pathspecs", "diff", "--", relPath], { cwd: targetDir });
       return diffUntracked;
     } catch {
       return "";
@@ -1000,22 +987,40 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     return workspaceService.searchFiles(dirPath, query);
   });
 
+  const activeSearches = new Map<Electron.WebContents, AbortController>();
+  ipcMain.handle("workspace:cancel-search", (event) => {
+    if (isTrustedSender(event)) activeSearches.get(event.sender)?.abort();
+  });
   ipcMain.handle(
     "workspace:search-file-contents",
-    async (
-      event,
-      dirPath: string,
-      query: string,
-      options?: { caseSensitive?: boolean; wholeWord?: boolean; isRegex?: boolean; maxResults?: number },
-    ) => {
+    async (event, dirPath: string, query: string, options: FileContentSearchOptions = {}): Promise<WorkspaceSearchResult> => {
       if (!isTrustedSender(event)) {
-        console.warn("[security] Blocked workspace:search-file-contents from untrusted sender");
-        return [];
+        return { status: "error", code: "failed", message: "Access denied" };
       }
-      if (!validPathInput(dirPath) || typeof query !== "string" || query.length > 512) {
-        return [];
+      if (!validPathInput(dirPath) || typeof query !== "string" || query.length > 512 ||
+          !options || typeof options !== "object" ||
+          (options.filePattern !== undefined && typeof options.filePattern !== "string")) {
+        return { status: "error", code: "invalid-query", message: "Invalid search options or query" };
       }
-      return workspaceService.searchFileContents(dirPath, query, options);
+
+      const sender = event.sender;
+      activeSearches.get(sender)?.abort();
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      activeSearches.set(sender, controller);
+      sender.once("destroyed", abort);
+      try {
+        const matches = await workspaceService.searchFileContents(dirPath, query, options, controller.signal);
+        return controller.signal.aborted ? { status: "cancelled" } : { status: "success", matches };
+      } catch (error) {
+        if (controller.signal.aborted) return { status: "cancelled" };
+        if (error instanceof WorkspaceSearchError) return { status: "error", code: error.code, message: error.message };
+        console.warn("Workspace search failed:", error);
+        return { status: "error", code: "failed", message: "Could not search the workspace" };
+      } finally {
+        sender.removeListener("destroyed", abort);
+        if (activeSearches.get(sender) === controller) activeSearches.delete(sender);
+      }
     },
   );
 
@@ -1028,6 +1033,17 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
       return;
     }
     return workspaceService.revealPath(itemPath);
+  });
+
+  ipcMain.handle("workspace:file-exists", async (event, filePath: string) => {
+    if (!isTrustedSender(event) || !nonEmptyPathInput(filePath)) throw new Error("Invalid file path");
+    try {
+      await fs.lstat(path.resolve(expandHome(filePath)));
+      return true;
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
   });
 
   ipcMain.handle("workspace:read-file-head", async (event, filePath: string) => {
@@ -1060,9 +1076,7 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     if (!nonEmptyPathInput(filePath) || typeof content !== "string" || content.length > MAX_FILE_WRITE_BYTES) {
       return { __ipcError: true, message: "Invalid path or content too large" };
     }
-    const hashIdx = filePath.indexOf('#');
-    const cleanPath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-    const resolvedWritePath = path.resolve(expandHome(cleanPath));
+    const resolvedWritePath = path.resolve(expandHome(filePath));
     let realTarget = resolvedWritePath;
     if (typeof fs.realpath === "function") {
       try {
@@ -1196,8 +1210,6 @@ printf "\\033]999;edit;%s\\007" "$FILE_PATH"
     if (!validPathInput(cwd) || !nonEmptyPathInput(filePath)) {
       return "";
     }
-    const hashIdx = filePath.indexOf('#');
-    const cleanFilePath = hashIdx !== -1 ? filePath.substring(0, hashIdx) : filePath;
-    return workspaceService.getGitDiff(cwd, cleanFilePath);
+    return workspaceService.getGitDiff(cwd, filePath);
   });
 }

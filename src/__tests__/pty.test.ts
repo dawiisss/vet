@@ -57,6 +57,10 @@ jest.mock("../main/config", () => ({
   })),
 }));
 
+jest.mock("../main/sftp", () => ({
+  getSftpConnectionId: jest.fn(() => "ssh-revision"),
+}));
+
 jest.mock("../main/historyDb", () => ({
   startSession: jest.fn(),
   closeSession: jest.fn(),
@@ -99,6 +103,22 @@ describe("pty", () => {
   });
 
   describe("createTerminal", () => {
+    it("keeps the original SSH connection identity in terminal info", async () => {
+      const { getConfig } = require("../main/config");
+      const { getSftpConnectionId } = require("../main/sftp");
+      const config = getConfig();
+      getConfig.mockReturnValue({
+        ...config, sshHosts: [{ id: "remote", host: "original.example.invalid", username: "tester", authType: "agent" }],
+      });
+      const id = createTerminal({ sshHostId: "remote" });
+      getConfig.mockReturnValue({ ...config, sshHosts: [] });
+      expect(await getTerminalInfo(id)).toMatchObject({
+        sshHostId: "remote", sshConnectionId: "ssh-revision",
+      });
+      expect(getSftpConnectionId).toHaveBeenCalledTimes(1);
+      destroyTerminal(id);
+    });
+
     it("returns a uuid", () => {
       expect(terminalId).toBe("mock-uuid-1234");
     });

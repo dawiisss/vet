@@ -63,7 +63,7 @@ export const SshProfilesManager: React.FC = () => {
     }
   }, [sshHosts, selectedId, isEditingNew]);
 
-  const saveHost = () => {
+  const saveHost = async () => {
     if (!editName.trim() || !editHost.trim() || !editUser.trim()) {
       alert("Name, Host, and Username are required.");
       return;
@@ -88,29 +88,38 @@ export const SshProfilesManager: React.FC = () => {
           : "",
     };
 
-    if (isEditingNew) {
-      const newId = `ssh-${Date.now()}`;
-      updated.push({ id: newId, ...hostData });
-      updateConfig({ sshHosts: updated });
-      setSelectedId(newId);
+    const id = isEditingNew ? `ssh-${Date.now()}` : selectedId;
+    if (!id) return;
+
+    updated = isEditingNew
+      ? [...updated, { id, ...hostData }]
+      : updated.map((host) => host.id === id ? { id, ...hostData } : host);
+    try {
+      await updateConfig({ sshHosts: updated });
+      setSelectedId(id);
       setIsEditingNew(false);
-    } else if (selectedId) {
-      updated = updated.map((h) =>
-        h.id === selectedId ? { id: h.id, ...hostData } : h,
-      );
-      updateConfig({ sshHosts: updated });
+      setHasSavedPassword(Boolean(hostData.password));
+      setHasSavedPassphrase(Boolean(hostData.passphrase));
+      setEditPassword("");
+      setEditPassphrase("");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to save SSH profile");
     }
   };
 
-  const deleteHost = (id: string, e: React.MouseEvent) => {
+  const deleteHost = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this SSH host?")) {
-      const updated = sshHosts.filter((h) => h.id !== id);
-      updateConfig({ sshHosts: updated });
+    if (!window.confirm("Are you sure you want to delete this SSH host?")) return;
+
+    const updated = sshHosts.filter((host) => host.id !== id);
+    try {
+      await updateConfig({ sshHosts: updated });
       if (selectedId === id) {
         if (updated.length > 0) selectHost(updated[0]);
         else initNewHost();
       }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to delete SSH profile");
     }
   };
 

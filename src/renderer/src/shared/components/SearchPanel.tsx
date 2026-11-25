@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Panel from "./Panel";
 
 export default function SearchPanel({
@@ -8,7 +8,7 @@ export default function SearchPanel({
 }: {
   isActive: boolean;
   activeTerminalId?: string | null | undefined;
-  onViewFile?: ((filePath: string) => void) | undefined;
+  onViewFile?: OpenWorkspaceFile | undefined;
 }) {
   const [query, setQuery] = useState("");
   const [filePattern, setFilePattern] = useState("");
@@ -20,91 +20,81 @@ export default function SearchPanel({
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<FileContentMatch[]>([]);
   const [collapsedFiles, setCollapsedFiles] = useState<Record<string, boolean>>({});
-  const [cwd, setCwd] = useState<string>("");
+  const [workspace, setWorkspace] = useState<{ terminalId: string; cwd: string }>();
+  const [searchError, setSearchError] = useState("");
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch CWD from active terminal
+
   useEffect(() => {
     if (!isActive || !activeTerminalId) return;
-    window.terminalApi
-      ?.getTerminalInfo(activeTerminalId)
+    let active = true;
+    window.terminalApi?.getTerminalInfo(activeTerminalId)
       .then((info) => {
-        if (info?.cwd) setCwd(info.cwd);
+        if (active) setWorkspace({ terminalId: activeTerminalId, cwd: info?.cwd || "" });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) setWorkspace({ terminalId: activeTerminalId, cwd: "" });
+      });
+    return () => { active = false; };
   }, [isActive, activeTerminalId]);
 
-  // Focus input when tab activates
   useEffect(() => {
-    if (isActive) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
-    }
+    if (!isActive) return;
+    const timer = setTimeout(() => searchInputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
   }, [isActive]);
 
-  const executeSearch = useCallback(
-    async (q: string, pat: string, cs: boolean, ww: boolean, rx: boolean) => {
-      if (!q || q.trim() === "") {
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const matches = await window.workspaceApi.searchFileContents(
-          cwd,
-          q,
-          {
-            caseSensitive: cs,
-            wholeWord: ww,
-            isRegex: rx,
-            filePattern: pat || undefined,
-            maxResults: 300,
-          },
-        );
-        setResults(matches || []);
-        setSelectedIdx(matches && matches.length > 0 ? 0 : -1);
-      } catch (err) {
-        console.error("Search failed:", err);
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [cwd],
-  );
+  useEffect(() => {
+    setResults([]);
+    setSelectedIdx(-1);
+    setSearchError("");
+    if (!isActive || !query.trim() || (activeTerminalId && workspace?.terminalId !== activeTerminalId)) {
+      setLoading(false);
+      return;
+    }
 
-  const triggerSearch = useCallback(
-    (newQuery?: string) => {
-      const q = newQuery !== undefined ? newQuery : query;
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = setTimeout(() => {
-        executeSearch(q, filePattern, caseSensitive, wholeWord, isRegex);
-      }, 250);
-    },
-    [query, filePattern, caseSensitive, wholeWord, isRegex, executeSearch],
-  );
+    setLoading(true);
+    let active = true;
+    let searching = false;
+    const timer = setTimeout(() => {
+      searching = true;
+      const cwd = activeTerminalId ? workspace?.cwd ?? "" : "";
+      void window.workspaceApi.searchFileContents(cwd, query, {
+        caseSensitive, wholeWord, isRegex, filePattern: filePattern || undefined, maxResults: 300,
+      }).then((result) => {
+        if (!active) return;
+        if (result.status === "success") {
+          setResults(result.matches);
+          setSelectedIdx(result.matches.length > 0 ? 0 : -1);
+        } else if (result.status === "error") {
+          setSearchError(result.message);
+        }
+      }).catch(() => {
+        if (active) setSearchError("Could not search the workspace");
+      }).finally(() => {
+        searching = false;
+        if (active) setLoading(false);
+      });
+    }, 250);
 
-  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    triggerSearch(val);
-  };
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (searching) void window.workspaceApi.cancelSearch().catch(() => { /* The window may be closing. */ });
+    };
+  }, [isActive, activeTerminalId, workspace, query, filePattern, caseSensitive, wholeWord, isRegex]);
 
   const handleOpenMatch = (match: FileContentMatch) => {
-    const targetPath = `${match.filePath}#L${match.line}`;
     if (onViewFile) {
-      onViewFile(targetPath);
+      onViewFile(match.filePath, undefined, { line: match.line, column: match.column });
     } else {
       window.dispatchEvent(
         new CustomEvent("vet:open-editor", {
           detail: {
-            filePath: targetPath,
+            filePath: match.filePath,
             line: match.line,
             col: match.column,
             sshHostId: null,
@@ -207,7 +197,7 @@ export default function SearchPanel({
             ref={searchInputRef}
             type="text"
             value={query}
-            onChange={handleQueryChange}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="Search files..."
             style={{
               width: "100%",
@@ -231,11 +221,7 @@ export default function SearchPanel({
             }}
           >
             <button
-              onClick={() => {
-                const next = !caseSensitive;
-                setCaseSensitive(next);
-                executeSearch(query, filePattern, next, wholeWord, isRegex);
-              }}
+              onClick={() => setCaseSensitive((value) => !value)}
               title="Match Case (Aa)"
               style={{
                 background: caseSensitive ? "var(--app-accent, #89b4fa)" : "transparent",
@@ -251,11 +237,7 @@ export default function SearchPanel({
               Aa
             </button>
             <button
-              onClick={() => {
-                const next = !wholeWord;
-                setWholeWord(next);
-                executeSearch(query, filePattern, caseSensitive, next, isRegex);
-              }}
+              onClick={() => setWholeWord((value) => !value)}
               title="Match Whole Word (ab)"
               style={{
                 background: wholeWord ? "var(--app-accent, #89b4fa)" : "transparent",
@@ -271,11 +253,7 @@ export default function SearchPanel({
               \b
             </button>
             <button
-              onClick={() => {
-                const next = !isRegex;
-                setIsRegex(next);
-                executeSearch(query, filePattern, caseSensitive, wholeWord, next);
-              }}
+              onClick={() => setIsRegex((value) => !value)}
               title="Use Regular Expression (.*)"
               style={{
                 background: isRegex ? "var(--app-accent, #89b4fa)" : "transparent",
@@ -323,11 +301,7 @@ export default function SearchPanel({
           <input
             type="text"
             value={filePattern}
-            onChange={(e) => {
-              const pat = e.target.value;
-              setFilePattern(pat);
-              if (query) executeSearch(query, pat, caseSensitive, wholeWord, isRegex);
-            }}
+            onChange={(event) => setFilePattern(event.target.value)}
             placeholder="e.g. *.ts, src/components"
             style={{
               width: "100%",
@@ -344,7 +318,10 @@ export default function SearchPanel({
         )}
 
         {/* Results summary */}
-        {query.trim() !== "" && !loading && (
+        {searchError && (
+          <div role="status" style={{ fontSize: 11, color: "var(--app-red)" }}>{searchError}</div>
+        )}
+        {query.trim() !== "" && !loading && !searchError && (
           <div
             style={{
               fontSize: 11,

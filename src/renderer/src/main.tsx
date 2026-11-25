@@ -13,14 +13,11 @@ useClipboardStore.getState().initialize();
 import { useTabStore } from "./features/terminal/useTabStore";
 
 // Subscribe to tab store changes and save session
-useTabStore.subscribe((state) => {
-  if (window.terminalApi && state.tabs.length > 0 && !state.isDetached) {
-    const sessionData = {
-      tabs: state.tabs,
-      activeTabId: state.activeTabId,
-    };
-    window.terminalApi.saveSession(sessionData);
-  }
+useTabStore.subscribe((state, previous) => {
+  if (!window.terminalApi || !state.tabsReady || state.isDetached) return;
+  if (previous.tabsReady && state.tabs === previous.tabs && state.activeTabId === previous.activeTabId) return;
+  void window.terminalApi.saveSession({ tabs: state.tabs, activeTabId: state.activeTabId })
+    .catch((error: unknown) => console.error("Could not send workspace snapshot:", error));
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

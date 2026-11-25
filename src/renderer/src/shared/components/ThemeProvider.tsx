@@ -51,30 +51,30 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     }
   }
 
-  const containerStyle: React.CSSProperties = {
+  const containerStyle: React.CSSProperties & Record<`--${string}`, string | undefined> = {
     width: "100vw",
     height: "100vh",
     display: "flex",
     flexDirection: "column",
     background: appBg,
-    ["--app-bg" as any]: themeObj.background,
-    ["--app-fg" as any]: themeObj.foreground,
-    ["--app-border" as any]: themeObj.selection || "rgba(255,255,255,0.1)",
-    ["--app-accent" as any]:
+    "--app-bg": themeObj.background,
+    "--app-fg": themeObj.foreground,
+    "--app-border": themeObj.selection || "rgba(255,255,255,0.1)",
+    "--app-accent":
       themeObj.accent ||
       themeObj.magenta ||
       themeObj.cursor ||
       "var(--app-accent)",
-    ["--app-red" as any]: themeObj.red || "var(--app-red)",
-    ["--app-green" as any]: themeObj.green || "var(--app-green)",
-    ["--app-yellow" as any]: themeObj.yellow || "var(--app-yellow)",
-    ["--app-blue" as any]: themeObj.blue || "var(--app-blue)",
-    ["--app-fg-subtle" as any]:
+    "--app-red": themeObj.red || "var(--app-red)",
+    "--app-green": themeObj.green || "var(--app-green)",
+    "--app-yellow": themeObj.yellow || "var(--app-yellow)",
+    "--app-blue": themeObj.blue || "var(--app-blue)",
+    "--app-fg-subtle":
       "color-mix(in srgb, var(--app-fg) 70%, transparent)",
-    ["--app-fg-muted" as any]:
+    "--app-fg-muted":
       "color-mix(in srgb, var(--app-fg) 40%, transparent)",
-    ["--app-panel-bg" as any]: "rgba(0,0,0,0.15)",
-    ["--app-modal-bg" as any]: "rgba(0,0,0,0.25)",
+    "--app-panel-bg": "rgba(0,0,0,0.15)",
+    "--app-modal-bg": "rgba(0,0,0,0.25)",
   };
 
   return <div style={containerStyle}>{children}</div>;

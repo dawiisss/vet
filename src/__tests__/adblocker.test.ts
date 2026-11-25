@@ -74,4 +74,21 @@ describe("adblocker", () => {
     await initAdblocker("/mock/user/data");
     expect(fs.writeFile).toHaveBeenCalled();
   });
+
+  it("rejects non-http URLs in adblocker:get-html-replace-rules", async () => {
+    registerAdblockerIpcHandlers(() => null);
+    const call = (ipcMain.handle as jest.Mock).mock.calls.find(
+      ([channel]: [string]) => channel === "adblocker:get-html-replace-rules",
+    );
+    expect(call).toBeDefined();
+    const handler = call![1] as (_e: unknown, url: string) => Promise<unknown>;
+    await expect(handler({}, "file:///etc/passwd")).resolves.toEqual({
+      pruneKeys: [],
+      replaceRules: [],
+    });
+    await expect(handler({}, "javascript:alert(1)")).resolves.toEqual({
+      pruneKeys: [],
+      replaceRules: [],
+    });
+  });
 });

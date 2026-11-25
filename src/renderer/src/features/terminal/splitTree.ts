@@ -13,6 +13,7 @@ export interface SplitNode {
   browserId?: string | undefined;
   editorId?: string | undefined;
   filePath?: string | undefined;
+  editorOptions?: EditorOpenOptions | undefined;
   sshHostId?: string | null | undefined;
   url?: string | undefined;
   direction?: "horizontal" | "vertical" | undefined;

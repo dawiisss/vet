@@ -44,6 +44,7 @@ const app = {
 
 const shell = {
   openExternal: jest.fn(),
+  openPath: jest.fn(),
   showItemInFolder: jest.fn(),
 };
 

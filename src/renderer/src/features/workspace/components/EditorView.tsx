@@ -21,6 +21,7 @@ const tabCompletionExtension = Prec.highest(
 interface EditorViewProps {
   editorId: string;
   filePath?: string | undefined;
+  editorOptions?: EditorOpenOptions | undefined;
   sshHostId?: string | null | undefined;
   isActive: boolean;
   isFocused?: boolean | undefined;
@@ -32,7 +33,8 @@ interface EditorViewProps {
 
 export const EditorView: React.FC<EditorViewProps> = ({
   editorId: _editorId,
-  filePath: rawFilePath = "",
+  filePath = "",
+  editorOptions,
   sshHostId,
   isActive: _isActive,
   isFocused,
@@ -41,11 +43,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onExtract,
   onContextMenuAction,
 }) => {
-  const safeRawPath = rawFilePath || "";
-  const isGitDiffInitial = safeRawPath.includes("#git-diff");
-  const lineMatch = safeRawPath.match(/#L(\d+)/i);
-  const targetLine = lineMatch && lineMatch[1] ? parseInt(lineMatch[1], 10) : undefined;
-  const filePath = safeRawPath.split("#")[0]!;
+  const targetLine = editorOptions?.line;
+  const targetColumn = editorOptions?.column;
+  const sshConnectionId = editorOptions?.sshConnectionId;
+  const isGitDiffInitial = editorOptions?.view === "git-diff";
 
   const cachedDocument = useEditorDocument(_editorId, filePath, sshHostId);
   const content = cachedDocument?.content || "";
@@ -116,17 +117,19 @@ export const EditorView: React.FC<EditorViewProps> = ({
     setLoading(true);
     setStatusMsg(null);
     const readPromise = sshHostId
-      ? window.sftpApi.readFile(sshHostId, filePath)
+      ? window.sftpApi.readFile(sshHostId, filePath, sshConnectionId)
       : window.workspaceApi.readFile(filePath);
 
     readPromise
       .then((data) => {
         if (active) {
-          if (data.startsWith("Error: Failed to read file.")) {
+          const content = typeof data === "string" ? data : data.content;
+          if (typeof data === "string" && data.startsWith("Error: Failed to read file.")) {
             setStatusMsg({ text: data, type: "error" });
           } else {
             setEditorDocument(_editorId, filePath, sshHostId, {
-              content: data,
+              content,
+              connectionId: typeof data === "string" ? undefined : data.connectionId,
               isDirty: false,
             });
           }
@@ -143,9 +146,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
     return () => {
       active = false;
     };
-  }, [filePath, sshHostId, _editorId]);
+  }, [filePath, sshHostId, sshConnectionId, _editorId]);
 
-  const jumpToLine = (lineNum: number) => {
+  const jumpToLine = (lineNum: number, column = 1) => {
     const view = editorRef.current;
     if (!view) return;
     setTimeout(() => {
@@ -153,9 +156,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
         const lineCount = view.state?.doc?.lines || 1;
         const validLine = Math.max(1, Math.min(lineNum, lineCount));
         const lineObj = view.state.doc.line(validLine);
+        const position = Math.min(lineObj.to, lineObj.from + Math.max(0, column - 1));
         view.dispatch({
-          selection: { anchor: lineObj.from, head: lineObj.from },
-          effects: CMEditorView.scrollIntoView(lineObj.from, { y: "center" }),
+          selection: { anchor: position },
+          effects: CMEditorView.scrollIntoView(position, { y: "center" }),
         });
       } catch { /* intentional ignore */ }
     }, 100);
@@ -164,9 +168,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
   // Scroll to target line when file finishes loading or line changes
   useEffect(() => {
     if (!loading && targetLine) {
-      jumpToLine(targetLine);
+      jumpToLine(targetLine, targetColumn);
     }
-  }, [loading, targetLine, rawFilePath]);
+  }, [loading, targetLine, targetColumn, filePath]);
+
+  useEffect(() => setIsDiffMode(isGitDiffInitial), [editorOptions, isGitDiffInitial]);
 
   // 2. Fetch Git diff content if in diff mode
   useEffect(() => {
@@ -231,7 +237,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
     try {
       await saveEditorDocument(_editorId, filePath, sshHostId, (value) => sshHostId
-        ? window.sftpApi.writeFile(sshHostId, filePath, value)
+        ? window.sftpApi.writeFile(sshHostId, filePath, value, cachedDocument?.connectionId)
         : window.workspaceApi.writeFile(filePath, value));
       setStatusMsg({ text: "Saved", type: "success" });
     } catch (err: any) {
@@ -601,7 +607,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 view.focus();
               }
               if (targetLine) {
-                jumpToLine(targetLine);
+                jumpToLine(targetLine, targetColumn);
               }
             }}
             style={{

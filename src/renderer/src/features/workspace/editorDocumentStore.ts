@@ -5,6 +5,7 @@ interface EditorDocumentState {
   isDirty: boolean;
   isSaving: boolean;
   isTransferring: boolean;
+  connectionId?: string | undefined;
 }
 
 const useDocuments = create<{ documents: Map<string, EditorDocumentState> }>(() => ({
@@ -14,7 +15,7 @@ const pendingSaves = new Map<string, Promise<void>>();
 const transferringKeys = new Set<string>();
 
 function key(editorId: string, filePath: string, sshHostId?: string | null): string {
-  return JSON.stringify([editorId, sshHostId || "local", filePath.split("#")[0]]);
+  return JSON.stringify([editorId, sshHostId ?? null, filePath]);
 }
 
 function updateDocument(documentKey: string, update: Partial<EditorDocumentState>): void {
@@ -48,7 +49,7 @@ export function setEditorDocument(
   editorId: string,
   filePath: string,
   sshHostId: string | null | undefined,
-  state: Pick<EditorDocumentState, "content" | "isDirty">,
+  state: Pick<EditorDocumentState, "content" | "isDirty" | "connectionId">,
 ): void {
   updateDocument(key(editorId, filePath, sshHostId), state);
 }
@@ -90,6 +91,7 @@ export function hydrateEditorDocuments(documents: EditorDocumentSnapshot[]): voi
     setEditorDocument(document.editorId, document.filePath, document.sshHostId, {
       content: document.content,
       isDirty: document.isDirty,
+      connectionId: document.connectionId,
     });
   }
 }
@@ -140,7 +142,7 @@ export async function prepareEditorTransfer(root: TabTransferNode): Promise<{
   await Promise.allSettled(keys.map((documentKey) => pendingSaves.get(documentKey)));
   const editorDocuments: EditorDocumentSnapshot[] = [];
   for (const node of leaves) {
-    const filePath = (node.filePath || "").split("#")[0]!;
+    const filePath = node.filePath || "";
     const document = getEditorDocument(node.editorId!, filePath, node.sshHostId);
     if (document) editorDocuments.push({
       editorId: node.editorId!,
@@ -148,6 +150,7 @@ export async function prepareEditorTransfer(root: TabTransferNode): Promise<{
       sshHostId: node.sshHostId,
       content: document.content,
       isDirty: document.isDirty,
+      ...(document.connectionId && { connectionId: document.connectionId }),
     });
   }
   return { editorDocuments, release };
