@@ -26,6 +26,7 @@ describe("Workspace files and Git", () => {
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "vet-git-test-"));
     await git("init", "-q");
+    await git("config", "core.autocrlf", "false");
     await git("config", "user.name", "Vet Test");
     await git("config", "user.email", "vet-test@example.invalid");
     fs.mkdirSync(path.join(root, "nested"));
